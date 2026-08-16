@@ -1,0 +1,38 @@
+@using WebBanHang.Data
+@inject ApplicationDbContext Db
+
+@{
+    var categories = Db.Categories.OrderBy(c => c.Name).ToList();
+    int? flashSaleCategoryId = ViewBag.FlashSaleCategoryId as int?;
+}
+
+<div class="sidebar-cat">
+    <a asp-controller="Home" asp-action="Index" asp-fragment="hang-hot" class="sidebar-cat-item @(flashSaleCategoryId == null ? "active" : "")">
+        <i class="bi bi-grid-fill text-success"></i>
+        Tất cả sản phẩm
+        <span class="arrow"><i class="bi bi-chevron-right"></i></span>
+    </a>
+
+    @if (categories.Any())
+    {
+        @foreach (var category in categories)
+        {
+            <a asp-controller="Home"
+               asp-action="Index"
+               asp-route-flashSaleCategoryId="@category.Id"
+               asp-fragment="hang-hot"
+               class="sidebar-cat-item @(flashSaleCategoryId == category.Id ? "active" : "")">
+                <i class="bi bi-tag-fill"></i>
+                @category.Name
+                <span class="arrow"><i class="bi bi-chevron-right"></i></span>
+            </a>
+        }
+    }
+    else
+    {
+        <div class="sidebar-cat-item text-muted">
+            <i class="bi bi-inbox"></i>
+            Chưa có danh mục
+        </div>
+    }
+</div>

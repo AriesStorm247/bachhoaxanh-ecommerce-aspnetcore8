@@ -1,0 +1,354 @@
+@model WebBanHang.Models.Order
+
+@{
+    Layout = null;
+    var qrUrl = ViewBag.QrUrl as string ?? "";
+    var paymentCode = ViewBag.PaymentCode as string ?? "";
+    var bankCode = ViewBag.BankCode as string ?? "";
+    var accountNumber = ViewBag.AccountNumber as string ?? "";
+    var accountName = ViewBag.AccountName as string ?? "";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chờ xác nhận chuyển khoản</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            min-height: 100vh;
+            background: #eef4ef;
+            font-family: 'Be Vietnam Pro', sans-serif;
+        }
+
+        .pay-shell {
+            width: min(980px, calc(100vw - 28px));
+            margin: 32px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.12);
+            overflow: hidden;
+        }
+
+        .pay-head {
+            background: #1a7a2e;
+            color: #fff;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .pay-head i {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.16);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+
+        .pay-body {
+            padding: 24px;
+        }
+
+        .qr-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            background: #f8faf8;
+        }
+
+        .qr-box img {
+            width: min(320px, 100%);
+            background: #fff;
+            border-radius: 12px;
+        }
+
+        .pay-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px dashed #e5e7eb;
+            font-size: 14px;
+        }
+
+        .pay-row span:first-child {
+            color: #777;
+        }
+
+        .pay-row strong {
+            text-align: right;
+        }
+
+        .amount {
+            color: #e82828;
+            font-size: 26px;
+            font-weight: 900;
+        }
+
+        .code {
+            color: #1a7a2e;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 1px;
+        }
+
+        .cancel-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1050;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, .45);
+            backdrop-filter: blur(3px);
+        }
+
+        .cancel-overlay.show {
+            display: flex;
+        }
+
+        .cancel-dialog {
+            width: min(420px, 100%);
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .22);
+            padding: 24px;
+            text-align: center;
+        }
+
+        .cancel-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff0f1;
+            color: #dc3545;
+            font-size: 28px;
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+    @Html.AntiForgeryToken()
+
+    <div class="pay-shell">
+        <div class="pay-head">
+            <i class="bi bi-qr-code"></i>
+            <div>
+                <div class="fw-bold">Thanh toán chuyển khoản</div>
+                <small>Đơn hàng chỉ hoàn tất khi hệ thống xác nhận đã nhận đúng tiền.</small>
+            </div>
+        </div>
+
+        <div class="pay-body">
+            <div class="row g-4 align-items-start">
+                <div class="col-md-5">
+                    <div class="qr-box">
+                        <img src="@qrUrl"
+                             alt="QR chuyển khoản"
+                             onerror="this.classList.add('d-none');document.getElementById('qrFallback').classList.remove('d-none');" />
+                        <div id="qrFallback" class="alert alert-warning d-none mb-0">
+                            Không tải được ảnh QR.
+                            <a href="@qrUrl" target="_blank" rel="noopener" class="alert-link">Mở mã QR trực tiếp</a>
+                        </div>
+                        <div class="small text-muted mt-3">Quét mã bằng app ngân hàng hoặc ví điện tử.</div>
+                    </div>
+                </div>
+
+                <div class="col-md-7">
+                    <div class="pay-row">
+                        <span>Mã đơn hàng</span>
+                        <strong>#@Model.Id</strong>
+                    </div>
+                    <div class="pay-row">
+                        <span>Ngân hàng</span>
+                        <strong>@bankCode</strong>
+                    </div>
+                    <div class="pay-row">
+                        <span>Số tài khoản</span>
+                        <strong>@accountNumber</strong>
+                    </div>
+                    <div class="pay-row">
+                        <span>Chủ tài khoản</span>
+                        <strong>@accountName</strong>
+                    </div>
+                    <div class="pay-row">
+                        <span>Số tiền</span>
+                        <strong class="amount">@Model.TotalAmount.ToString("N0") VNĐ</strong>
+                    </div>
+                    <div class="pay-row">
+                        <span>Nội dung chuyển khoản</span>
+                        <strong class="code">@paymentCode</strong>
+                    </div>
+
+                    <div id="statusBox" class="alert alert-info mt-4 mb-3">
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        Đang chờ giao dịch từ API ngân hàng...
+                    </div>
+
+                    <button type="button" id="checkNow" class="btn btn-success w-100 py-2 fw-bold">
+                        KIỂM TRA THANH TOÁN
+                    </button>
+
+                    <button type="button" id="cancelTransfer" class="btn btn-outline-danger w-100 py-2 fw-bold mt-2">
+                        <i class="bi bi-x-circle me-1"></i>HỦY GIAO DỊCH
+                    </button>
+
+                    <a asp-controller="Cart" asp-action="Index"
+                       class="btn btn-link text-secondary w-100 mt-3">
+                        Quay lại giỏ hàng
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cancelConfirm" class="cancel-overlay" aria-hidden="true">
+        <div class="cancel-dialog">
+            <div class="cancel-icon">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </div>
+            <h5 class="fw-bold text-danger mb-2">Hủy giao dịch chuyển khoản?</h5>
+            <p class="text-muted small mb-4">
+                Đơn hàng #@Model.Id sẽ bị hủy và bạn sẽ được đưa về giỏ hàng để kiểm tra lại.
+            </p>
+            <div class="d-flex gap-2">
+                <button type="button" id="cancelDismiss" class="btn btn-light fw-bold flex-fill py-2">
+                    Bỏ qua
+                </button>
+                <button type="button" id="cancelConfirmOk" class="btn btn-danger fw-bold flex-fill py-2">
+                    Hủy giao dịch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statusBox = document.getElementById('statusBox');
+        const checkNow = document.getElementById('checkNow');
+        const cancelTransfer = document.getElementById('cancelTransfer');
+        const cancelConfirm = document.getElementById('cancelConfirm');
+        const cancelDismiss = document.getElementById('cancelDismiss');
+        const cancelConfirmOk = document.getElementById('cancelConfirmOk');
+        const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value || '';
+        let isChecking = false;
+        let isCancelling = false;
+        let paymentCheckTimer = null;
+
+        async function checkPayment() {
+            if (isChecking || isCancelling) return;
+            isChecking = true;
+            checkNow.disabled = true;
+
+            try {
+                const response = await fetch('@Url.Action("CheckBankTransfer", "Payment", new { orderId = Model.Id })', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    statusBox.className = 'alert alert-success mt-4 mb-3';
+                    statusBox.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + (data.message || 'Đã xác nhận thanh toán.');
+                    window.location.href = data.redirectUrl;
+                    return;
+                }
+
+                statusBox.className = 'alert alert-info mt-4 mb-3';
+                statusBox.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>' + (data.message || 'Chưa tìm thấy giao dịch.');
+            } catch {
+                statusBox.className = 'alert alert-warning mt-4 mb-3';
+                statusBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Không kiểm tra được thanh toán, vui lòng thử lại.';
+            } finally {
+                isChecking = false;
+                checkNow.disabled = false;
+            }
+        }
+
+        function openCancelConfirm() {
+            if (isCancelling) return;
+            cancelConfirm.classList.add('show');
+            cancelConfirm.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeCancelConfirm() {
+            cancelConfirm.classList.remove('show');
+            cancelConfirm.setAttribute('aria-hidden', 'true');
+        }
+
+        async function cancelPayment() {
+            if (isCancelling) return;
+            isCancelling = true;
+            closeCancelConfirm();
+            clearInterval(paymentCheckTimer);
+
+            cancelTransfer.disabled = true;
+            checkNow.disabled = true;
+            cancelConfirmOk.disabled = true;
+            cancelTransfer.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang hủy...';
+            statusBox.className = 'alert alert-warning mt-4 mb-3';
+            statusBox.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Đang hủy giao dịch chuyển khoản...';
+
+            try {
+                const response = await fetch('@Url.Action("CancelBankTransfer", "Payment")', {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': antiForgeryToken
+                    },
+                    body: new URLSearchParams({ orderId: '@Model.Id' })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    statusBox.className = 'alert alert-danger mt-4 mb-3';
+                    statusBox.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + (data.message || 'Đã hủy giao dịch.');
+                    window.location.href = data.redirectUrl || '@Url.Action("Index", "Cart")';
+                    return;
+                }
+
+                statusBox.className = 'alert alert-warning mt-4 mb-3';
+                statusBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>' + (data.message || 'Không thể hủy giao dịch.');
+                isCancelling = false;
+                cancelTransfer.disabled = false;
+                checkNow.disabled = false;
+                cancelConfirmOk.disabled = false;
+                cancelTransfer.innerHTML = '<i class="bi bi-x-circle me-1"></i>HỦY GIAO DỊCH';
+                paymentCheckTimer = setInterval(checkPayment, 5000);
+            } catch {
+                statusBox.className = 'alert alert-warning mt-4 mb-3';
+                statusBox.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Lỗi kết nối khi hủy giao dịch, vui lòng thử lại.';
+                isCancelling = false;
+                cancelTransfer.disabled = false;
+                checkNow.disabled = false;
+                cancelConfirmOk.disabled = false;
+                cancelTransfer.innerHTML = '<i class="bi bi-x-circle me-1"></i>HỦY GIAO DỊCH';
+                paymentCheckTimer = setInterval(checkPayment, 5000);
+            }
+        }
+
+        checkNow.addEventListener('click', checkPayment);
+        cancelTransfer.addEventListener('click', openCancelConfirm);
+        cancelDismiss.addEventListener('click', closeCancelConfirm);
+        cancelConfirm.addEventListener('click', function (event) {
+            if (event.target === cancelConfirm) closeCancelConfirm();
+        });
+        cancelConfirmOk.addEventListener('click', cancelPayment);
+        paymentCheckTimer = setInterval(checkPayment, 5000);
+        setTimeout(checkPayment, 1200);
+    </script>
+</body>
+</html>

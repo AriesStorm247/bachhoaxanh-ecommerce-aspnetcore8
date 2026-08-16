@@ -1,0 +1,2002 @@
+@using System.Security.Claims
+@using WebBanHang.Data
+@using WebBanHang.Services
+@inject ApplicationDbContext Db
+@{
+    bool isBranchExplicitlyChosen = Context.Session.GetString("IsBranchExplicitlyChosen") == "true"
+        || Context.Request.Cookies["IsBranchExplicitlyChosen"] == "true";
+    int activeBranchId = isBranchExplicitlyChosen
+        ? (Context.Session.GetInt32("ActiveBranchId")
+           ?? (int.TryParse(Context.Request.Cookies["ActiveBranchId"], out int cbId) ? cbId : 0))
+        : 0; // 0 = chưa chọn chi nhánh → hiển thị tổng
+    string activeBranchName = isBranchExplicitlyChosen
+        ? (Context.Session.GetString("ActiveBranchName") ?? Db.Branches.FirstOrDefault(b => b.Id == activeBranchId)?.Name ?? "Chọn cửa hàng")
+        : "Chọn cửa hàng";
+
+    bool isPosPage = ViewContext.RouteData.Values["controller"]?.ToString() == "Pos";
+    int role = Convert.ToInt32(ViewBag.Role ?? 0);
+    int? currentCategory = ViewBag.CurrentCategory as int?;
+    int? flashSaleCategoryId = ViewBag.FlashSaleCategoryId as int?;
+    var layoutCategories = Db.Categories.OrderBy(c => c.Name).Take(8).ToList();
+    var cartQuantity = 0;
+    string? currentUserId = null;
+    CustomerProfile? customerProfile = null;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+        {
+            var cartSum = Db.CartItems
+                .Where(ci => ci.Cart.UserId == currentUserId)
+                .Sum(ci => (decimal?)ci.Quantity) ?? 0m;
+            cartQuantity = (int)Math.Ceiling(cartSum);
+            customerProfile = Db.CustomerProfiles.FirstOrDefault(p => p.UserId == currentUserId);
+        }
+    }
+    else
+    {
+        var guestId = Context.Session.GetString("GuestCartId");
+        if (!string.IsNullOrWhiteSpace(guestId))
+        {
+            var cartSum = Db.CartItems
+                .Where(ci => ci.Cart.UserId == guestId)
+                .Sum(ci => (decimal?)ci.Quantity) ?? 0m;
+            cartQuantity = (int)Math.Ceiling(cartSum);
+        }
+    }
+
+    // Hàm tạo style màu cho badge cấp thẻ thành viên
+    string LoyaltyTierStyle(int level) => level switch
+    {
+        0 => "color:#9c968f;font-weight:700;",           // Sắt - xám ấm (như ảnh 1)
+        1 => "color:#a36338;font-weight:700;",           // Đồng - nâu cam đồng (như ảnh 1)
+        2 => "color:#9fb2b8;font-weight:700;",           // Bạc - bạc xanh (như ảnh 1)
+        3 => "color:#e5b742;font-weight:700;",           // Vàng - vàng (như ảnh 1)
+        4 => "color:#73ffd3;font-weight:700;",           // Bạch kim - lục bảo sáng (như ảnh 1 nhưng sáng hơn để có độ tương phản tốt)
+        _ => "color:#fff;font-weight:700;"
+    };
+
+    string LoyaltyTierClass(int level) => level switch
+    {
+        5 => "loyalty-lucbao",
+        6 => "loyalty-kimcuong",
+        7 => "loyalty-ruby",
+        8 => "loyalty-niken",
+        9 => "loyalty-titan",
+        10 => "loyalty-uranium",
+        11 => "loyalty-iridium",
+        _ => ""
+    };
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-site-verification" content="FgW6te45e2aP0-9WWlP-V3K33hp39EqrMHX5YOVOA1Y" />
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Bách Hóa Xanh - Siêu thị thực phẩm tươi sống, rau củ quả, thịt cá sạch, đồ tạp hóa và gia đình chất lượng cao. Mua sắm tiện lợi, nhanh chóng, giá rẻ mỗi ngày." />
+    <meta name="keywords" content="bách hóa xanh, bach hoa xanh, siêu thị mini, mua sắm online, rau củ sạch, thịt tươi sống, hàng tiêu dùng" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Facebook / Zalo -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://storebhx-001-site1.ktempurl.com/" />
+    <meta property="og:title" content="@ViewData["Title"] - Bách Hóa Xanh: Siêu Thị Thực Phẩm Tươi Sống" />
+    <meta property="og:description" content="Bách Hóa Xanh - Siêu thị thực phẩm tươi sống, rau củ quả, thịt cá sạch, đồ tạp hóa và gia đình chất lượng cao. Mua sắm tiện lợi, nhanh chóng, giá rẻ mỗi ngày." />
+    <meta property="og:image" content="https://storebhx-001-site1.ktempurl.com/favicon-512.png" />
+
+    <!-- Canonical Link -->
+    <link rel="canonical" href="https://storebhx-001-site1.ktempurl.com/" />
+
+    <!-- Favicon - multi-size cho Google Search & trình duyệt -->
+    <link rel="icon" type="image/png" sizes="64x64" href="~/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="~/favicon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="~/favicon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="~/favicon-192.png" />
+    <link rel="shortcut icon" type="image/png" href="~/favicon-512.png" />
+    <title>@ViewData["Title"] - Bách Hóa Xanh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <style>
+        :root {
+            --green-dark: #1a7a2e;
+            --green-main: #2c9e47;
+            --green-light: #e8f7ec;
+            --green-accent: #38b558;
+            --orange-flash: #ff6b00;
+            --yellow-sale: #ffd600;
+            --pink-promo: #e91e8c;
+            --red-badge: #e82828;
+            --gray-text: #444;
+            --gray-light: #f5f5f5;
+            --white: #fff;
+            --radius: 10px;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Be Vietnam Pro', sans-serif; background: #f0f2f0; color: var(--gray-text); }
+        .topbar { background: var(--green-dark); padding: 6px 0; font-size: 12px; color: rgba(255,255,255,0.85); }
+        .topbar a { color: rgba(255,255,255,0.85); text-decoration: none; }
+        .topbar a:hover { color: #fff; }
+        .main-navbar {
+            background: var(--green-main);
+            padding: 12px 0;
+            box-shadow: 0 2px 12px rgba(44,158,71,0.25);
+            transition: padding 0.3s ease;
+        }
+        @@media (min-width: 768px) {
+            .main-navbar {
+                padding: 36px 0;
+            }
+        }
+        @@media (max-width: 480px) {
+            .logo-wrap .brand-name { font-size: 19px; }
+            .logo-wrap .tagline { display: none; }
+        }
+        .logo-wrap .brand-name { font-size: 22px; font-weight: 900; color: #fff; line-height: 1; }
+        .logo-wrap .brand-name span { color: var(--yellow-sale); }
+        .logo-wrap .tagline { font-size: 10px; color: rgba(255,255,255,0.8); font-style: italic; }
+        .search-bar { position: relative; }
+        .search-bar input { width: 100%; padding: 10px 50px 10px 18px; border-radius: 25px; border: 2px solid transparent; font-size: 14px; font-family: 'Be Vietnam Pro', sans-serif; outline: none; transition: border-color .2s; }
+        .search-bar input:focus { border-color: var(--yellow-sale); }
+        .search-bar button { position: absolute; right: 0; top: 0; bottom: 0; width: 46px; background: var(--green-dark); border: none; border-radius: 0 25px 25px 0; color: #fff; font-size: 16px; cursor: pointer; transition: background .2s; }
+        .search-bar button:hover { background: #145520; }
+        .location-btn { background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.45); border-radius: 8px; padding: 8px 14px; color: #fff; font-size: 13px; cursor: pointer; white-space: nowrap; transition: background .2s; }
+        .location-btn:hover { background: rgba(255,255,255,0.28); }
+        .nav-action-btn { background: none; border: none; color: #fff; font-size: 13px; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 0 5px; }
+        .nav-action-btn i { font-size: 20px; }
+        .cart-badge { background: var(--yellow-sale); color: var(--green-dark); border-radius: 50%; font-size: 10px; font-weight: 800; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; position: absolute; top: -6px; right: -2px; }
+        .profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid rgba(255,255,255,.45); }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .nav-auth-link { color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .nav-auth-link:hover { color: var(--yellow-sale); }
+        .nav-logout-btn { border: 0; background: transparent; color: #fff; font-size: 12px; font-weight: 700; padding: 0; }
+        .nav-logout-btn:hover { color: var(--yellow-sale); }
+        .nav-auth-btn-login { border: 0; background: transparent; color: var(--yellow-sale); font-size: 12px; font-weight: 700; padding: 0; text-decoration: none; transition: color 0.2s ease; }
+        .nav-auth-btn-login:hover { color: #fff; text-shadow: 0 0 8px rgba(255, 214, 0, 0.5); }
+        .nav-auth-btn-register { border: 0; background: transparent; color: #fff; font-size: 12px; font-weight: 700; padding: 0; text-decoration: none; transition: color 0.2s ease; }
+        .nav-auth-btn-register:hover { color: var(--yellow-sale); }
+        .cat-nav { background: var(--green-dark); border-bottom: 3px solid var(--green-accent); }
+        .cat-nav-toggle { background: var(--green-accent); color: #fff; border: none; padding: 10px 20px; font-size: 13px; font-weight: 700; letter-spacing: .5px; white-space: nowrap; cursor: pointer; font-family: 'Be Vietnam Pro', sans-serif; }
+        .cat-nav-toggle i { font-size: 16px; margin-right: 6px; }
+        .cat-menu-scroll { display: flex; gap: 0; overflow-x: auto; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+        .cat-menu-scroll::-webkit-scrollbar { height: 4px; }
+        .cat-menu-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
+        .cat-menu-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+        .cat-menu-scroll::-webkit-scrollbar-thumb:hover { background: var(--yellow-sale); }
+        .cat-menu-scroll a { color: rgba(255,255,255,0.9); font-size: 12.5px; font-weight: 600; padding: 10px 14px; text-decoration: none; white-space: nowrap; border-right: 1px solid rgba(255,255,255,0.12); transition: background .15s, color .15s; }
+        .cat-menu-scroll a:hover, .cat-menu-scroll a.active { background: rgba(255,255,255,0.15); color: var(--yellow-sale); }
+        .hero-placeholder { width: 100%; height: 280px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #fff; text-align: center; position: relative; overflow: hidden; }
+        .hero-placeholder::before { content: ''; position: absolute; inset: 0; background: rgba(0,0,0,0.15); }
+        .hp1 { background: linear-gradient(135deg, #1a7a2e 0%, #38b558 60%, #ffd600 100%); }
+        .hp2 { background: linear-gradient(135deg, #e82828 0%, #ff6b00 60%, #ffd600 100%); }
+        .hp3 { background: linear-gradient(135deg, #0077b6 0%, #00b4d8 60%, #90e0ef 100%); }
+        .hero-placeholder .badge-sale { background: var(--red-badge); color: #fff; font-size: 28px; font-weight: 900; padding: 6px 14px; border-radius: 6px; display: inline-block; margin-bottom: 8px; animation: pulse 1.8s ease-in-out infinite; }
+        @@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .flash-sale-bar { background: #fff; border-radius: var(--radius); padding: 14px 18px; margin: 12px 0; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+        .flash-label { background: var(--orange-flash); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 4px; letter-spacing: 1px; white-space: nowrap; }
+        .flash-scroll { display: flex; gap: 12px; overflow-x: auto; flex-wrap: nowrap; padding-top: 8px; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+        .flash-scroll::-webkit-scrollbar { height: 6px; }
+        .flash-scroll::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .flash-scroll::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+        .flash-scroll::-webkit-scrollbar-thumb:hover { background: var(--green-main); }
+        .flash-item { min-width: 80px; text-align: center; cursor: pointer; flex-shrink: 0; transition: transform 0.2s ease; }
+        .flash-item:hover { transform: translateY(-3px); }
+        .flash-item-img { width: 56px; height: 56px; border-radius: 50%; background: var(--gray-light); margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: all 0.2s ease; position: relative; border: 1.5px solid #eaeaea; }
+        .flash-item:hover .flash-item-img { border-color: var(--green-main); background: var(--green-light); box-shadow: 0 4px 10px rgba(44, 158, 71, 0.15); }
+        .flash-item.active .flash-item-img { border-color: var(--green-main); background: var(--green-light); box-shadow: 0 4px 12px rgba(44, 158, 71, 0.22); }
+        .flash-item-badge { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); background: var(--red-badge); color: #fff; font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 10px; box-shadow: 0 2px 6px rgba(232, 40, 40, 0.25); text-transform: uppercase; line-height: 1; }
+        .section-title { font-size: 20px; font-weight: 900; color: var(--green-dark); position: relative; padding-left: 14px; }
+        .section-title::before { content: ''; position: absolute; left: 0; top: 3px; bottom: 3px; width: 5px; background: var(--green-accent); border-radius: 3px; }
+        .product-card { background: #fff; border-radius: var(--radius); overflow: hidden; transition: box-shadow .2s, transform .2s, border-color .2s; cursor: pointer; height: 100%; position: relative; display: flex; flex-direction: column; border: 1.5px solid #e0e5e0; }
+        .product-card:hover { box-shadow: 0 8px 28px rgba(44,158,71,0.18); transform: translateY(-3px); border-color: var(--green-main); }
+        .product-img-wrap { background: var(--gray-light); height: 160px; display: flex; align-items: center; justify-content: center; font-size: 56px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .product-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+        .product-body { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+        .product-name { font-size: 13px; font-weight: 600; color: #333; line-height: 1.4; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 36px; }
+        .product-price-new { font-size: 16px; font-weight: 800; color: var(--red-badge); }
+        .btn-add-cart { width: 32px; height: 32px; background: var(--green-main); border: none; border-radius: 50%; color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .2s, transform .15s; flex-shrink: 0; }
+        .promo-banner { border-radius: var(--radius); padding: 28px 32px; color: #fff; position: relative; overflow: hidden; min-height: 130px; display: flex; flex-direction: column; justify-content: center; }
+        .pb-green { background: linear-gradient(135deg, #1a7a2e, #38b558); }
+        .pb-orange { background: linear-gradient(135deg, #c94b00, #ff6b00); }
+        .btn-promo { display: inline-block; background: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; font-weight: 700; text-decoration: none; width: fit-content; }
+        .cat-grid-item { background: #fff; border-radius: var(--radius); padding: 16px 10px; text-align: center; cursor: pointer; transition: box-shadow .2s, transform .2s; }
+        .cat-grid-item:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .sidebar-cat { background: #fff; border-radius: var(--radius); overflow: hidden; }
+        .sidebar-cat-item { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 13px; font-weight: 600; color: #333; text-decoration: none; }
+        .sidebar-cat-item .arrow { margin-left: auto; color: #999; }
+        .sidebar-cat-item:hover, .sidebar-cat-item.active { background: var(--green-light); color: var(--green-dark); }
+        footer { background: var(--green-dark); color: rgba(255,255,255,0.85); padding: 40px 0 20px; margin-top: 40px; }
+        footer h6 { color: #fff; font-weight: 800; font-size: 14px; margin-bottom: 14px; }
+        footer ul { list-style: none; padding: 0; }
+        footer ul li a { color: rgba(255,255,255,0.7); text-decoration: none; font-size: 13px; }
+        .social-btn { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; text-decoration: none; }
+        .fade-in { opacity: 0; transform: translateY(18px); animation: fadeUp .5s ease forwards; }
+        @@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        /* === Lục Bảo Tier: Glowing Emerald Cyan === */
+        @@keyframes lucbao-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(0,255,208,.4), 0 0 12px rgba(0,188,212,.2); color: #00ffd0; }
+            50%       { text-shadow: 0 0 12px rgba(0,255,208,.8), 0 0 24px rgba(0,150,136,.6); color: #00e5c4; }
+        }
+        .loyalty-lucbao {
+            font-weight: 900 !important;
+            animation: lucbao-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Kim Cương Tier: Ice Blue & Prismatic Lavender === */
+        @@keyframes kimcuong-sweep {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @@keyframes kimcuong-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(0,234,255,.4), 0 0 12px rgba(123,47,247,.2); }
+            50%       { text-shadow: 0 0 12px rgba(0,234,255,.8), 0 0 24px rgba(123,47,247,.6); }
+        }
+        .loyalty-kimcuong {
+            font-weight: 900 !important;
+            background: linear-gradient(90deg, #90e0ef, #00b4d8, #7b2ff7, #00b4d8, #90e0ef);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: kimcuong-sweep 3s linear infinite, kimcuong-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Ruby Tier: Fiery Glowing Crimson === */
+        @@keyframes ruby-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(255,23,68,.4), 0 0 12px rgba(229,57,53,.2); color: #ff1744; }
+            50%       { text-shadow: 0 0 12px rgba(255,23,68,.8), 0 0 24px rgba(229,57,53,.6); color: #ff4d4d; }
+        }
+        .loyalty-ruby {
+            font-weight: 900 !important;
+            animation: ruby-glow 2s ease-in-out infinite;
+        }
+
+        /* === Niken Tier: Dark Steel + Crimson Energy === */
+        @@keyframes niken-crimson-sweep {
+            0%   { background-position: 200% center; }
+            100% { background-position: -200% center; }
+        }
+        @@keyframes niken-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(229,57,53,.5), 0 0 14px rgba(255,23,68,.3); }
+            50%       { text-shadow: 0 0 14px rgba(229,57,53,1), 0 0 28px rgba(255,23,68,.8), 0 0 50px rgba(229,57,53,.4); }
+        }
+        .loyalty-niken {
+            font-weight: 900 !important;
+            color: #ff4d4d;
+            text-shadow: 0 0 8px rgba(229,57,53,.6), 0 0 18px rgba(255,23,68,.4);
+            animation: niken-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Titan Tier: Holographic Aurora (Highest) === */
+        @@keyframes titan-glow {
+            0%, 100% { text-shadow: 0 0 8px #ff6ec7, 0 0 16px #7b2ff7; }
+            33%       { text-shadow: 0 0 8px #00eaff, 0 0 16px #ff6ec7; }
+            66%       { text-shadow: 0 0 8px #ffe600, 0 0 16px #00eaff; }
+        }
+        .loyalty-titan {
+            font-weight: 900 !important;
+            color: #ff6ec7;
+            animation: titan-glow 4s ease-in-out infinite;
+        }
+
+        /* === Uranium Tier: Radioactive Neon Green (Cấp 10) === */
+        @@keyframes uranium-glow {
+            0%, 100% { text-shadow: 0 0 8px rgba(57,255,20,.6), 0 0 18px rgba(0,255,133,.4); }
+            50%       { text-shadow: 0 0 16px rgba(57,255,20,1), 0 0 32px rgba(0,255,133,.7); }
+        }
+        .loyalty-uranium {
+            font-weight: 900 !important;
+            color: #39FF14;
+            animation: uranium-glow 2s ease-in-out infinite;
+        }
+
+        /* === Iridium Tier: Royal Iridescent Purple (Cấp 11) === */
+        @@keyframes iridium-glow {
+            0%   { text-shadow: 0 0 10px rgba(199,125,255,.8), 0 0 22px rgba(183,50,255,.6), 0 0 40px rgba(199,125,255,.3); }
+            25%  { text-shadow: 0 0 18px rgba(224,64,251,1),   0 0 36px rgba(199,125,255,.9), 0 0 60px rgba(224,64,251,.5); }
+            50%  { text-shadow: 0 0 16px rgba(100,200,255,1),  0 0 32px rgba(199,125,255,.8), 0 0 55px rgba(100,200,255,.4); }
+            75%  { text-shadow: 0 0 18px rgba(224,64,251,1),   0 0 36px rgba(199,125,255,.9), 0 0 60px rgba(224,64,251,.5); }
+            100% { text-shadow: 0 0 10px rgba(199,125,255,.8), 0 0 22px rgba(183,50,255,.6), 0 0 40px rgba(199,125,255,.3); }
+        }
+        .loyalty-iridium {
+            font-weight: 900 !important;
+            color: #C77DFF;
+            animation: iridium-glow 2s ease-in-out infinite;
+        }
+
+        /* ===== PREMIUM TOAST NOTIFICATION ===== */
+        .toast-notification {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.88);
+            border-left: 5px solid var(--green-accent);
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.03);
+            padding: 16px 20px;
+            min-width: 320px;
+            max-width: 400px;
+            position: relative;
+            overflow: hidden;
+            pointer-events: auto;
+            transform: translateX(120%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(12px) saturate(180%);
+            -webkit-backdrop-filter: blur(12px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            border-left-width: 5px;
+        }
+        .toast-notification.show {
+            transform: translateX(0);
+        }
+        .toast-notification.fade-out {
+            opacity: 0 !important;
+            transform: translateY(-20px) scale(0.9) !important;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1) !important;
+        }
+        .toast-notification .toast-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            background: var(--green-light);
+            color: var(--green-accent);
+            border-radius: 50%;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .toast-notification.show .toast-icon i {
+            display: inline-block;
+            animation: toast-icon-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.5) forwards;
+        }
+        @@keyframes toast-icon-pop {
+            0% { transform: scale(0) rotate(-45deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .toast-notification.toast-error {
+            border-left-color: var(--red-badge);
+        }
+        .toast-notification.toast-error .toast-icon {
+            background: #ffebee;
+            color: var(--red-badge);
+        }
+        .toast-notification .toast-body {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gray-text);
+            line-height: 1.45;
+            flex-grow: 1;
+        }
+        .toast-notification .toast-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.25s ease, color 0.2s;
+        }
+        .toast-notification .toast-close:hover {
+            transform: rotate(90deg);
+            color: var(--red-badge);
+        }
+        .toast-notification .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--green-accent), #a3e635);
+            width: 100%;
+            transition: width 3s linear;
+            box-shadow: 0 0 4px rgba(56, 181, 88, 0.3);
+        }
+        .toast-notification.toast-error .toast-progress {
+            background: linear-gradient(90deg, var(--red-badge), #f87171);
+            box-shadow: 0 0 4px rgba(232, 40, 40, 0.3);
+        }
+
+        /* DARK THEME STYLES */
+        html.dark-theme {
+            --gray-text: #e0e0e0;
+            --gray-light: #242424;
+            --white: #1e1e1e;
+        }
+        html.dark-theme body {
+            background: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .topbar {
+            background: #0d2813 !important;
+            color: rgba(255,255,255,0.7) !important;
+            border-bottom: 1px solid #222;
+        }
+        html.dark-theme .main-navbar {
+            background: #12401d !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+        }
+        html.dark-theme .card, 
+        html.dark-theme .modal-content, 
+        html.dark-theme .dropdown-menu {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border-color: #333 !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.4) !important;
+        }
+        html.dark-theme .modal-header,
+        html.dark-theme .modal-footer {
+            border-color: #333 !important;
+        }
+        html.dark-theme .modal-body {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .list-group-item {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border-color: #333 !important;
+        }
+        html.dark-theme .form-control,
+        html.dark-theme .form-select {
+            background-color: #242424 !important;
+            color: #f5f5f5 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .form-control:focus,
+        html.dark-theme .form-select:focus {
+            background-color: #2b2b2b !important;
+            color: #fff !important;
+            border-color: var(--green-accent) !important;
+        }
+        html.dark-theme .form-control::placeholder {
+            color: #777 !important;
+        }
+        html.dark-theme .bg-white {
+            background-color: #1e1e1e !important;
+        }
+        html.dark-theme .bg-light {
+            background-color: #242424 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .text-dark {
+            color: #ffffff !important;
+        }
+        html.dark-theme .text-muted {
+            color: #aaa !important;
+        }
+        html.dark-theme .border,
+        html.dark-theme .border-bottom,
+        html.dark-theme .border-top,
+        html.dark-theme .border-end,
+        html.dark-theme .border-start {
+            border-color: #333 !important;
+        }
+        html.dark-theme table {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme table th,
+        html.dark-theme table td {
+            border-color: #333 !important;
+        }
+        html.dark-theme .toast-notification {
+            background: rgba(30, 30, 30, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border-left: 5px solid var(--green-accent) !important;
+            color: #fff !important;
+        }
+        html.dark-theme .toast-notification .toast-body {
+            color: #fff !important;
+        }
+        html.dark-theme .text-danger {
+            color: #ff6b6b !important;
+        }
+        html.dark-theme .text-success {
+            color: #8ae49f !important;
+        }
+        /* Inventory and Store cards in customer profile: force black, bold text on light backgrounds in Dark Mode */
+        html.dark-theme #invSub-frame .text-dark,
+        html.dark-theme #invSub-badge .text-dark,
+        html.dark-theme #invSub-vip .text-dark,
+        html.dark-theme #storeSub-frame .text-dark,
+        html.dark-theme #storeSub-vip .text-dark,
+        html.dark-theme #storeSub-tier .text-dark,
+        html.dark-theme #storeSub-daily .text-dark {
+            color: #000000 !important;
+            font-weight: 900 !important;
+        }
+        /* Flash Sale bar: force black text for category names and icons in both light/dark themes */
+        .flash-sale-bar a,
+        .flash-sale-bar a:visited,
+        .flash-sale-bar a:hover,
+        .flash-sale-bar a:active,
+        .flash-sale-bar .flash-item,
+        .flash-sale-bar .flash-item i,
+        .flash-sale-bar .flash-item-name {
+            color: #000000 !important;
+        }
+        /* Flash Sale bar: force light backgrounds for category circle icons in both light/dark themes */
+        .flash-sale-bar .flash-item-img {
+            background: #f5f5f5 !important;
+            border-color: #eaeaea !important;
+        }
+        .flash-sale-bar .flash-item.active .flash-item-img,
+        .flash-sale-bar .flash-item:hover .flash-item-img {
+            background: #e8f7ec !important;
+        /* Store branch modal classes */
+        .hover-branch:hover {
+            background-color: var(--green-light) !important;
+            border-color: var(--green-main) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(44,158,71,0.12) !important;
+        }
+        .active-branch {
+            border-color: var(--green-main) !important;
+            box-shadow: 0 4px 12px rgba(44,158,71,0.22) !important;
+        }
+        
+        /* Dynamic Bell Ring Animation */
+        #bellIcon {
+            transition: color 0.2s;
+        }
+        .bell-ring-active {
+            animation: bellRing 0.8s ease-in-out infinite;
+            color: var(--yellow-sale) !important;
+        }
+        @@keyframes bellRing {
+            0%, 100% { transform: rotate(0); }
+            15% { transform: rotate(15deg); }
+            30% { transform: rotate(-12deg); }
+            45% { transform: rotate(10deg); }
+            60% { transform: rotate(-8deg); }
+            75% { transform: rotate(4deg); }
+            85% { transform: rotate(-2deg); }
+        }
+        
+        .notification-item-quick {
+            transition: background-color 0.2s;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        .notification-item-quick:hover {
+            background-color: var(--green-light) !important;
+        }
+        .notification-item-quick.quick-unread {
+            background-color: #f6fcf7;
+            font-weight: bold;
+        }
+        html.dark-theme .notification-item-quick.quick-unread {
+            background-color: #172f1c !important;
+        }
+        html.dark-theme .dropdown-menu-dark-theme-support {
+            background-color: #1e1e1e !important;
+            border-color: #333 !important;
+        }
+        html.dark-theme .dropdown-menu-dark-theme-support .list-item-header,
+        html.dark-theme .dropdown-menu-dark-theme-support .list-item-footer {
+            background-color: #242424 !important;
+            border-color: #333 !important;
+        }
+    </style>
+</head>
+<body>
+    @if (role >= 0) {
+        <div class="topbar d-none d-md-block">
+            <div class="container d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-telephone-fill me-1"></i>Hotline: <a href="#">1800 6936</a> &nbsp;|&nbsp; <a href="#">Tra cứu đơn hàng</a></span>
+                <span>Giao nhanh 2h &nbsp;·&nbsp; <a href="#">Tải app</a></span>
+            </div>
+        </div>
+
+        <nav class="main-navbar">
+            <div class="container">
+                <div class="row align-items-center g-3">
+                    <div class="col-auto d-flex align-items-center gap-2 gap-md-3">
+                        <a href="/" class="text-decoration-none">
+                            <div class="logo-wrap">
+                                <div class="brand-name">Bách hóa <span>XANH</span></div>
+                                <div class="tagline">Siêu thị gần nhà, giá tiết kiệm</div>
+                            </div>
+                        </a>
+                        <!-- Nút chọn chi nhánh cửa hàng -->
+                        <div>
+                            <button type="button" class="location-btn py-2 px-3 d-flex align-items-center" style="border-radius: 20px; font-size: 12.5px; font-weight: 600; gap: 4px;" data-bs-toggle="modal" data-bs-target="#branchModal">
+                                <i class="bi bi-geo-alt-fill text-warning" style="font-size: 14px;"></i>
+                                <span id="activeBranchText" class="d-inline-block text-truncate" style="max-width: 150px;">@activeBranchName</span>
+                                <i class="bi bi-chevron-down" style="font-size: 9px; opacity: 0.85;"></i>
+                            </button>
+                        </div>
+                    </div>
+
+
+
+                    <div class="col-auto d-flex gap-1 gap-md-2 ms-auto header-actions-col" style="margin-right: 0;">
+                        <!-- Nút Bảng Xếp Hạng -->
+                        <a asp-controller="Leaderboard" asp-action="Index" class="nav-action-btn position-relative text-decoration-none">
+                            <i class="bi bi-trophy-fill text-warning"></i>
+                            <span>Bảng xếp hạng</span>
+                        </a>
+
+                        <!-- Nút Chuông Thông Báo (Chỉ khi đăng nhập) -->
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a asp-controller="Notification" asp-action="Index" class="nav-action-btn position-relative text-decoration-none" style="padding: 0 8px;">
+                                <i class="bi bi-bell-fill" id="bellIcon"></i>
+                                <span>Thông báo</span>
+                                <span class="cart-badge bell-unread-count d-none" style="background-color: var(--red-badge); color: white; top: -6px; right: -2px;">0</span>
+                            </a>
+                        }
+
+                        @if (role == 4)
+                        {
+                            <a asp-controller="Orders" asp-action="ShipperOrders" class="nav-action-btn position-relative text-decoration-none">
+                                <i class="bi bi-box2-fill"></i>
+                                <span>Đơn hàng</span>
+                            </a>
+                            <a asp-controller="Cart" asp-action="Index" class="nav-action-btn position-relative text-decoration-none">
+                                <i class="bi bi-cart3"></i>
+                                <span>Giỏ hàng</span>
+                                <span class="cart-badge cart-badge-count">@cartQuantity</span>
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Cart" asp-action="Index" class="nav-action-btn position-relative text-decoration-none">
+                                <i class="bi bi-cart3"></i>
+                                <span>Giỏ hàng</span>
+                                <span class="cart-badge cart-badge-count">@cartQuantity</span>
+                            </a>
+                        }
+                        
+                        <!-- Mobile Auth Actions (Visible only on mobile) -->
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            var tierLevel = customerProfile?.DisplayMembershipLevel ?? customerProfile?.MembershipLevel ?? 0;
+                            var tierClass = LoyaltyTierClass(tierLevel);
+                             <a asp-controller="CustomerProfile" asp-action="Edit" class="nav-action-btn text-decoration-none position-relative d-md-none" title="Hồ sơ">
+                                 <div class="avatar-container" style="position: relative; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+
+                                     @if (customerProfile != null && !string.IsNullOrEmpty(customerProfile.EquippedAvatarFrame) && customerProfile.EquippedAvatarFrame != "none")
+                                     {
+                                         <span class="profile-avatar" style="position: relative; z-index: 1; margin: 0; width: 32px; height: 32px; border: none; background: rgba(255,255,255,.1); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                             @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                                             {
+                                                 <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                                             }
+                                             else
+                                             {
+                                                 <i class="bi bi-person-fill" style="font-size: 14px;"></i>
+                                             }
+                                         </span>
+                                         string? frameFile = null;
+                                         string folder = "khung-avatar";
+                                         string frameFilter = "";
+
+                                         if (customerProfile.EquippedAvatarFrame.StartsWith("khung-top-"))
+                                         {
+                                             frameFile = customerProfile.EquippedAvatarFrame;
+                                             folder = "khung-top";
+                                         }
+                                         else if (customerProfile.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                                         {
+                                             frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                                             folder = "khung-theo-ngay/khung-thuong";
+                                         }
+                                         else if (customerProfile.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                                         {
+                                             frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                                             folder = "khung-theo-ngay/khung-gioi-han";
+                                             frameFilter = "filter: drop-shadow(0 0 2px #ff5722);";
+                                         }
+                                         else
+                                         {
+                                             frameFile = customerProfile.EquippedAvatarFrame switch
+                                             {
+                                                 "tier-0" => "khung-sat.webp",
+                                                 "tier-1" => "khung-dong.webp",
+                                                 "tier-2" => "khung-sat.webp",
+                                                 "tier-3" => "khung-vang.webp",
+                                                 "tier-4" => "khung-bach-kim.webp",
+                                                 "tier-5" => "khung-luc-bao.png",
+                                                 "tier-6" => "khung-kim-cuong.webp",
+                                                 "tier-7" => "khung-ruby.png",
+                                                 "tier-8" => "khung-niken.png",
+                                                 "tier-9" => "khung-titan.png",
+                                                 "tier-10" => "khung-uranium.png",
+                                                 "tier-11" => "khung-iridium.png",
+                                                 _ => null
+                                             };
+                                             frameFilter = customerProfile.EquippedAvatarFrame switch
+                                             {
+                                                 "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 1px rgba(255,255,255,0.7));",
+                                                 "tier-5" => "filter: drop-shadow(0 0 1px #00ffd0);",
+                                                 "tier-6" => "filter: drop-shadow(0 0 1px #a1c4fd);",
+                                                 "tier-7" => "filter: drop-shadow(0 0 1px #ff0844);",
+                                                 "tier-10" => "filter: drop-shadow(0 0 2px #39FF14);",
+                                                 "tier-11" => "filter: drop-shadow(0 0 2px #C77DFF) drop-shadow(0 0 3px #E040FB);",
+                                                 _ => ""
+                                             };
+                                             var isVipFrame = customerProfile.EquippedAvatarFrame.StartsWith("vip-moc-");
+                                             folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                                         }
+
+                                         if (frameFile != null)
+                                         {
+                                             <img class="avatar-frame" src="/image/@folder/@frameFile" asp-append-version="true" style="position: absolute; width: 38px; height: 38px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; @frameFilter" />
+                                         }
+                                     }
+                                     else
+                                     {
+                                         <span class="profile-avatar" style="margin: 0; width: 32px; height: 32px;">
+                                             @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                                             {
+                                                 <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                                             }
+                                             else
+                                             {
+                                                 <i class="bi bi-person-fill" style="font-size: 14px;"></i>
+                                             }
+                                         </span>
+                                     }
+                                 </div>
+                                 <span>Hồ sơ</span>
+                             </a>
+                             <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" class="m-0 d-md-none" method="post">
+                                 <button type="submit" class="nav-action-btn" style="background:none;border:none;">
+                                     <i class="bi bi-box-arrow-right"></i>
+                                     <span>Đăng xuất</span>
+                                 </button>
+                             </form>
+                         }
+                        else
+                        {
+                            <a asp-area="Identity" asp-page="/Account/Login" class="nav-action-btn d-md-none text-decoration-none">
+                                <i class="bi bi-box-arrow-in-right"></i>
+                                <span>Đăng nhập</span>
+                            </a>
+                        }
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            var tierLevel = customerProfile?.DisplayMembershipLevel ?? customerProfile?.MembershipLevel ?? 0;
+                            var tierClass = LoyaltyTierClass(tierLevel);
+                            <div class="d-none d-md-flex align-items-center" style="margin-left: 12px;">
+                                <!-- Avatar -->
+                                <a asp-controller="CustomerProfile" asp-action="Edit" class="nav-auth-link" title="Chỉnh sửa hồ sơ" style="gap:10px;">
+                                    <div class="avatar-container" style="position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+
+
+                                        @if (customerProfile != null && !string.IsNullOrEmpty(customerProfile.EquippedAvatarFrame) && customerProfile.EquippedAvatarFrame != "none")
+                                        {
+                                            <span class="profile-avatar" style="position: relative; z-index: 1; margin: 0; width: 52px; height: 52px; border: none; background: rgba(255,255,255,.1); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                                @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                                                {
+                                                    <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-person-fill" style="font-size: 18px;"></i>
+                                                }
+                                            </span>
+                                            string? frameFile = null;
+                                            string folder = "khung-avatar";
+                                            string frameFilter = "";
+
+                                            if (customerProfile.EquippedAvatarFrame.StartsWith("khung-top-"))
+                                            {
+                                                frameFile = customerProfile.EquippedAvatarFrame;
+                                                folder = "khung-top";
+                                            }
+                                            else if (customerProfile.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                                            {
+                                                frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                                                folder = "khung-theo-ngay/khung-thuong";
+                                            }
+                                            else if (customerProfile.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                                            {
+                                                frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                                                folder = "khung-theo-ngay/khung-gioi-han";
+                                                frameFilter = "filter: drop-shadow(0 0 2px #ff5722);";
+                                            }
+                                            else
+                                            {
+                                                frameFile = customerProfile.EquippedAvatarFrame switch
+                                                {
+                                                    "tier-0" => "khung-sat.webp",
+                                                    "tier-1" => "khung-dong.webp",
+                                                    "tier-2" => "khung-sat.webp",
+                                                    "tier-3" => "khung-vang.webp",
+                                                    "tier-4" => "khung-bach-kim.webp",
+                                                    "tier-5" => "khung-luc-bao.png",
+                                                    "tier-6" => "khung-kim-cuong.webp",
+                                                    "tier-7" => "khung-ruby.png",
+                                                    "tier-8" => "khung-niken.png",
+                                                    "tier-9" => "khung-titan.png",
+                                                    "tier-10" => "khung-uranium.png",
+                                                    "tier-11" => "khung-iridium.png",
+                                                    "vip-moc-1" => "khung-vip-moc-1.png",
+                                                    "vip-moc-2" => "khung-vip-moc-2.webp",
+                                                    "vip-moc-3" => "khung-vip-moc-3.webp",
+                                                    "vip-moc-4" => "khung-vip-moc-4.webp",
+                                                    _ => null
+                                                };
+                                                frameFilter = customerProfile.EquippedAvatarFrame switch
+                                                {
+                                                    "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+                                                    "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+                                                    "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+                                                    "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+                                                    "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+                                                    "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+                                                    "vip-moc-1" => "filter: drop-shadow(0 0 2px #ffc107);",
+                                                    "vip-moc-2" => "filter: drop-shadow(0 0 3px #ffc107);",
+                                                    "vip-moc-3" => "filter: drop-shadow(0 0 4px #ffc107);",
+                                                    "vip-moc-4" => "filter: drop-shadow(0 0 5px #ffc107);",
+                                                    _ => ""
+                                                };
+                                                var isVipFrame = customerProfile.EquippedAvatarFrame.StartsWith("vip-moc-");
+                                                folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                                            }
+
+                                            if (frameFile != null)
+                                            {
+                                                <img class="avatar-frame" src="/image/@folder/@frameFile" asp-append-version="true" style="position: absolute; width: 60px; height: 60px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; @frameFilter" />
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="profile-avatar" style="margin: 0;">
+                                                @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                                                {
+                                                    <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-person-fill"></i>
+                                                }
+                                            </span>
+                                        }
+
+                                        <!-- Equipped Badge at the bottom of Avatar -->
+                                        @if (customerProfile != null && !string.IsNullOrEmpty(customerProfile.EquippedBadge) && customerProfile.EquippedBadge != "none")
+                                        {
+                                            var badgeFile = customerProfile.EquippedBadge switch
+                                            {
+                                                "vip-badge-1" => "thich-thi-nap.png",
+                                                "vip-badge-2" => "giau-nut-vach.png",
+                                                "vip-badge-3" => "vung-tien-nhu-nuoc.png",
+                                                "vip-badge-4" => "nha-co-mo.png",
+                                                _ => null
+                                            };
+                                            if (badgeFile != null)
+                                            {
+                                                <div style="position: absolute; bottom: -45px; left: 52%; transform: translateX(-50%); z-index: 10; pointer-events: none; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center;">
+                                                    <img src="/image/huy-hieu/@badgeFile" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));" />
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </a>
+                                <!-- Name + Tier stacked, then Logout on same row -->
+                                <div class="d-flex flex-column" style="line-height:1.2; margin-left: 10px;">
+                                    <a asp-controller="CustomerProfile" asp-action="Edit" class="text-decoration-none" style="font-size:14px;font-weight:700;color:#fff;white-space:nowrap;">
+                                        @(string.IsNullOrWhiteSpace(customerProfile?.FullName) ? User.Identity?.Name : customerProfile.FullName)
+                                    </a>
+                                    <span class="small @tierClass" style="font-size:13px; margin-top: 4px; @(string.IsNullOrEmpty(tierClass) ? LoyaltyTierStyle(tierLevel) : "")">
+                                        @if (role == 4)
+                                        {
+                                            <span style="color:#ffd600;font-weight:700;"><i class="bi bi-truck me-1"></i>Nhân viên Giao Hàng</span>
+                                        }
+                                        else
+                                        {
+                                            @(customerProfile == null ? "Khách hàng thân thiết" : LoyaltyService.GetTierName(tierLevel))
+                                        }
+                                    </span>
+                                </div>
+                                <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })" class="m-0" style="margin-left: 12px;">
+                                    <button type="submit" class="nav-logout-btn">&#9658; Đăng Xuất</button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-none d-md-flex align-items-center" style="margin-left: 12px;">
+                                <!-- Guest Avatar -->
+                                <div class="avatar-container" style="position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <span class="profile-avatar" style="margin: 0; background: rgba(255,255,255,0.15); border: 1.5px dashed rgba(255,255,255,0.45);">
+                                        <i class="bi bi-person-fill" style="font-size: 20px; color: rgba(255,255,255,0.85);"></i>
+                                    </span>
+                                </div>
+                                <!-- Greeting Stacked -->
+                                <div class="d-flex flex-column" style="line-height:1.2; margin-left: 10px;">
+                                    <span style="font-size:14px;font-weight:700;color:#fff;">Khách vãng lai</span>
+                                    <span class="text-white-50" style="font-size:11px; margin-top: 4px;">Chào mừng bạn!</span>
+                                </div>
+                                <!-- Auth Links -->
+                                <div class="d-flex align-items-center" style="margin-left: 12px; gap: 8px;">
+                                    <a class="nav-auth-btn-login" asp-area="Identity" asp-page="/Account/Login">&#9658; Đăng Nhập</a>
+                                    <span style="color: rgba(255,255,255,0.4); font-size: 12px;">|</span>
+                                    <a class="nav-auth-btn-register" asp-area="Identity" asp-page="/Account/Register">Đăng Ký</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        @if (!isPosPage)
+        {
+            <div class="cat-nav">
+                <div class="container">
+                    <div class="d-flex flex-column flex-md-row align-items-stretch">
+                        <button class="cat-nav-toggle"><i class="bi bi-list"></i> DANH MỤC SẢN PHẨM</button>
+                        <div class="cat-menu-scroll flex-grow-1">
+                            <a asp-controller="Home" asp-action="Index" asp-fragment="hang-hot" class="@(flashSaleCategoryId == null ? "active" : "")">
+                                <i class="bi bi-grid-fill me-1"></i> Tất cả
+                            </a>
+                            @foreach (var category in layoutCategories)
+                            {
+                                <a asp-controller="Home"
+                                   asp-action="Index"
+                                   asp-route-flashSaleCategoryId="@category.Id"
+                                   asp-fragment="hang-hot"
+                                   class="@(flashSaleCategoryId == category.Id ? "active" : "")">
+                                    <i class="bi bi-tag-fill me-1"></i> @category.Name
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="container py-3">
+            <div class="row g-3">
+                @if (isPosPage)
+                {
+                    <div class="col-lg-3">
+                        <div class="card p-3" style="max-height: 800px; overflow-y: auto; border-radius: 16px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 10px 30px rgba(0,0,0,0.05); font-size: 13px; background: var(--white);">
+                            <h5 class="fw-bold text-success border-bottom pb-2 mb-3"><i class="bi bi-box-seam me-2"></i>Danh Sách Sản Phẩm</h5>
+                            <div class="mb-3">
+                                <input type="text" id="sidebarSearch" class="form-control" placeholder="Tìm tên hoặc mã vạch..." oninput="filterSidebarProducts(this.value)" />
+                            </div>
+                            <div id="sidebarProductList" class="d-flex flex-column gap-2">
+                                @foreach (var p in Db.Products.Where(p => p.IsVisible).OrderBy(p => p.Name).ToList())
+                                {
+                                    <div class="p-2 border-bottom sidebar-prod-item" data-name="@p.Name.ToLower()" data-barcode="@(p.Barcode ?? "")" style="cursor: pointer; border-radius: 8px; transition: background 0.2s;" onclick="addProductByBarcode('@p.Barcode')">
+                                        <div class="fw-bold text-dark text-truncate" style="font-size: 13px;">@p.Name</div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                            <div class="text-secondary small font-monospace" style="font-size: 11px;">Mã: @(p.Barcode != null && p.Barcode.Length == 13 ? $"{p.Barcode[0]} {p.Barcode.Substring(1, 6)} {p.Barcode.Substring(7)}" : p.Barcode)</div>
+                                            <button type="button" class="btn btn-success text-white fw-bold py-1 px-2 border-0" style="font-size: 10px; border-radius: 4px; line-height: 1;" onclick="showTestBarcode('@p.Barcode', '@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(p.Name))', event)">
+                                                Hiện mã vạch
+                                            </button>
+                                        </div>
+                                        <div class="d-flex justify-content-between mt-1 text-muted" style="font-size: 11px;">
+                                            <span>Tồn: <strong class="@(p.Amount > 10 ? "text-success" : "text-danger")">@p.Amount</strong></span>
+                                            <span class="text-danger fw-bold">@p.DiscountedPrice.ToString("N0")₫</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <script>
+                            function filterSidebarProducts(query) {
+                                query = query.toLowerCase().trim();
+                                var items = document.querySelectorAll('.sidebar-prod-item');
+                                items.forEach(function(item) {
+                                    var name = item.getAttribute('data-name');
+                                    var barcode = item.getAttribute('data-barcode');
+                                    if (name.includes(query) || barcode.includes(query)) {
+                                        item.style.setProperty('display', 'block', 'important');
+                                    } else {
+                                        item.style.setProperty('display', 'none', 'important');
+                                    }
+                                });
+                            }
+                        </script>
+                        <style>
+                            .sidebar-prod-item:hover {
+                                background: var(--green-light);
+                            }
+                            html.dark-theme .sidebar-prod-item:hover {
+                                background: #2c9e4720;
+                            }
+                        </style>
+                    </div>
+                    <div class="col-lg-9">
+                        @RenderBody()
+
+                        @* Role buttons *@
+                        <div class="mt-5 border-top pt-3 d-flex flex-wrap gap-2">
+                            @if (role == 1)
+                            {
+                                <a class="btn btn-warning fw-bold" asp-controller="HRM" asp-action="Index">
+                                    <i class="bi bi-people-fill me-1"></i>Quản Lý Nhân Sự
+                                </a>
+                                <a class="btn btn-success fw-bold" asp-controller="Customers" asp-action="Index">
+                                    <i class="bi bi-person-hearts me-1"></i> Quản Lý Khách Hàng
+                                </a>
+                                <a class="btn btn-danger fw-bold" asp-controller="Products" asp-action="Index">
+                                    <i class="bi bi-gear-fill me-1"></i> Quản Lý Hệ Thống
+                                </a>
+                                <a class="btn btn-info text-white fw-bold" asp-controller="Admin" asp-action="ChatHistory">
+                                    <i class="bi bi-chat-left-text-fill me-1"></i>Lịch sử AI
+                                </a>
+                                <a class="btn btn-primary fw-bold" asp-controller="Pos" asp-action="Index">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Quét Mã Thanh Toán (POS)
+                                </a>
+                                <a class="btn text-white fw-bold" asp-controller="Leaderboard" asp-action="AdminIndex" style="background-color: #e67e22; border-color: #d35400;">
+                                    <i class="bi bi-trophy-fill me-1"></i>Quản lý Bảng xếp hạng
+                                </a>
+                                <a class="btn text-white fw-bold" asp-controller="Notification" asp-action="Send" style="background-color: #8e44ad; border-color: #7d3c98;">
+                                    <i class="bi bi-megaphone-fill me-1"></i>Quản lý thông báo
+                                </a>
+                                <button type="button" class="btn btn-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                                    <i class="bi bi-gear-fill me-1"></i>Cài đặt
+                                </button>
+                            }
+                            @if (role == 5)
+                            {
+                                <a class="btn btn-primary fw-bold" asp-controller="Pos" asp-action="Index">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Quét Mã Thanh Toán (POS)
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-lg-2 d-none d-lg-block">
+                        <partial name="_Sidebar" />
+                    </div>
+                    <div class="col-lg-10">
+                        @RenderBody()
+
+                        @* Role buttons *@
+                        <div class="mt-5 border-top pt-3 d-flex flex-wrap gap-2">
+                            @if (role == 1)
+                            {
+                                <a class="btn btn-warning fw-bold" asp-controller="HRM" asp-action="Index">
+                                    <i class="bi bi-people-fill me-1"></i>Quản Lý Nhân Sự
+                                </a>
+                                <a class="btn btn-success fw-bold" asp-controller="Customers" asp-action="Index">
+                                    <i class="bi bi-person-hearts me-1"></i> Quản Lý Khách Hàng
+                                </a>
+                                <a class="btn btn-danger fw-bold" asp-controller="Products" asp-action="Index">
+                                    <i class="bi bi-gear-fill me-1"></i> Quản Lý Hệ Thống
+                                </a>
+                                <a class="btn btn-info text-white fw-bold" asp-controller="Admin" asp-action="ChatHistory">
+                                    <i class="bi bi-chat-left-text-fill me-1"></i>Lịch sử AI
+                                </a>
+                                <a class="btn btn-primary fw-bold" asp-controller="Pos" asp-action="Index">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Quét Mã Thanh Toán (POS)
+                                </a>
+                                <a class="btn text-white fw-bold" asp-controller="Leaderboard" asp-action="AdminIndex" style="background-color: #e67e22; border-color: #d35400;">
+                                    <i class="bi bi-trophy-fill me-1"></i>Quản lý Bảng xếp hạng
+                                </a>
+                                <a class="btn text-white fw-bold" asp-controller="Notification" asp-action="Send" style="background-color: #8e44ad; border-color: #7d3c98;">
+                                    <i class="bi bi-megaphone-fill me-1"></i>Quản lý thông báo
+                                </a>
+                                <button type="button" class="btn btn-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                                    <i class="bi bi-gear-fill me-1"></i>Cài đặt
+                                </button>
+                            }
+                            @if (role == 2)
+                            {
+                                <a class="btn btn-warning fw-bold" asp-controller="HRM" asp-action="Index">
+                                    <i class="bi bi-people-fill me-1"></i>Quản Lý Nhân Sự
+                                </a>
+                                <a class="btn btn-danger fw-bold" asp-controller="Products" asp-action="Index">
+                                    <i class="bi bi-box-seam-fill me-1"></i> Quản Lý Sản Phẩm
+                                </a>
+                            }
+                            @if (role == 3)
+                            {
+                                <a class="btn btn-success fw-bold" asp-controller="Customers" asp-action="Index">
+                                    <i class="bi bi-person-hearts me-1"></i> Quản Lý Khách Hàng
+                                </a>
+                                <a class="btn btn-success fw-bold" asp-controller="Orders" asp-action="Shipping">
+                                    <i class="bi bi-truck me-1"></i>Giao Hàng
+                                </a>
+                            }
+                            @if (role == 4)
+                            {
+                                <a class="btn btn-primary fw-bold" asp-controller="Orders" asp-action="ShipperOrders">
+                                    <i class="bi bi-box2-fill me-1"></i> ĐƠN HÀNG
+                                </a>
+                            }
+                            @if (role == 5)
+                            {
+                                <a class="btn btn-primary fw-bold" asp-controller="Pos" asp-action="Index">
+                                    <i class="bi bi-qr-code-scan me-1"></i>Quét Mã Thanh Toán (POS)
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <partial name="_Footer" />
+        <partial name="_AiChatWidget" />
+    }
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toast Notification System
+        const lastShownToasts = window._lastShownToasts || (window._lastShownToasts = new Set());
+        function showToast(message, type = 'success') {
+            if (lastShownToasts.has(message + '|' + type)) return;
+            lastShownToasts.add(message + '|' + type);
+            setTimeout(() => lastShownToasts.delete(message + '|' + type), 1000);
+
+            var container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.cssText = 'position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none;';
+                document.body.appendChild(container);
+            }
+
+            var toast = document.createElement('div');
+            toast.className = 'toast-notification ' + (type === 'error' ? 'toast-error' : '');
+            
+            var iconHtml = type === 'error' ? '<i class="bi bi-x-circle-fill"></i>' : '<i class="bi bi-check-circle-fill"></i>';
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${iconHtml}</div>
+                <div class="toast-body">${message}</div>
+                <button type="button" class="toast-close"><i class="bi bi-x"></i></button>
+                <div class="toast-progress"></div>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(function () {
+                toast.classList.add('show');
+                var progress = toast.querySelector('.toast-progress');
+                if (progress) {
+                    // Ép buộc trình duyệt tính toán lại layout (reflow) để đảm bảo animation hoạt động
+                    progress.offsetHeight; 
+                    progress.style.width = '0%';
+                }
+            }, 10);
+
+            function removeToast() {
+                toast.classList.add('fade-out');
+                setTimeout(function () {
+                    toast.remove();
+                }, 400); // Khớp với thời gian transition CSS fade-out (0.4s)
+            }
+
+            toast.querySelector('.toast-close').addEventListener('click', function () {
+                removeToast();
+            });
+
+            setTimeout(function () {
+                removeToast();
+            }, 3000);
+        }
+
+        // Xử lý giỏ hàng dùng chung và hiển thị thông báo TempData
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (TempData["Success"] != null)
+            {
+                <text>
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Success"]?.ToString() ?? ""))', 'success');
+                </text>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <text>
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Error"]?.ToString() ?? ""))', 'error');
+                </text>
+            }
+            document.querySelectorAll('.btn-add-cart').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault(); e.stopPropagation();
+                    var pId = this.getAttribute('data-id');
+                    if (!pId) return;
+                    fetch('/Cart/AddToCart?productId=' + pId, { method: 'POST' })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.querySelectorAll('.cart-badge-count').forEach(badge => {
+                                    badge.textContent = data.cartCount ?? (parseInt(badge.textContent || 0) + 1);
+                                });
+                                showToast(data.message || 'Đã thêm sản phẩm vào giỏ hàng!');
+                            } else {
+                                if (typeof data.cartCount !== 'undefined') {
+                                    document.querySelectorAll('.cart-badge-count').forEach(badge => {
+                                        badge.textContent = data.cartCount;
+                                    });
+                                }
+                                showToast(data.message || 'Không thể thêm sản phẩm vào giỏ hàng.', 'error');
+                            }
+                        }).catch(err => { window.location.href = '/Identity/Account/Login';});
+                });
+            });
+
+            // 1. Cuộn mượt mà khi tải trang có hash
+            if (window.location.hash) {
+                setTimeout(function () {
+                    var el = document.getElementById(window.location.hash.substring(1));
+                    if (el) {
+                        var navbar = document.querySelector('.main-navbar');
+                        var navbarHeight = navbar ? navbar.offsetHeight : 70;
+                        var offset = el.getBoundingClientRect().top + window.scrollY - navbarHeight - 15;
+                        window.scrollTo({
+                            top: offset,
+                            behavior: 'smooth'
+                        });
+                    }
+                }, 150);
+            }
+
+            // 2. Click vào link có hash cùng trang
+            document.addEventListener('click', function (e) {
+                var anchor = e.target.closest('a');
+                if (!anchor) return;
+                
+                var href = anchor.getAttribute('href');
+                if (!href) return;
+                
+                try {
+                    var url = new URL(anchor.href, window.location.href);
+                    if (url.origin === window.location.origin && 
+                        url.pathname === window.location.pathname && 
+                        url.search === window.location.search && 
+                        url.hash) {
+                        
+                        var targetId = url.hash.substring(1);
+                        var targetEl = document.getElementById(targetId);
+                        if (targetEl) {
+                            e.preventDefault();
+                            var navbar = document.querySelector('.main-navbar');
+                            var navbarHeight = navbar ? navbar.offsetHeight : 70;
+                            var offset = targetEl.getBoundingClientRect().top + window.scrollY - navbarHeight - 15;
+                            window.scrollTo({
+                                top: offset,
+                                behavior: 'smooth'
+                            });
+                            
+                            // Cập nhật URL hash mà không bị nhảy trang mặc định
+                            history.pushState(null, null, url.hash);
+                        }
+                    }
+                } catch (err) {
+                    // Bỏ qua lỗi parse url không hợp lệ
+                }
+            });
+        });
+    </script>
+    @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+    {
+        <script>
+            (function () {
+                window.addEventListener('storage', function (event) {
+                    if (event.key === 'requestAdminSession') {
+                        if (sessionStorage.getItem('adminSessionActive')) {
+                            localStorage.setItem('shareAdminSession', Date.now().toString());
+                        }
+                    }
+                });
+
+                if (sessionStorage.getItem('adminSessionActive')) {
+                    return;
+                }
+
+                if (document.referrer && (document.referrer.indexOf('/Identity/Account/Login') >= 0 || document.referrer.indexOf('/login') >= 0)) {
+                    sessionStorage.setItem('adminSessionActive', 'true');
+                    return;
+                }
+
+                localStorage.setItem('requestAdminSession', Date.now().toString());
+
+                function storageResponseHandler(event) {
+                    if (event.key === 'shareAdminSession') {
+                        sessionStorage.setItem('adminSessionActive', 'true');
+                        window.removeEventListener('storage', storageResponseHandler);
+                    }
+                }
+                window.addEventListener('storage', storageResponseHandler);
+
+                setTimeout(function () {
+                    if (!sessionStorage.getItem('adminSessionActive')) {
+                        window.location.href = '/Identity/Account/Logout?returnUrl=%2F';
+                    }
+                }, 500);
+            })();
+        </script>
+    }
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            (function () {
+                // Check for session conflict across tabs
+                var serverUser = '@(User.Identity?.Name ?? "")';
+                if (serverUser) {
+                    var cachedUser = sessionStorage.getItem('currentUserEmail');
+                    if (!cachedUser) {
+                        sessionStorage.setItem('currentUserEmail', serverUser);
+                    } else if (cachedUser !== serverUser) {
+                        sessionStorage.removeItem('currentUserEmail');
+                        window.location.href = '/Identity/Account/Logout?returnUrl=%2FIdentity%2FAccount%2FLogin';
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('currentUserEmail');
+                }
+
+                function checkLockout() {
+                    fetch('/Home/CheckLockoutStatus')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.isLocked) {
+                                window.location.href = '/Identity/Account/Lockout?email=' + encodeURIComponent(data.email);
+                            }
+                        })
+                        .catch(err => console.error("Error checking lockout status:", err));
+                }
+                // Check every 8 seconds
+                setInterval(checkLockout, 8000);
+
+                // --- Presence tracking for immediate offline updates ---
+                var isInternalNavigation = false;
+
+                document.addEventListener('click', function (e) {
+                    var anchor = e.target.closest('a');
+                    if (anchor && anchor.href) {
+                        try {
+                            var url = new URL(anchor.href, window.location.href);
+                            var isLogout = url.pathname.toLowerCase().includes('/logout');
+                            if (url.origin === window.location.origin && !isLogout) {
+                                isInternalNavigation = true;
+                            }
+                        } catch (err) {}
+                    }
+                });
+
+                document.addEventListener('submit', function (e) {
+                    var form = e.target.closest('form');
+                    if (form) {
+                        var action = form.getAttribute('action') || window.location.href;
+                        try {
+                            var url = new URL(action, window.location.href);
+                            var isLogout = url.pathname.toLowerCase().includes('/logout');
+                            if (url.origin === window.location.origin && !isLogout) {
+                                isInternalNavigation = true;
+                            }
+                        } catch (err) {}
+                    }
+                });
+
+                window.addEventListener('pagehide', function () {
+                    if (!isInternalNavigation) {
+                        var url = '/CustomerProfile/SetOffline';
+                        if (navigator.sendBeacon) {
+                            navigator.sendBeacon(url);
+                        } else {
+                            fetch(url, { method: 'POST', keepalive: true, credentials: 'same-origin' });
+                        }
+                    }
+                });
+            })();
+        </script>
+    }
+    <!-- Modal Cài đặt -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+                <div class="modal-header bg-success text-white py-3 border-0">
+                    <h5 class="modal-title fw-bold" id="settingsModalLabel">
+                        <i class="bi bi-gear-fill me-2"></i>Cài đặt giao diện
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted mb-3" style="font-size: 14px;">Chế độ giao diện (Nền)</label>
+                        <div class="d-flex gap-3">
+                            <button type="button" class="btn btn-outline-success flex-grow-1 py-3 fw-bold theme-toggle-btn" data-theme="light" style="border-radius: 12px; border-width: 2px;">
+                                <i class="bi bi-sun-fill me-2 fs-5"></i>Nền sáng
+                            </button>
+                            <button type="button" class="btn btn-outline-success flex-grow-1 py-3 fw-bold theme-toggle-btn" data-theme="dark" style="border-radius: 12px; border-width: 2px;">
+                                <i class="bi bi-moon-stars-fill me-2 fs-5"></i>Nền tối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            function updateThemeButtons(theme) {
+                document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+                    const btnTheme = btn.getAttribute('data-theme');
+                    if (btnTheme === theme) {
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                    } else {
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-success');
+                    }
+                });
+            }
+
+            function setTheme(theme) {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-theme');
+                } else {
+                    document.documentElement.classList.remove('dark-theme');
+                }
+                localStorage.setItem('theme', theme);
+                updateThemeButtons(theme);
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: theme } }));
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                setTheme(savedTheme);
+
+                document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const theme = btn.getAttribute('data-theme');
+                        setTheme(theme);
+                    });
+                });
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (settingsModal) {
+                    settingsModal.addEventListener('show.bs.modal', () => {
+                        const currentTheme = localStorage.getItem('theme') || 'light';
+                        updateThemeButtons(currentTheme);
+                    });
+                }
+            });
+        })();
+    </script>
+    <!-- Branch Selection Modal -->
+    <div class="modal fade" id="branchModal" tabindex="-1" aria-labelledby="branchModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+                <div class="modal-header bg-success text-white border-0" style="border-top-left-radius: 16px; border-top-right-radius: 16px; padding: 20px;">
+                    <h5 class="modal-title fw-bold" id="branchModalLabel">
+                        <i class="bi bi-shop me-2 text-warning"></i>Chọn Siêu Thị Bách Hóa Xanh
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4" style="background: #f8faf8;">
+                    <!-- Regional and Search Filters like Footer -->
+                    <div class="row g-2 mb-4">
+                        <div class="col-md-3 col-6">
+                            <select id="modalSelectRegion" class="form-select rounded-pill border-success-subtle shadow-sm" style="font-weight: 600;">
+                                <option value="">-- Chọn Miền --</option>
+                                <option value="Miền Bắc">Miền Bắc</option>
+                                <option value="Miền Trung">Miền Trung</option>
+                                <option value="Miền Nam">Miền Nam</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select id="modalSelectProvince" class="form-select rounded-pill border-success-subtle shadow-sm" style="font-weight: 600;" disabled>
+                                <option value="">-- Chọn Tỉnh/TP --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select id="modalSelectDistrict" class="form-select rounded-pill border-success-subtle shadow-sm" style="font-weight: 600;" disabled>
+                                <option value="">-- Chọn Phường/Xã --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="position-relative">
+                                <input type="text" id="branchSearchInput" class="form-control rounded-pill border-success-subtle shadow-sm" 
+                                       placeholder="Tìm tên đường, địa chỉ..." style="font-weight: 600; padding-right: 35px;" />
+                                <i class="bi bi-search position-absolute text-success" style="right: 15px; top: 50%; transform: translateY(-50%);"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="text-secondary fw-bold m-0"><i class="bi text-success bi-list-stars me-1"></i>DANH SÁCH HỆ THỐNG SIÊU THỊ</h6>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" id="btnClearSelectedBranch" class="btn btn-outline-danger btn-sm rounded-pill fw-bold" onclick="clearSelectedStoreBranch()" style="display: none; font-size: 12px; padding: 4px 10px;">
+                                <i class="bi bi-trash3-fill me-1"></i>Xóa chi nhánh đã chọn
+                            </button>
+                            <span class="text-muted small fw-bold" id="modalBranchCountText">Đang tải danh sách chi nhánh...</span>
+                        </div>
+                    </div>
+                    <div class="branch-list-wrapper" style="max-height: 380px; overflow-y: auto; border-radius: 10px; background: #fff; border: 1px solid #e2ebd6; padding: 10px;">
+                        <div id="branchesContainer" class="list-group list-group-flush">
+                            <div class="text-center py-5">
+                                <div class="spinner-border text-success" role="status">
+                                    <span class="visually-hidden">Đang tải...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px;">
+                    <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            var branches = [];
+            var activeBranchId = @activeBranchId;
+            var isBranchExplicitlyChosen = @Html.Raw(Json.Serialize(isBranchExplicitlyChosen));
+            
+            const modalSelectRegion = document.getElementById('modalSelectRegion');
+            const modalSelectProvince = document.getElementById('modalSelectProvince');
+            const modalSelectDistrict = document.getElementById('modalSelectDistrict');
+            const searchInput = document.getElementById('branchSearchInput');
+            const countText = document.getElementById('modalBranchCountText');
+            const container = document.getElementById('branchesContainer');
+
+            const regionMap = {
+                "Cần Thơ": "Miền Nam", "Đà Nẵng": "Miền Trung", "Hà Nội": "Miền Bắc", "Hải Phòng": "Miền Bắc",
+                "Hồ Chí Minh": "Miền Nam", "Thừa Thiên Huế": "Miền Trung", "Huế": "Miền Trung", "An Giang": "Miền Nam", "Bắc Ninh": "Miền Bắc",
+                "Cà Mau": "Miền Nam", "Đắk Lắk": "Miền Trung", "Đồng Nai": "Miền Nam", "Đồng Tháp": "Miền Nam",
+                "Gia Lai": "Miền Trung", "Hà Tĩnh": "Miền Trung", "Hưng Yên": "Miền Bắc", "Khánh Hòa": "Miền Trung",
+                "Lâm Đồng": "Miền Trung", "Nghệ An": "Miền Trung", "Ninh Bình": "Miền Bắc", "Quảng Ngãi": "Miền Trung",
+                "Quảng Ninh": "Miền Bắc", "Quảng Trị": "Miền Trung", "Tây Ninh": "Miền Nam", "Thanh Hóa": "Miền Trung",
+                "Vĩnh Long": "Miền Nam"
+            };
+
+            var branchModalEl = document.getElementById('branchModal');
+            if (branchModalEl) {
+                branchModalEl.addEventListener('show.bs.modal', function () {
+                    const clearBtn = document.getElementById('btnClearSelectedBranch');
+                    if (clearBtn) {
+                        clearBtn.style.display = isBranchExplicitlyChosen ? 'inline-block' : 'none';
+                    }
+                    if (branches.length === 0) {
+                        fetch('/Home/GetBranches')
+                            .then(res => res.json())
+                            .then(data => {
+                                branches = data.map(item => {
+                                    let prov = item.province;
+                                    if (prov === "Huế") prov = "Thừa Thiên Huế";
+                                    const region = regionMap[prov] || "Miền Nam";
+                                    return {
+                                        id: item.id,
+                                        name: item.name,
+                                        address: item.address,
+                                        province: prov,
+                                        district: item.district || "Khác",
+                                        region: region
+                                    };
+                                });
+                                
+                                initModalDropdownsWithActiveBranch();
+                                updateModalFilters();
+                            })
+                            .catch(err => {
+                                if (container) container.innerHTML = '<div class="alert alert-danger">Không thể tải danh sách chi nhánh. Vui lòng thử lại sau.</div>';
+                            });
+                    } else {
+                        initModalDropdownsWithActiveBranch();
+                        updateModalFilters();
+                    }
+                });
+            }
+
+            if (modalSelectRegion) modalSelectRegion.addEventListener('change', handleRegionChange);
+            if (modalSelectProvince) modalSelectProvince.addEventListener('change', handleProvinceChange);
+            if (modalSelectDistrict) modalSelectDistrict.addEventListener('change', updateModalFilters);
+            if (searchInput) searchInput.addEventListener('input', updateModalFilters);
+
+            function initModalDropdowns() {
+                modalSelectRegion.value = "";
+                modalSelectProvince.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+                modalSelectProvince.disabled = true;
+                modalSelectDistrict.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                modalSelectDistrict.disabled = true;
+            }
+
+            async function initModalDropdownsWithActiveBranch() {
+                if (activeBranchId && isBranchExplicitlyChosen) {
+                    const activeBranch = branches.find(b => b.id === activeBranchId);
+                    if (activeBranch) {
+                        modalSelectRegion.value = activeBranch.region;
+                        
+                        modalSelectProvince.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+                        modalSelectProvince.disabled = false;
+                        const provinces = [...new Set(branches.filter(b => b.region === activeBranch.region).map(b => b.province))].sort();
+                        provinces.forEach(p => {
+                            const opt = document.createElement('option');
+                            opt.value = p;
+                            opt.textContent = p === "Thừa Thiên Huế" ? "Huế" : p;
+                            if (p === activeBranch.province) {
+                                opt.selected = true;
+                            }
+                            modalSelectProvince.appendChild(opt);
+                        });
+                        
+                        modalSelectDistrict.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                        modalSelectDistrict.disabled = false;
+                        try {
+                            const response = await fetch(`/Home/GetWards?province=${encodeURIComponent(activeBranch.province)}`);
+                            const districts = await response.json();
+                            districts.forEach(d => {
+                                if (d && d !== "Khác") {
+                                    const opt = document.createElement('option');
+                                    opt.value = d;
+                                    opt.textContent = d;
+                                    if (d === activeBranch.district) {
+                                        opt.selected = true;
+                                    }
+                                    modalSelectDistrict.appendChild(opt);
+                                }
+                            });
+                        } catch (err) {
+                            const districts = [...new Set(branches.filter(b => b.province === activeBranch.province).map(b => b.district))].sort();
+                            districts.forEach(d => {
+                                if (d && d !== "Khác") {
+                                    const opt = document.createElement('option');
+                                    opt.value = d;
+                                    opt.textContent = d;
+                                    if (d === activeBranch.district) {
+                                        opt.selected = true;
+                                    }
+                                    modalSelectDistrict.appendChild(opt);
+                                }
+                            });
+                        }
+                        return;
+                    }
+                }
+                initModalDropdowns();
+            }
+
+            function handleRegionChange() {
+                const region = modalSelectRegion.value;
+                modalSelectProvince.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+                modalSelectDistrict.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                modalSelectDistrict.disabled = true;
+
+                if (!region) {
+                    modalSelectProvince.disabled = true;
+                } else {
+                    modalSelectProvince.disabled = false;
+                    const provinces = [...new Set(branches.filter(b => b.region === region).map(b => b.province))].sort();
+                    provinces.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p;
+                        opt.textContent = p === "Thừa Thiên Huế" ? "Huế" : p;
+                        modalSelectProvince.appendChild(opt);
+                    });
+                }
+                updateModalFilters();
+            }
+
+            async function handleProvinceChange() {
+                const prov = modalSelectProvince.value;
+                modalSelectDistrict.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+
+                if (!prov) {
+                    modalSelectDistrict.disabled = true;
+                } else {
+                    modalSelectDistrict.disabled = false;
+                    try {
+                        const response = await fetch(`/Home/GetWards?province=${encodeURIComponent(prov)}`);
+                        const districts = await response.json();
+                        districts.forEach(d => {
+                            if (d && d !== "Khác") {
+                                const opt = document.createElement('option');
+                                opt.value = d;
+                                opt.textContent = d;
+                                modalSelectDistrict.appendChild(opt);
+                            }
+                        });
+                    } catch (err) {
+                        const districts = [...new Set(branches.filter(b => b.province === prov).map(b => b.district))].sort();
+                        districts.forEach(d => {
+                            if (d && d !== "Khác") {
+                                const opt = document.createElement('option');
+                                opt.value = d;
+                                opt.textContent = d;
+                                modalSelectDistrict.appendChild(opt);
+                            }
+                        });
+                    }
+                }
+                updateModalFilters();
+            }
+
+            function updateModalFilters() {
+                const region = modalSelectRegion.value;
+                const prov = modalSelectProvince.value;
+                const dist = modalSelectDistrict.value;
+                const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+                let filtered = branches;
+
+                if (region) filtered = filtered.filter(b => b.region === region);
+                if (prov) filtered = filtered.filter(b => b.province === prov);
+                if (dist) filtered = filtered.filter(b => b.district === dist);
+                if (query) {
+                    filtered = filtered.filter(b => 
+                        b.name.toLowerCase().includes(query) || 
+                        b.address.toLowerCase().includes(query)
+                    );
+                }
+
+                if (countText) {
+                    countText.innerText = `Tìm thấy ${filtered.length} siêu thị.`;
+                }
+
+                renderBranches(filtered);
+            }
+            
+            function renderBranches(list) {
+                if (!container) return;
+                if (list.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted py-4">Không tìm thấy chi nhánh phù hợp.</div>';
+                    return;
+                }
+                
+                var html = '';
+                // Limit rendering to 120 elements for smooth DOM performance
+                list.slice(0, 120).forEach(function (b) {
+                    var isActive = b.id === activeBranchId;
+                    var activeClass = isActive ? 'active-branch bg-success text-white' : 'bg-white hover-branch';
+                    var textClass = isActive ? 'text-white' : 'text-dark';
+                    var subTextClass = isActive ? 'text-white-50' : 'text-secondary';
+                    var badgeHtml = isActive ? '<span class="badge bg-warning text-dark fw-bold ms-auto rounded-pill py-2 px-3 fs-7 shadow-sm"><i class="bi bi-check-circle-fill me-1"></i>Đang Chọn</span>' : '';
+                    
+                    html += `
+                        <div class="list-group-item list-group-item-action d-flex align-items-center p-3 mb-2 border rounded shadow-sm ${activeClass}" 
+                             style="cursor: pointer; transition: all 0.2s; border-color: #e2ebd6;" 
+                             onclick="selectStoreBranch(${b.id}, '${escapeHtml(b.name)}')">
+                             <div class="me-3 fs-3 text-warning">
+                                 <i class="bi bi-shop"></i>
+                             </div>
+                             <div>
+                                 <h6 class="mb-1 fw-bold ${textClass}">${b.name}</h6>
+                                 <p class="mb-0 small ${subTextClass}"><i class="bi bi-geo-alt-fill text-danger me-1"></i>${b.address}</p>
+                             </div>
+                             ${badgeHtml}
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            }
+            
+            window.selectStoreBranch = function (id, name) {
+                var formData = new FormData();
+                formData.append('branchId', id);
+                
+                fetch('/Home/SelectBranch', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        var activeText = document.getElementById('activeBranchText');
+                        if (activeText) activeText.textContent = name;
+                        
+                        var modalEl = document.getElementById('branchModal');
+                        var modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                        
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Lỗi khi chọn chi nhánh');
+                    }
+                })
+                .catch(err => {
+                    alert('Có lỗi xảy ra, vui lòng thử lại.');
+                });
+            };
+            
+            window.clearSelectedStoreBranch = function () {
+                fetch('/Home/ClearBranch', {
+                    method: 'POST'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Lỗi khi xóa chi nhánh');
+                    }
+                })
+                .catch(err => {
+                    alert('Có lỗi xảy ra, vui lòng thử lại.');
+                });
+            };
+
+            function escapeHtml(str) {
+                return str
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+        });
+    </script>
+
+    <!-- Scripts cho chuông thông báo -->
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var bellDropdown = document.getElementById('bellNotificationDropdown');
+                if (bellDropdown) {
+                    bellDropdown.addEventListener('show.bs.dropdown', function () {
+                        var listContainer = document.getElementById('quickNotificationsList');
+                        listContainer.innerHTML = '<li class="p-4 text-center text-muted"><div class="spinner-border spinner-border-sm text-success me-2" role="status"></div>Đang tải thông báo...</li>';
+                        
+                        fetch('/Notification/GetQuickNotifications')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.length === 0) {
+                                listContainer.innerHTML = '<li class="p-4 text-center text-muted"><i class="bi bi-bell-slash fs-4 d-block mb-2"></i>Không có thông báo mới</li>';
+                                return;
+                            }
+                            
+                            var html = '';
+                            data.forEach(n => {
+                                var unreadClass = n.isRead ? '' : 'quick-unread';
+                                var unreadDot = n.isRead ? '' : '<span class="badge bg-success rounded-circle p-1 ms-auto" style="width:8px; height:8px; display:inline-block; margin-right: 5px;"></span>';
+                                
+                                var icon = '<i class="bi bi-gear-fill text-primary"></i>';
+                                if (n.type === 'Promotion') icon = '<i class="bi bi-tag-fill text-orange"></i>';
+                                else if (n.type === 'Reward') icon = '<i class="bi bi-gift-fill text-pink"></i>';
+
+                                html += `
+                                    <li class="p-3 notification-item-quick d-flex align-items-center gap-3 ${unreadClass}" onclick="window.location.href='/Notification/Index'">
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px; height:36px; font-size: 16px;">
+                                            ${icon}
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0" style="text-align: left;">
+                                            <div class="text-truncate fw-bold text-dark" style="font-size: 13px;">${escapeHtml(n.title)}</div>
+                                            <small class="text-muted" style="font-size:11px;">${n.createdAt}</small>
+                                        </div>
+                                        ${unreadDot}
+                                    </li>
+                                `;
+                            });
+                            listContainer.innerHTML = html;
+                        })
+                        .catch(err => {
+                            listContainer.innerHTML = '<li class="p-4 text-center text-danger">Lỗi khi tải dữ liệu</li>';
+                        });
+                    });
+                }
+
+                var quickMarkAllBtn = document.getElementById('quickMarkAllRead');
+                if (quickMarkAllBtn) {
+                    quickMarkAllBtn.addEventListener('click', function (e) {
+                        e.stopPropagation(); // Ngăn đóng dropdown
+                        
+                        fetch('/Notification/MarkAllAsRead', {
+                            method: 'POST',
+                            headers: {
+                                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.querySelectorAll('.notification-item-quick').forEach(item => {
+                                    item.classList.remove('quick-unread');
+                                    var dot = item.querySelector('.bg-success.rounded-circle');
+                                    if (dot) dot.remove();
+                                });
+                                
+                                updateNavbarBellCount(0);
+                            }
+                        });
+                    });
+                }
+
+                function updateNavbarBellCount(count) {
+                    var badges = document.querySelectorAll('.bell-unread-count');
+                    badges.forEach(b => {
+                        if (count > 0) {
+                            b.innerText = count;
+                            b.classList.remove('d-none');
+                        } else {
+                            b.innerText = '0';
+                            b.classList.add('d-none');
+                        }
+                    });
+                    
+                    var bellIcon = document.getElementById('bellIcon');
+                    if (bellIcon) {
+                        if (count > 0) {
+                            bellIcon.classList.add('bell-ring-active');
+                        } else {
+                            bellIcon.classList.remove('bell-ring-active');
+                        }
+                    }
+                }
+
+                function checkUnreadNotifications() {
+                    fetch('/Notification/GetUnreadCount')
+                    .then(res => res.json())
+                    .then(data => {
+                        updateNavbarBellCount(data.count);
+                    });
+                }
+                
+                checkUnreadNotifications();
+                setInterval(checkUnreadNotifications, 5 * 60 * 1000); // 5 phút
+                
+                function escapeHtml(str) {
+                    return str
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;")
+                        .replace(/"/g, "&quot;")
+                        .replace(/'/g, "&#039;");
+                }
+            });
+        </script>
+    }
+
+    <script>
+        window.goToPage = function (el, customPageParam) {
+            if (!el) return;
+            let input = null;
+            if (el.tagName === 'INPUT') {
+                input = el;
+            } else {
+                const parent = el.closest('.d-flex') || el.closest('.pagination-wrap') || el.parentElement;
+                input = parent ? parent.querySelector('input[type="number"], input') : null;
+            }
+            if (!input || !input.value) return;
+
+            let p = parseInt(input.value, 10);
+            if (isNaN(p) || p < 1) p = 1;
+
+            if (input.max) {
+                const maxP = parseInt(input.max, 10);
+                if (!isNaN(maxP) && p > maxP) p = maxP;
+            }
+
+            const pageParam = customPageParam || input.getAttribute('data-param') || input.getAttribute('data-page-param') || 'page';
+
+            const u = new URL(window.location.href);
+            u.searchParams.set(pageParam, p);
+
+            const section = input.getAttribute('data-section');
+            if (section) u.searchParams.set('activeSection', section);
+
+            const sub = input.getAttribute('data-sub');
+            if (sub) u.searchParams.set('activeSubInventory', sub);
+
+            const path = window.location.pathname.toLowerCase();
+            if (path === '/' || path.endsWith('/home') || path.endsWith('/home/index')) {
+                u.searchParams.set('showAll', 'True');
+            }
+            u.hash = '';
+            window.location.assign(u.toString());
+        };
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

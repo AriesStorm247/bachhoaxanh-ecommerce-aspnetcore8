@@ -1,0 +1,597 @@
+@{
+    string activePage = ViewBag.Page ?? "about";
+}
+
+<style>
+    .info-container { max-width: 1120px; margin: 0 auto; }
+    .info-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+    .info-sidebar { background: #fff; border-radius: 12px; padding: 20px 14px; box-shadow: 0 2px 14px rgba(0,0,0,.05); height: fit-content; }
+    .info-content-card { background: #fff; border-radius: 12px; padding: 30px; box-shadow: 0 2px 14px rgba(0,0,0,.05); min-height: 500px; }
+    
+    .sidebar-section-title { font-size: 11px; font-weight: 800; color: #aaa; text-transform: uppercase; letter-spacing: 1.2px; padding: 12px 14px 6px; }
+    .sidebar-nav-list { list-style: none; padding: 0; margin: 0; }
+    .sidebar-nav-list li a { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; color: #444; font-size: 13.5px; font-weight: 600; text-decoration: none; transition: all 0.2s; margin-bottom: 2px; }
+    .sidebar-nav-list li a:hover { background: var(--green-light); color: var(--green-dark); }
+    .sidebar-nav-list li a.active { background: var(--green-main); color: #fff; box-shadow: 0 4px 10px rgba(44,158,71,0.2); }
+    
+    .value-card { border: 1.5px solid #eee; border-radius: 10px; padding: 18px; transition: transform 0.2s; height: 100%; }
+    .value-card:hover { transform: translateY(-3px); border-color: var(--green-accent); }
+    .value-icon { font-size: 28px; color: var(--green-main); margin-bottom: 10px; }
+    
+    .career-card { border: 1.5px solid #eee; border-radius: 10px; padding: 20px; transition: all 0.2s; }
+    .career-card:hover { border-color: var(--green-main); box-shadow: 0 4px 14px rgba(0,0,0,0.05); }
+    
+    .store-item { border-bottom: 1.5px dashed #eee; padding-bottom: 18px; margin-bottom: 18px; }
+    .store-item:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+    
+    .guide-step { display: flex; gap: 16px; margin-bottom: 24px; }
+    .step-number { width: 32px; height: 32px; border-radius: 50%; background: var(--green-main); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+    
+    .accordion-button:not(.collapsed) { background-color: var(--green-light); color: var(--green-dark); }
+    .accordion-button:focus { border-color: var(--green-main); box-shadow: 0 0 0 0.25rem rgba(44,158,71,0.25); }
+    
+    @@media (max-width: 900px) {
+        .info-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="info-container fade-in">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="fw-black mb-1" style="font-weight:900;color:#1a7a2e;">Thông tin & Trợ giúp</h2>
+            <div class="text-muted small">Tìm hiểu thêm các chính sách, tin tức tuyển dụng và liên hệ.</div>
+        </div>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-success rounded-pill">
+            <i class="bi bi-house-door me-1"></i> Trang chủ
+        </a>
+    </div>
+
+    <div class="info-grid">
+        <!-- Sidebar Navigation -->
+        <aside class="info-sidebar">
+            <div class="sidebar-section-title">Về Chúng Tôi</div>
+            <ul class="sidebar-nav-list">
+                <li><a href="/Home/Info?page=about" class="@(activePage == "about" ? "active" : "")"><i class="bi bi-info-circle"></i> Giới thiệu</a></li>
+                <li><a href="/Home/Info?page=stores" class="@(activePage == "stores" ? "active" : "")"><i class="bi bi-geo-alt"></i> Hệ thống cửa hàng</a></li>
+                <li><a href="/Home/Info?page=careers" class="@(activePage == "careers" ? "active" : "")"><i class="bi bi-briefcase"></i> Tuyển dụng</a></li>
+                <li><a href="/Home/Info?page=news" class="@(activePage == "news" ? "active" : "")"><i class="bi bi-newspaper"></i> Tin tức</a></li>
+            </ul>
+
+            <div class="sidebar-section-title">Chính Sách</div>
+            <ul class="sidebar-nav-list">
+                <li><a href="/Home/Info?page=privacy" class="@(activePage == "privacy" ? "active" : "")"><i class="bi bi-shield-lock"></i> Chính sách bảo mật</a></li>
+                <li><a href="/Home/Info?page=terms" class="@(activePage == "terms" ? "active" : "")"><i class="bi bi-file-earmark-text"></i> Điều khoản dịch vụ</a></li>
+                <li><a href="/Home/Info?page=return" class="@(activePage == "return" ? "active" : "")"><i class="bi bi-arrow-left-right"></i> Chính sách đổi trả</a></li>
+                <li><a href="/Home/Info?page=payment" class="@(activePage == "payment" ? "active" : "")"><i class="bi bi-credit-card"></i> Phương thức thanh toán</a></li>
+            </ul>
+
+            <div class="sidebar-section-title">Hỗ Trợ</div>
+            <ul class="sidebar-nav-list">
+                <li><a href="/Home/Info?page=guide" class="@(activePage == "guide" ? "active" : "")"><i class="bi bi-book"></i> Hướng dẫn mua hàng</a></li>
+                <li><a href="/Cart/Tracking" class=""><i class="bi bi-search"></i> Tra cứu đơn hàng</a></li>
+                <li><a href="/Home/Info?page=faq" class="@(activePage == "faq" ? "active" : "")"><i class="bi bi-question-circle"></i> Câu hỏi thường gặp</a></li>
+                <li><a href="/Home/Info?page=contact" class="@(activePage == "contact" ? "active" : "")"><i class="bi bi-envelope"></i> Liên hệ</a></li>
+            </ul>
+        </aside>
+
+        <!-- Content Area -->
+        <main class="info-content-card">
+            @if (activePage == "about")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-info-circle-fill me-2"></i>Giới Thiệu Về Chúng Tôi</h3>
+                <p class="text-muted">
+                    Chào mừng bạn đến với <strong>Bách Hóa Xanh</strong> - Chuỗi siêu thị thực phẩm tươi sống và nhu yếu phẩm chất lượng hàng đầu Việt Nam. Chúng tôi tự hào mang lại nguồn cung ứng thực phẩm sạch, an toàn và mức giá tiết kiệm cho hàng triệu gia đình Việt mỗi ngày.
+                </p>
+                <div class="my-4 text-center">
+                    <img src="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80" alt="Bách Hóa Xanh Store" class="img-fluid rounded shadow-sm" style="max-height: 280px; width: 100%; object-fit: cover;" />
+                </div>
+                
+                <h5 class="fw-bold mb-3 mt-4 text-dark" style="font-weight:800;">Giá Trị Cốt Lõi</h5>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon"><i class="bi bi-check2-circle"></i></div>
+                            <h6 class="fw-bold">Chất lượng hàng đầu</h6>
+                            <p class="small text-muted mb-0">Hàng tươi sống mỗi ngày, nguồn gốc xuất xứ rõ ràng và được kiểm duyệt nghiêm ngặt.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon"><i class="bi bi-tags"></i></div>
+                            <h6 class="fw-bold">Giá cả tiết kiệm</h6>
+                            <p class="small text-muted mb-0">Cung cấp mức giá cạnh tranh nhất, nhiều ưu đãi và combo hấp dẫn giúp tiết kiệm tối đa.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon"><i class="bi bi-heart-pulse"></i></div>
+                            <h6 class="fw-bold">Phục vụ tận tâm</h6>
+                            <p class="small text-muted mb-0">Luôn lắng nghe, hỗ trợ khách hàng nhanh chóng với thái độ thân thiện và trung thực.</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activePage == "stores")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-geo-alt-fill me-2"></i>Hệ Thống Cửa Hàng Bách Hóa Xanh</h3>
+                <p class="text-muted mb-4">Tìm kiếm địa chỉ cửa hàng Bách Hóa Xanh gần bạn nhất để mua sắm trực tiếp và nhận phục vụ tốt nhất.</p>
+                
+                <!-- Bộ lọc -->
+                <div class="row g-2 mb-4 p-3 bg-light rounded shadow-sm border border-success-subtle">
+                    <div class="col-md-3">
+                        <select id="infoSelectRegion" class="form-select rounded-pill border-success-subtle">
+                            <option value="">-- Chọn Miền --</option>
+                            <option value="Miền Bắc">Miền Bắc</option>
+                            <option value="Miền Trung">Miền Trung</option>
+                            <option value="Miền Nam">Miền Nam</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="infoSelectProvince" class="form-select rounded-pill border-success-subtle" disabled>
+                            <option value="">-- Chọn Tỉnh/TP --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="infoSelectDistrict" class="form-select rounded-pill border-success-subtle" disabled>
+                            <option value="">-- Chọn Quận/Huyện --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" id="infoSearchBranchInput" class="form-control rounded-pill border-success-subtle" placeholder="Nhập tên/địa chỉ tìm..." />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted small" id="infoBranchCountText">Đang tải danh sách cửa hàng...</span>
+                    <button type="button" id="infoBtnClearFilters" class="btn btn-link btn-sm text-success text-decoration-none p-0 fw-bold" style="display: none;">Xóa bộ lọc</button>
+                </div>
+                
+                <div id="infoBranchListContainer" class="row g-3" style="max-height: 600px; overflow-y: auto; padding-bottom: 20px;">
+                    <!-- Danh sách cửa hàng động -->
+                </div>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const selectRegion = document.getElementById('infoSelectRegion');
+                        const selectProvince = document.getElementById('infoSelectProvince');
+                        const selectDistrict = document.getElementById('infoSelectDistrict');
+                        const searchInput = document.getElementById('infoSearchBranchInput');
+                        const container = document.getElementById('infoBranchListContainer');
+                        const countText = document.getElementById('infoBranchCountText');
+                        const clearBtn = document.getElementById('infoBtnClearFilters');
+
+                        if (!selectRegion || !selectProvince || !selectDistrict || !searchInput || !container) return;
+
+                        let allBranches = [];
+                        const regionMap = {
+                            "Cần Thơ": "Miền Nam", "Đà Nẵng": "Miền Trung", "Hà Nội": "Miền Bắc", "Hải Phòng": "Miền Bắc",
+                            "Hồ Chí Minh": "Miền Nam", "Thừa Thiên Huế": "Miền Trung", "An Giang": "Miền Nam", "Bắc Ninh": "Miền Bắc",
+                            "Cà Mau": "Miền Nam", "Đắk Lắk": "Miền Trung", "Đồng Nai": "Miền Nam", "Đồng Tháp": "Miền Nam",
+                            "Gia Lai": "Miền Trung", "Hà Tĩnh": "Miền Trung", "Hưng Yên": "Miền Bắc", "Khánh Hòa": "Miền Trung",
+                            "Lâm Đồng": "Miền Trung", "Nghệ An": "Miền Trung", "Ninh Bình": "Miền Bắc", "Quảng Ngãi": "Miền Trung",
+                            "Quảng Ninh": "Miền Bắc", "Quảng Trị": "Miền Trung", "Tây Ninh": "Miền Nam", "Thanh Hóa": "Miền Trung",
+                            "Vĩnh Long": "Miền Nam"
+                        };
+
+                        fetch('/data/branches.json')
+                            .then(res => res.json())
+                            .then(data => {
+                                allBranches = data.map(item => {
+                                    let prov = item.province;
+                                    if (prov === "Thơ") prov = "Cần Thơ";
+                                    if (prov === "Huế") prov = "Thừa Thiên Huế";
+                                    if (prov === "Thành Phố Hồ Chí Minh") prov = "Hồ Chí Minh";
+                                    
+                                    const region = regionMap[prov] || "Miền Nam";
+                                    
+                                    let dist = item.district;
+                                    if (dist) {
+                                        dist = dist.replace(/^Qu\S*n\s*/i, "Quận ");
+                                        dist = dist.replace(/^Huy\S*n\s*/i, "Huyện ");
+                                        dist = dist.replace(/^TX\S*\s*/i, "Thị xã ");
+                                        dist = dist.replace(/^Th\S*\s*x\S*\s*/i, "Thị xã ");
+                                    }
+                                    
+                                    return {
+                                        name: item.name,
+                                        address: item.address,
+                                        province: prov,
+                                        region: region,
+                                        district: dist || "Khác"
+                                    };
+                                });
+                                countText.innerText = `Tìm thấy ${allBranches.length} cửa hàng trên toàn quốc.`;
+                                renderBranches(allBranches.slice(0, 12));
+                            })
+                            .catch(err => {
+                                console.error("Error loading branches in Info:", err);
+                                countText.innerText = "Lỗi khi tải danh sách cửa hàng.";
+                            });
+
+                        selectRegion.addEventListener('change', handleRegionChange);
+                        selectProvince.addEventListener('change', handleProvinceChange);
+                        selectDistrict.addEventListener('change', updateFilters);
+                        searchInput.addEventListener('input', updateFilters);
+                        clearBtn.addEventListener('click', clearFilters);
+
+                        function handleRegionChange() {
+                            const region = selectRegion.value;
+                            selectProvince.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+                            selectDistrict.innerHTML = '<option value="">-- Chọn Quận/Huyện --</option>';
+                            selectDistrict.disabled = true;
+
+                            if (!region) {
+                                selectProvince.disabled = true;
+                            } else {
+                                selectProvince.disabled = false;
+                                const provinces = [...new Set(allBranches.filter(b => b.region === region).map(b => b.province))].sort();
+                                provinces.forEach(p => {
+                                    const opt = document.createElement('option');
+                                    opt.value = p;
+                                    opt.textContent = p === "Thừa Thiên Huế" ? "Huế" : p;
+                                    selectProvince.appendChild(opt);
+                                });
+                            }
+                            updateFilters();
+                        }
+
+                        function handleProvinceChange() {
+                            const prov = selectProvince.value;
+                            selectDistrict.innerHTML = '<option value="">-- Chọn Quận/Huyện --</option>';
+
+                            if (!prov) {
+                                selectDistrict.disabled = true;
+                            } else {
+                                selectDistrict.disabled = false;
+                                const districts = [...new Set(allBranches.filter(b => b.province === prov).map(b => b.district))].sort();
+                                districts.forEach(d => {
+                                    if (d && d !== "Khác") {
+                                        const opt = document.createElement('option');
+                                        opt.value = d;
+                                        opt.textContent = d;
+                                        selectDistrict.appendChild(opt);
+                                    }
+                                });
+                            }
+                            updateFilters();
+                        }
+
+                        function updateFilters() {
+                            const region = selectRegion.value;
+                            const prov = selectProvince.value;
+                            const dist = selectDistrict.value;
+                            const query = searchInput.value.toLowerCase().trim();
+
+                            if (region || prov || dist || query) {
+                                clearBtn.style.display = "inline-block";
+                            } else {
+                                clearBtn.style.display = "none";
+                            }
+
+                            let filtered = allBranches;
+
+                            if (region) filtered = filtered.filter(b => b.region === region);
+                            if (prov) filtered = filtered.filter(b => b.province === prov);
+                            if (dist) filtered = filtered.filter(b => b.district === dist);
+                            if (query) {
+                                filtered = filtered.filter(b => 
+                                    b.name.toLowerCase().includes(query) || 
+                                    b.address.toLowerCase().includes(query)
+                                );
+                            }
+
+                            countText.innerText = `Tìm thấy ${filtered.length} cửa hàng.`;
+                            renderBranches(filtered.slice(0, 100));
+                        }
+
+                        function clearFilters() {
+                            selectRegion.value = "";
+                            selectProvince.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+                            selectProvince.disabled = true;
+                            selectDistrict.innerHTML = '<option value="">-- Chọn Quận/Huyện --</option>';
+                            selectDistrict.disabled = true;
+                            searchInput.value = "";
+                            clearBtn.style.display = "none";
+                            updateFilters();
+                        }
+
+                        function renderBranches(list) {
+                            container.innerHTML = "";
+                            if (list.length === 0) {
+                                container.innerHTML = `
+                                    <div class="col-12 text-center py-4">
+                                        <i class="bi bi-geo-fill text-muted fs-2 mb-2 d-block"></i>
+                                        <span class="text-muted">Không tìm thấy cửa hàng nào phù hợp với bộ lọc.</span>
+                                    </div>
+                                `;
+                                return;
+                            }
+
+                            list.forEach(b => {
+                                const col = document.createElement('div');
+                                col.className = "col-md-6 col-lg-4";
+                                col.innerHTML = `
+                                    <div class="p-3 border rounded shadow-sm bg-white h-100 d-flex flex-column justify-content-between branch-card-item">
+                                        <div>
+                                            <h6 class="fw-bold text-dark mb-1"><i class="bi bi-house-fill text-success me-2"></i>${b.name}</h6>
+                                            <p class="small text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>${b.address}</p>
+                                            <p class="small text-muted mb-2"><i class="bi bi-clock me-1"></i>Giờ mở cửa: 07:00 - 21:30</p>
+                                        </div>
+                                        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(b.address)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-success btn-sm rounded-pill fw-bold align-self-start mt-2">
+                                            <i class="bi bi-map me-1"></i>Xem trên Google Maps
+                                        </a>
+                                    </div>
+                                `;
+                                container.appendChild(col);
+                            });
+                        }
+                    });
+                </script>
+            }
+            else if (activePage == "careers")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-briefcase-fill me-2"></i>Cơ Hội Nghề Nghiệp Tại Bách Hóa Xanh</h3>
+                <p class="text-muted mb-4">Hãy gia nhập đội ngũ năng động, thân thiện và phát triển sự nghiệp vững chắc cùng hệ thống bán lẻ hàng đầu Việt Nam.</p>
+                
+                <h5 class="fw-bold text-dark mb-3" style="font-weight:800;">Vị Trí Đang Tuyển Dụng</h5>
+                <div class="d-flex flex-column gap-3">
+                    <div class="career-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1">Nhân viên bán hàng & Tư vấn sản phẩm</h6>
+                                <div class="small text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Quận 10, TP. HCM &nbsp;|&nbsp; <i class="bi bi-cash-stack me-1"></i>7.000.000 - 9.000.000đ/tháng</div>
+                                <p class="small text-secondary mb-0">Sắp xếp hàng hóa lên kệ, tư vấn sản phẩm tươi ngon cho khách hàng, dọn dẹp vệ sinh khu vực trưng bày hàng hóa sạch sẽ.</p>
+                            </div>
+                            <span class="badge bg-success">Full-time</span>
+                        </div>
+                    </div>
+                    <div class="career-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="fw-bold mb-1">Thu ngân cửa hàng</h6>
+                                <div class="small text-muted mb-2"><i class="bi bi-geo-alt me-1"></i>Quận 3, TP. HCM &nbsp;|&nbsp; <i class="bi bi-cash-stack me-1"></i>7.500.000 - 9.500.000đ/tháng</div>
+                                <p class="small text-secondary mb-0">Thanh toán hóa đơn cho khách hàng, đóng gói túi hàng hóa gọn gàng, hỗ trợ đăng ký thẻ thành viên tích lũy điểm và áp dụng mã giảm giá.</p>
+                            </div>
+                            <span class="badge bg-success">Full-time</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-success mt-4">
+                    <h6 class="fw-bold mb-1"><i class="bi bi-envelope-check me-1"></i>Nộp hồ sơ ứng tuyển:</h6>
+                    <span class="small">Vui lòng gửi CV/Hồ sơ xin việc của bạn tới bộ phận nhân sự qua hòm thư: <a href="mailto:tuyendung@bachhoaxanh.com" class="fw-bold text-success">tuyendung@bachhoaxanh.com</a></span>
+                </div>
+            }
+            else if (activePage == "news")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-newspaper me-2"></i>Tin Tức & Khuyến Mãi Bách Hóa Xanh</h3>
+                <p class="text-muted mb-4">Cập nhật nhanh chóng các chương trình khuyến mãi, tin hoạt động mới nhất của siêu thị.</p>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm" style="overflow:hidden; border-radius:10px;">
+                            <img src="https://images.unsplash.com/photo-1578916171728-46686eac8d58?auto=format&fit=crop&w=400&q=80" class="card-img-top" style="height:140px; object-fit:cover;" />
+                            <div class="card-body">
+                                <span class="badge bg-danger mb-2">HOT PROMOTION</span>
+                                <h6 class="fw-bold mb-2">Giá sốc cuối tuần: Giảm giá cực mạnh lên tới 49% toàn bộ rau củ sạch</h6>
+                                <p class="small text-muted">Chương trình áp dụng từ thứ Sáu đến hết Chủ nhật tuần này tại toàn bộ hệ thống siêu thị Bách Hóa Xanh trên cả nước.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm" style="overflow:hidden; border-radius:10px;">
+                            <img src="https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=400&q=80" class="card-img-top" style="height:140px; object-fit:cover;" />
+                            <div class="card-body">
+                                <span class="badge bg-success mb-2">STORE UPDATES</span>
+                                <h6 class="fw-bold mb-2">Khai trương thêm 10 cửa hàng Bách Hóa Xanh mới khu vực ngoại thành</h6>
+                                <p class="small text-muted">Đem lại không gian mua sắm hiện đại, sạch sẽ và giá thành siêu bình ổn phục vụ nhu cầu đời sống của người dân.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activePage == "privacy")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-shield-lock-fill me-2"></i>Chính Sách Bảo Mật Thông Tin</h3>
+                <p class="small text-muted">Cập nhật gần nhất: Tháng 6/2026</p>
+                <hr />
+                <div class="text-secondary small">
+                    <h6 class="fw-bold text-dark">1. Thu thập thông tin cá nhân</h6>
+                    <p>Chúng tôi thu thập thông tin khi bạn đăng ký tài khoản, liên kết số điện thoại, cập nhật ảnh đại diện và địa chỉ giao hàng nhằm phục vụ quá trình giao hàng nhanh và chính xác nhất.</p>
+                    
+                    <h6 class="fw-bold text-dark mt-3">2. Sử dụng thông tin</h6>
+                    <p>Thông tin cá nhân chỉ được sử dụng cho việc xử lý đơn hàng, tích lũy điểm thưởng thành viên, áp dụng chiết khấu cấp bậc, gửi quà tặng mã giảm giá độc quyền và chăm sóc khách hàng.</p>
+                    
+                    <h6 class="fw-bold text-dark mt-3">3. Bảo mật thông tin</h6>
+                    <p>Hệ thống Bách Hóa Xanh áp dụng các công nghệ mã hóa hiện đại để bảo vệ thông tin tài khoản của khách hàng không bị rò rỉ hoặc truy cập trái phép từ bên thứ ba.</p>
+                </div>
+            }
+            else if (activePage == "terms")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-file-earmark-text-fill me-2"></i>Điều Khoản Dịch Vụ</h3>
+                <p class="small text-muted">Cập nhật gần nhất: Tháng 6/2026</p>
+                <hr />
+                <div class="text-secondary small">
+                    <h6 class="fw-bold text-dark">1. Chấp thuận điều khoản</h6>
+                    <p>Bằng việc đăng ký tài khoản và mua sắm tại Bách Hóa Xanh, bạn đồng ý tuân thủ toàn bộ các quy định mua hàng, thanh toán và chính sách tích lũy điểm thành viên của chúng tôi.</p>
+                    
+                    <h6 class="fw-bold text-dark mt-3">2. Quyền sở hữu trí tuệ</h6>
+                    <p>Toàn bộ nội dung, hình ảnh sản phẩm, logo thương hiệu và mã nguồn của website đều thuộc quyền sở hữu độc quyền của Công ty TNHH Bách Hóa Xanh.</p>
+                    
+                    <h6 class="fw-bold text-dark mt-3">3. Giới hạn trách nhiệm</h6>
+                    <p>Chúng tôi luôn nỗ lực đảm bảo thông tin sản phẩm và tồn kho chính xác nhất. Trong trường hợp xảy ra lỗi hiển thị hoặc hết hàng đột xuất, hệ thống sẽ liên hệ khách hàng để hoàn tiền hoặc đổi mặt hàng tương đương.</p>
+                </div>
+            }
+            else if (activePage == "return")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-arrow-left-right me-2"></i>Chính Sách Đổi Trả Hàng Hóa</h3>
+                <p class="text-muted mb-4">Chúng tôi cam kết bảo vệ quyền lợi tối đa cho khách hàng với chính sách đổi trả hàng linh hoạt.</p>
+                
+                <div class="card p-3 mb-3 border-success-subtle bg-success bg-opacity-10">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-patch-check-fill text-success me-1"></i>Hàng tươi sống (Thịt, cá, rau củ, trái cây):</h6>
+                    <p class="small text-muted mb-0">Hỗ trợ đổi trả hoặc hoàn tiền trong vòng <strong>24 giờ</strong> kể từ lúc nhận hàng nếu hàng bị lỗi, hỏng, héo úa hoặc không đạt chất lượng cam kết.</p>
+                </div>
+                <div class="card p-3 mb-4">
+                    <h6 class="fw-bold text-dark"><i class="bi bi-box-seam me-1"></i>Hàng khô, nhu yếu phẩm, hóa phẩm:</h6>
+                    <p class="small text-muted mb-0">Hỗ trợ đổi trả trong vòng <strong>7 ngày</strong>. Yêu cầu sản phẩm còn nguyên bao bì, tem nhãn và chưa qua sử dụng.</p>
+                </div>
+                
+                <h6 class="fw-bold">Các bước yêu cầu đổi trả:</h6>
+                <ol class="small text-secondary ps-3">
+                    <li class="mb-1">Liên hệ hotline <strong>028.38125960</strong> hoặc gửi email kèm hình ảnh sản phẩm lỗi.</li>
+                    <li class="mb-1">Nhân viên siêu thị sẽ xác nhận và sắp xếp shipper đến thu hồi sản phẩm lỗi tại nhà.</li>
+                    <li>Sản phẩm mới sẽ được giao lại miễn phí hoặc tiến hành hoàn tiền qua số tài khoản ngân hàng liên kết.</li>
+                </ol>
+            }
+            else if (activePage == "payment")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-credit-card-2-front-fill me-2"></i>Phương Thức Thanh Toán</h3>
+                <p class="text-muted mb-4">Bách Hóa Xanh hỗ trợ đa dạng phương thức thanh toán an toàn, bảo mật và tiện lợi nhất cho khách hàng.</p>
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon text-success"><i class="bi bi-cash"></i></div>
+                            <h6 class="fw-bold text-dark">Thanh toán khi nhận hàng (COD)</h6>
+                            <p class="small text-muted mb-0">Nhận hàng, kiểm tra hàng hóa tươi ngon rồi thanh toán tiền mặt trực tiếp cho nhân viên giao hàng.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon text-success"><i class="bi bi-qr-code-scan"></i></div>
+                            <h6 class="fw-bold text-dark">Chuyển khoản (QR Code)</h6>
+                            <p class="small text-muted mb-0">Quét mã QR chuyển khoản trực tiếp hiển thị tại trang checkout để thanh toán hóa đơn nhanh chóng.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="value-card">
+                            <div class="value-icon text-success"><i class="bi bi-phone-vibrate"></i></div>
+                            <h6 class="fw-bold text-dark">VNPay / Thanh toán trực tuyến</h6>
+                            <p class="small text-muted mb-0">Liên kết thẻ ATM nội địa hoặc ví điện tử để tiến hành thanh toán trực tuyến bảo mật.</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activePage == "guide")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-book-half me-2"></i>Hướng Dẫn Mua Hàng Trực Tuyến</h3>
+                <p class="text-muted mb-4">Các bước mua sắm trực tuyến đơn giản trên website Bách Hóa Xanh:</p>
+                
+                <div class="guide-step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Tìm kiếm và chọn sản phẩm</h6>
+                        <p class="small text-muted mb-0">Tìm sản phẩm thông qua ô Tìm kiếm hoặc danh mục sản phẩm. Bấm nút <strong>Thêm vào giỏ</strong>.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Kiểm tra Giỏ hàng</h6>
+                        <p class="small text-muted mb-0">Bấm biểu tượng <strong>Giỏ hàng</strong> ở góc trên bên phải để kiểm tra số lượng và sản phẩm cần mua.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Áp dụng Mã giảm giá & Thành tích</h6>
+                        <p class="small text-muted mb-0">Nhập mã giảm giá từ **Túi đồ cá nhân** hoặc đổi điểm thành viên lấy mã ưu đãi độc quyền để nhận chiết khấu trực tiếp vào hóa đơn.</p>
+                    </div>
+                </div>
+                <div class="guide-step">
+                    <div class="step-number">4</div>
+                    <div>
+                        <h6 class="fw-bold mb-1">Thanh toán & Nhận hàng</h6>
+                        <p class="small text-muted mb-0">Điền địa chỉ giao nhận hàng, chọn phương thức thanh toán phù hợp và bấm **Đặt hàng**. Hệ thống sẽ giao hàng tới nhà bạn trong vòng 2 giờ.</p>
+                    </div>
+                </div>
+            }
+            else if (activePage == "faq")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-question-circle-fill me-2"></i>Câu Hỏi Thường Gặp (FAQ)</h3>
+                <p class="text-muted mb-4">Giải đáp nhanh các thắc mắc phổ biến của khách hàng khi mua sắm tại Bách Hóa Xanh.</p>
+                
+                <div class="accordion" id="faqAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingOne">
+                            <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                Bách Hóa Xanh có giao hàng tận nơi không? Phí giao hàng là bao nhiêu?
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body small text-secondary">
+                                Có, chúng tôi hỗ trợ giao hàng tận nhà nhanh chóng trong vòng 2 giờ. Phí giao hàng được tính toán tự động dựa trên khoảng cách địa lý từ cửa hàng gần nhất tới địa chỉ nhận hàng của bạn.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingTwo">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                Làm sao để tích lũy điểm và nâng hạng thẻ thành viên?
+                            </button>
+                        </h2>
+                        <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body small text-secondary">
+                                Mỗi đơn hàng đã thanh toán thành công sẽ được tích điểm dựa trên công thức: <strong>giá trị đơn hàng / 200</strong>. Khi tích đủ số điểm quy định, bạn có thể bấm nút **Nâng hạng** tại trang Hồ sơ cá nhân để nâng cấp thẻ và nhận quà tặng voucher độc quyền tương ứng.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingThree">
+                            <button class="accordion-button collapsed fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                Tôi muốn đổi sản phẩm đã mua có được không?
+                            </button>
+                        </h2>
+                        <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                            <div class="accordion-body small text-secondary">
+                                Hoàn toàn được. Các mặt hàng tươi sống sẽ được hỗ trợ đổi trả trong vòng 24 giờ nếu có lỗi dập, héo úa hoặc hư hỏng. Các mặt hàng khô, đóng hộp được đổi trả trong vòng 7 ngày kể từ khi nhận nếu còn nguyên tem mác bao bì.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (activePage == "contact")
+            {
+                <h3 class="fw-bold text-success mb-3" style="font-weight:900;"><i class="bi bi-envelope-fill me-2"></i>Liên Hệ Với Chúng Tôi</h3>
+                <p class="text-muted mb-4">Gửi ý kiến đóng góp hoặc thắc mắc của bạn, chúng tôi luôn sẵn sàng lắng nghe và trả lời trong thời gian sớm nhất.</p>
+                
+                <div class="row g-4">
+                    <div class="col-md-7">
+                        <form onsubmit="event.preventDefault(); alert('Cảm ơn bạn đã liên hệ! Chúng tôi đã nhận được thông tin và sẽ phản hồi sớm nhất.'); this.reset();">
+                            <div class="mb-3">
+                                <label class="field-label">Họ và tên</label>
+                                <input type="text" class="form-control" required placeholder="Nhập tên của bạn..." />
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Email liên lạc</label>
+                                <input type="email" class="form-control" required placeholder="Nhập email của bạn..." />
+                            </div>
+                            <div class="mb-3">
+                                <label class="field-label">Nội dung tin nhắn</label>
+                                <textarea class="form-control" rows="5" required placeholder="Viết phản hồi của bạn ở đây..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Gửi phản hồi</button>
+                        </form>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="card p-3 border-light bg-light" style="border-radius:10px;">
+                            <h6 class="fw-bold text-dark"><i class="bi bi-building me-1"></i>Công ty TNHH Bách Hóa Xanh</h6>
+                            <hr />
+                            <p class="small text-muted mb-2"><i class="bi bi-telephone-fill text-success me-2"></i><strong>Hotline:</strong> <a href="tel:02838125960" class="text-success text-decoration-none">028.38125960</a></p>
+                            <p class="small text-muted mb-2"><i class="bi bi-envelope-fill text-success me-2"></i><strong>Email:</strong> <a href="mailto:lienhe@bachhoaxanh.com" class="text-success text-decoration-none">lienhe@bachhoaxanh.com</a></p>
+                            <p class="small text-muted mb-3">
+                                <i class="bi bi-geo-alt-fill text-success me-2"></i><strong>Địa chỉ:</strong> <br />
+                                <a href="https://www.google.com/maps/search/?api=1&query=42/20A+Nguyễn+Giản+Thanh+Quận+10+Hồ+Chí+Minh" target="_blank" rel="noopener noreferrer" class="text-dark text-decoration-none d-block mt-1">
+                                    42/20A Nguyễn Giản Thanh, Phường 15, Quận 10, TP. Hồ Chí Minh
+                                </a>
+                            </p>
+                            <a href="https://www.google.com/maps/search/?api=1&query=42/20A+Nguyễn+Giản+Thanh+Quận+10+Hồ+Chí+Minh" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm w-100 rounded-pill fw-bold">
+                                <i class="bi bi-geo-alt me-1"></i>Tìm trên Google Maps
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </main>
+    </div>
+</div>

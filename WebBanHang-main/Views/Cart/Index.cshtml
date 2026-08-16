@@ -1,0 +1,913 @@
+@model WebBanHang.Models.Cart
+@using Microsoft.EntityFrameworkCore
+@inject WebBanHang.Data.ApplicationDbContext Db
+@{
+    Layout = null;
+    int activeBranchId = Context.Session.GetInt32("ActiveBranchId") ?? 1;
+    var branchInventories = Db.ProductInventories
+        .Where(pi => pi.BranchId == activeBranchId)
+        .ToDictionary(pi => pi.ProductId, pi => pi.Quantity);
+    bool isBranchExplicitlyChosen = Context.Session.GetString("IsBranchExplicitlyChosen") == "true";
+
+    var subtotalAmount = ViewBag.SubtotalAmount is decimal subtotal
+        ? subtotal
+        : (Model?.CartItems?.Sum(x => x.Product.DiscountedPrice * x.Quantity) ?? 0m);
+    var memberDiscountPct = ViewBag.MembershipDiscountPercent is decimal mdp ? mdp : 0m;
+    var memberDiscountAmount = ViewBag.MembershipDiscountAmount is decimal mda ? mda : 0m;
+    var voucherDiscountAmount = ViewBag.VoucherDiscountAmount is decimal vda ? vda : 0m;
+    var discountAmount = ViewBag.DiscountAmount is decimal discount ? discount : 0m;
+    var finalTotal = ViewBag.FinalTotal is decimal final ? final : subtotalAmount;
+    var appliedDiscountCode = ViewBag.AppliedDiscountCode as string ?? "";
+    var discountMessage = ViewBag.DiscountMessage as string;
+    var discounts = ViewBag.Discounts as IEnumerable<Discount> ?? Enumerable.Empty<Discount>();
+    var comboDiscountAmount = ViewBag.ComboDiscountAmount is decimal cda ? cda : 0m;
+    var appliedCombos = ViewBag.AppliedCombos as List<WebBanHang.Services.AppliedComboInfo> ?? new List<WebBanHang.Services.AppliedComboInfo>();
+
+    // Tìm các combo khuyến mãi gợi ý mua kèm
+    var activeComboPromos = Db.ComboPromotions
+        .Include(cp => cp.Product1)
+        .Include(cp => cp.Product2)
+        .Where(cp => cp.IsActive)
+        .ToList();
+
+    var cartProductIds = Model.CartItems.Select(ci => ci.ProductId).ToHashSet();
+    var recommendedCombos = new List<(ComboPromotion Combo, Product MissingProduct)>();
+
+    foreach (var combo in activeComboPromos)
+    {
+        bool hasP1 = cartProductIds.Contains(combo.ProductId1);
+        bool hasP2 = cartProductIds.Contains(combo.ProductId2);
+
+        if (hasP1 && !hasP2)
+        {
+            if (combo.Product2 != null && combo.Product2.IsVisible)
+            {
+                recommendedCombos.Add((combo, combo.Product2));
+            }
+        }
+        else if (hasP2 && !hasP1)
+        {
+            if (combo.Product1 != null && combo.Product1.IsVisible)
+            {
+                recommendedCombos.Add((combo, combo.Product1));
+            }
+        }
+    }
+}
+@functions {
+    private static bool IsDiscountActive(Discount discount, DateTime now)
+    {
+        return discount.IsSee
+            && discount.Quantity > 0
+            && discount.StartDate <= now
+            && discount.EndDate >= now;
+    }
+
+    private static string GetDiscountStatusText(Discount discount)
+    {
+        var now = DateTime.Now;
+
+        if (IsDiscountActive(discount, now))
+        {
+            return "Đang áp dụng";
+        }
+
+        if (discount.IsSee && discount.StartDate > now)
+        {
+            return "Sắp áp dụng";
+        }
+
+        return "Không khả dụng";
+    }
+
+    private static string GetDiscountStatusClass(Discount discount)
+    {
+        var now = DateTime.Now;
+
+        if (IsDiscountActive(discount, now))
+        {
+            return "is-active";
+        }
+
+        if (discount.IsSee && discount.StartDate > now)
+        {
+            return "is-scheduled";
+        }
+
+        return "is-unavailable";
+    }
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <style>
+            body {
+                background-color: #f0f2f0;
+            }
+
+            .cart-box {
+                background: #fff;
+                border-radius: 12px;
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+
+            .product-img {
+                width: 90px;
+                height: 90px;
+                object-fit: cover;
+                border-radius: 10px;
+            }
+
+            .qty-box {
+                border: 1px solid #ccc;
+                border-radius: 20px;
+                padding: 4px 10px;
+                display: inline-flex;
+                align-items: center;
+            }
+
+                .qty-box button {
+                    border: none;
+                    background: none;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+
+            .total {
+                color: red;
+                font-weight: bold;
+            }
+
+        .cart-box {
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .input-group .form-control {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .input-group .btn {
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Tăng khoảng cách xung quanh phần mã giảm giá */
+        .border.rounded-3 {
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .discount-field {
+            position: relative;
+        }
+
+        .discount-picker {
+            display: none;
+            position: absolute;
+            z-index: 30;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            max-height: 290px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px;
+            border: 1px solid #cfd8d3;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, .14);
+            box-sizing: border-box;
+        }
+
+        .discount-picker.show {
+            display: block;
+        }
+
+        .discount-option {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #d7ecdd;
+            border-radius: 8px;
+            background: #f7fff9;
+            color: #116734;
+            padding: 10px 11px;
+            text-align: left;
+            display: block;
+            margin-bottom: 7px;
+            transition: border-color .15s, background-color .15s, transform .15s;
+            overflow: hidden;
+        }
+
+        .discount-option:last-child {
+            margin-bottom: 0;
+        }
+
+        .discount-option.is-active:hover,
+        .discount-option.is-selected {
+            border-color: #159447;
+            background: #ecfdf3;
+            transform: translateY(-1px);
+        }
+
+        .discount-option.is-disabled {
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        .discount-option.is-scheduled {
+            background: #e6eefb;
+            border-color: #b5c8e8;
+            color: #1e4f9a;
+        }
+
+        .discount-option.is-unavailable {
+            background: #f1e3e3;
+            border-color: #d8b8b8;
+            color: #8c2d2d;
+        }
+
+        .discount-option-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .discount-code {
+            font-weight: 800;
+            letter-spacing: .2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+
+        .discount-percent {
+            font-weight: 800;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .discount-option-meta {
+            display: block;
+            color: #4b5563;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .discount-status {
+            display: inline-flex;
+            margin-top: 8px;
+            border-radius: 20px;
+            padding: 3px 8px;
+            font-size: 11px;
+            font-weight: 800;
+            background: rgba(255,255,255,.62);
+        }
+
+        .discount-empty {
+            color: #6b7280;
+            font-size: 13px;
+            padding: 10px;
+            margin: 0;
+        }
+
+        @@media (max-width: 767px) {
+            /* Ẩn tiêu đề cột */
+            .cart-box table thead {
+                display: none;
+            }
+            /* Chuyển các dòng thành khối dọc độc lập */
+            .cart-box table, 
+            .cart-box table tbody, 
+            .cart-box table tr, 
+            .cart-box table td {
+                display: block;
+                width: 100%;
+            }
+            .cart-box table tr {
+                border-bottom: 1.5px solid #eaeaea;
+                padding: 15px 0;
+                position: relative;
+            }
+            .cart-box table td {
+                border: none;
+                padding: 6px 0;
+                text-align: left !important;
+            }
+            /* Chừa khoảng trống bên phải dòng đầu tiên để không đè lên nút xóa */
+            .cart-box table td:first-child {
+                padding-right: 45px;
+            }
+            /* Thêm nhãn hướng dẫn phía trước thông tin */
+            .cart-box table td:nth-child(2)::before {
+                content: "Đơn giá: ";
+                font-weight: 700;
+                color: #555;
+            }
+            .cart-box table td:nth-child(3)::before {
+                content: "Số lượng: ";
+                font-weight: 700;
+                color: #555;
+                margin-right: 8px;
+            }
+            .cart-box table td:nth-child(3) {
+                display: flex;
+                align-items: center;
+            }
+            .cart-box table td:nth-child(4)::before {
+                content: "Tổng cộng: ";
+                font-weight: 700;
+                color: #555;
+            }
+            .cart-box table td:nth-child(4) {
+                font-size: 16px;
+            }
+            /* Định vị tuyệt đối nút xóa ở góc trên bên phải */
+            .cart-box table td:last-child {
+                position: absolute;
+                top: 15px;
+                right: 0;
+                width: auto;
+                padding: 0;
+            }
+        }
+
+        /* DARK THEME SUPPORT */
+        html.dark-theme body {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .cart-box {
+            background: #1e1e1e !important;
+            border-color: #333 !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+        }
+        html.dark-theme h2, 
+        html.dark-theme h4, 
+        html.dark-theme h5, 
+        html.dark-theme h6,
+        html.dark-theme th,
+        html.dark-theme td,
+        html.dark-theme label {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .text-muted {
+            color: #aaa !important;
+        }
+        html.dark-theme .form-control {
+            background-color: #242424 !important;
+            color: #f5f5f5 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .form-control:focus {
+            background-color: #2b2b2b !important;
+            color: #fff !important;
+            border-color: #2c9e47 !important;
+        }
+        html.dark-theme .qty-box {
+            border-color: #444 !important;
+        }
+        html.dark-theme .qty-box button {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .qty-box span {
+            color: #fff !important;
+        }
+        html.dark-theme .table,
+        html.dark-theme .table tr,
+        html.dark-theme .table td,
+        html.dark-theme .table th {
+            background-color: transparent !important;
+            background: transparent !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .table td {
+            border-bottom: 1px solid #333 !important;
+        }
+        html.dark-theme .discount-picker {
+            background: #1e1e1e !important;
+            border-color: #333 !important;
+            box-shadow: 0 14px 30px rgba(0,0,0,0.5) !important;
+        }
+        html.dark-theme .discount-option {
+            border-color: #3d5e46 !important;
+            background: #192a1e !important;
+            color: #8ae49f !important;
+        }
+        html.dark-theme .discount-option.is-active:hover,
+        html.dark-theme .discount-option.is-selected {
+            border-color: #2c9e47 !important;
+            background: #203a27 !important;
+        }
+        html.dark-theme .discount-option.is-scheduled {
+            background: #1e2e44 !important;
+            border-color: #334e72 !important;
+            color: #76a3e5 !important;
+        }
+        html.dark-theme .discount-option.is-unavailable {
+            background: #401e1e !important;
+            border-color: #6e3333 !important;
+            color: #e88c8c !important;
+        }
+        html.dark-theme .discount-option-meta {
+            color: #9ca3af !important;
+        }
+        html.dark-theme .discount-status {
+            background: rgba(0,0,0,.4) !important;
+            color: #fff !important;
+        }
+        html.dark-theme .discount-empty {
+            color: #9ca3af !important;
+        }
+        html.dark-theme .border-top {
+            border-top: 1px solid #333 !important;
+        }
+        html.dark-theme .text-dark {
+            color: #fff !important;
+        }
+        html.dark-theme .bg-light {
+            background-color: #242424 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .btn-light {
+            background-color: #2b2b2b !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .btn-light:hover {
+            background-color: #383838 !important;
+        }
+        @@media (max-width: 767px) {
+            html.dark-theme .cart-box table tr {
+                border-bottom: 1.5px solid #333 !important;
+            }
+            html.dark-theme .cart-box table td::before {
+                color: #aaa !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container py-5">
+
+        <h3 class="mb-4"><i class="bi bi-cart3 text-success"></i> Giỏ hàng</h3>
+
+        @if (TempData["CartMessage"] != null)
+        {
+            <div class="alert alert-warning">@TempData["CartMessage"]</div>
+        }
+
+        @if (Model != null && Model.CartItems != null && Model.CartItems.Any())
+        {
+            <div class="row g-4">
+                <!-- Danh sách sản phẩm -->
+                <div class="col-lg-8">
+                    <div class="cart-box">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-center">Giá</th>
+                                    <th class="text-center">SL</th>
+                                    <th class="text-end">Tổng</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.CartItems)
+                                {
+                                    var stock = branchInventories.TryGetValue(item.ProductId, out var qty) ? qty : 0m;
+                                    var isOutOfStock = stock <= 0;
+                                    var isInsufficient = item.Quantity > stock;
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <img class="product-img"
+                                                     src="@item.Product.Image"
+                                                     onerror="this.onerror=null;this.src='https://placehold.co/100x100?text=No+Image';" />
+                                                <div>
+                                                    <div class="fw-bold text-dark">@item.Product.Name</div>
+                                                     @if (isBranchExplicitlyChosen && isOutOfStock)
+                                                     {
+                                                         <span class="badge bg-danger mt-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Hết hàng tại siêu thị chọn</span>
+                                                     }
+                                                     else if (isBranchExplicitlyChosen && isInsufficient)
+                                                     {
+                                                         <span class="badge bg-warning text-dark mt-1"><i class="bi bi-exclamation-circle-fill me-1"></i>Chỉ còn @stock.ToString("0.###").TrimEnd('0').TrimEnd('.') @item.Product.Unit</span>
+                                                     }
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        <td class="text-center">
+                                            @if (item.Product.DiscountedPrice < item.Product.Price)
+                                            {
+                                                <span class="text-decoration-line-through text-muted small">@item.Product.Price.ToString("N0") đ</span>
+                                                <div class="text-danger fw-bold">@item.Product.DiscountedPrice.ToString("N0") đ</div>
+                                            }
+                                            else
+                                            {
+                                                <span>@item.Product.Price.ToString("N0") đ</span>
+                                            }
+                                        </td>
+
+                                        <td class="text-center">
+                                            <div class="qty-box d-flex align-items-center justify-content-center">
+                                                <!-- Giảm số lượng -->
+                                                <form asp-controller="Cart" asp-action="UpdateQuantity" method="post" class="m-0">
+                                                    <input type="hidden" name="cartItemId" value="@item.Id" />
+                                                    <input type="hidden" name="amount" value="@(item.Product.IsSoldByWeight ? "-0.1" : "-1")" />
+                                                    <button type="submit" class="btn border-0 py-0 px-2" style="background: none; font-size: 16px; font-weight: 700;">-</button>
+                                                </form>
+
+                                                <!-- Nhập số lượng -->
+                                                <form asp-controller="Cart" asp-action="UpdateQuantityDirect" method="post" class="m-0 d-inline-block">
+                                                    <input type="hidden" name="cartItemId" value="@item.Id" />
+                                                    <input type="number" name="quantity" value="@item.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)" 
+                                                           step="@(item.Product.IsSoldByWeight ? "0.1" : "1")" 
+                                                           min="@(item.Product.IsSoldByWeight ? "0.1" : "1")" 
+                                                           class="form-control text-center px-1" 
+                                                           style="width: @(item.Product.IsSoldByWeight ? "75px" : "55px"); height: 28px; font-size: 13px; font-weight: 700; border: 1px solid #ccc; display: inline-block; margin: 0 4px;" 
+                                                           onchange="this.form.submit()" />
+                                                </form>
+
+                                                <!-- Tăng số lượng -->
+                                                <form asp-controller="Cart" asp-action="UpdateQuantity" method="post" class="m-0">
+                                                    <input type="hidden" name="cartItemId" value="@item.Id" />
+                                                    <input type="hidden" name="amount" value="@(item.Product.IsSoldByWeight ? "0.1" : "1")" />
+                                                    <button type="submit" class="btn border-0 py-0 px-2" style="background: none; font-size: 16px; font-weight: 700;">+</button>
+                                                </form>
+                                                
+                                                @if (item.Product.IsSoldByWeight)
+                                                {
+                                                    <span class="small text-secondary ms-1">@item.Product.Unit</span>
+                                                }
+                                            </div>
+                                        </td>
+
+                                        <td class="text-end total">
+                                            @((item.Product.DiscountedPrice * item.Quantity).ToString("N0")) đ
+                                        </td>
+
+                                        <!-- Xóa sản phẩm -->
+                                        <td class="text-end">
+                                            <form asp-controller="Cart" asp-action="RemoveItem" method="post" class="d-inline">
+                                                <input type="hidden" name="cartItemId" value="@item.Id" />
+                                                <button type="submit" class="btn btn-link text-danger p-0">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+
+                        <!-- Nút tiếp tục mua sắm -->
+                        <div class="d-flex gap-2 mt-3">
+                            <a asp-controller="Home" asp-action="Index" class="btn btn-outline-success flex-fill">
+                                <i class="bi bi-arrow-left"></i> Tiếp tục mua sắm
+                            </a>
+
+                            <form asp-controller="Cart" asp-action="ClearCart" method="post" class="flex-fill m-0">
+                                <button type="submit" class="btn btn-outline-danger w-100">
+                                    Xóa toàn bộ giỏ hàng
+                                </button>
+                            </form>
+                        </div>
+
+                        @if (recommendedCombos.Any())
+                        {
+                            <div class="mt-4 pt-3 border-top">
+                                <h6 class="fw-bold text-success mb-3" style="font-weight: 800;">
+                                    <i class="bi bi-gift-fill text-warning me-1"></i> Ưu đãi Combo dành riêng cho bạn!
+                                </h6>
+                                <div class="row g-3">
+                                    @foreach (var rec in recommendedCombos)
+                                    {
+                                        var p = rec.MissingProduct;
+                                        <div class="col-md-6">
+                                            <div class="p-3 border rounded-3 bg-white d-flex align-items-center justify-content-between" style="border: 1px solid #e0e0e0 !important; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    @if (!string.IsNullOrEmpty(p.Image))
+                                                    {
+                                                        <img src="@p.Image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" />
+                                                    }
+                                                    <div>
+                                                        <div class="fw-bold small text-dark" style="font-size: 13px; line-height: 1.2;">@p.Name</div>
+                                                        <div class="text-success fw-bold small mt-1">@p.Price.ToString("N0")đ</div>
+                                                        <div class="text-muted" style="font-size: 11px;">Mua kèm giảm @((rec.Combo.DiscountPercent * 100).ToString("0"))%</div>
+                                                    </div>
+                                                </div>
+                                                <button type="button" class="btn btn-primary btn-sm rounded-pill fw-bold px-3 py-1 text-nowrap" style="font-size: 11px;" onclick="quickAddProduct(@p.Id)">
+                                                    <i class="bi bi-plus-circle-fill"></i> Mua kèm
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Tóm tắt đơn hàng -->
+                <div class="col-lg-4">
+                    <div class="cart-box">
+                        <h5>Tóm tắt đơn hàng</h5>
+                        <hr />
+
+                        <div class="d-flex justify-content-between mb-4">
+                            <span>Tạm tính:</span>
+                            <span id="subtotal">@subtotalAmount.ToString("N0") đ</span>
+                        </div>
+
+                        <!-- Phần nhập mã giảm giá -->
+                        <div class="mb-4 p-3 border rounded-3 bg-light">
+                            <div class="mb-3">
+                                <div class="discount-field" id="discountField">
+                                    <div class="input-group">
+                                        <input type="text" id="discountCode" class="form-control" placeholder="Nhập mã giảm giá" value="@appliedDiscountCode" autocomplete="off" />
+                                        <button type="button" id="btnApplyDiscount" class="btn btn-primary">Áp dụng</button>
+                                    </div>
+                                    <div class="discount-picker" id="discountPicker">
+                                        @if (discounts.Any())
+                                        {
+                                            @foreach (var item in discounts)
+                                            {
+                                                var statusClass = GetDiscountStatusClass(item);
+                                                var isActive = statusClass == "is-active";
+                                                <button type="button"
+                                                        class="discount-option @statusClass @(isActive ? "" : "is-disabled") @(item.Code == appliedDiscountCode ? "is-selected" : "")"
+                                                        data-code="@item.Code"
+                                                        disabled="@(!isActive)">
+                                                    <span class="discount-option-head">
+                                                        <span class="discount-code"><i class="bi bi-ticket-perforated me-1"></i>@item.Code</span>
+                                                        <span class="discount-percent">@DiscountPercent.Format(item.DiscountValue)%</span>
+                                                    </span>
+                                                    <span class="discount-option-meta">
+                                                        Đơn từ @item.MinOrderValue.ToString("N0") đ · Tối đa @(item.MaxDiscount > 0 ? $"{item.MaxDiscount.ToString("N0")} đ" : "Không giới hạn")
+                                                    </span>
+                                                    <span class="discount-status">@GetDiscountStatusText(item)</span>
+                                                </button>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <p class="discount-empty">Chưa có mã giảm giá.</p>
+                                        }
+                                    </div>
+                                </div>
+                                <div id="discountMessage" class="mt-2">
+                                    @if (!string.IsNullOrWhiteSpace(discountMessage))
+                                    {
+                                        <div class="alert @(discountAmount > 0 ? "alert-success" : "alert-warning")">@discountMessage</div>
+                                    }
+                                </div>
+                            </div>
+                            <small class="text-muted d-block mt-2">Ví dụ: VIP24K, SALE2024...</small>
+                        </div>
+
+                        <!-- Hiển thị thông báo sau khi áp dụng -->
+                        @if (TempData["DiscountMessage"] != null)
+                        {
+                            <div class="alert @(TempData["DiscountSuccess"]?.ToString() == "true" ? "alert-success" : "alert-danger")">
+                                @TempData["DiscountMessage"]
+                            </div>
+                        }
+
+                        <hr class="my-4" />
+
+                        @if (memberDiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mb-2" id="memberDiscountRow">
+                                <span class="text-success">Ưu đãi thành viên (@((memberDiscountPct * 100).ToString("0"))%):</span>
+                                <span id="memberDiscountAmount" class="text-success fw-bold">-@memberDiscountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+
+                        <div id="discountAmountRow" class="d-flex justify-content-between mb-3 @(voucherDiscountAmount > 0 ? "" : "d-none")">
+                            <span>Giảm giá (voucher):</span>
+                            <span id="discountAmount" class="text-success fw-bold">-@voucherDiscountAmount.ToString("N0") đ</span>
+                        </div>
+
+                        @if (comboDiscountAmount > 0)
+                        {
+                            <div class="d-flex flex-column mb-3" id="comboDiscountRow">
+                                <div class="d-flex justify-content-between text-success">
+                                    <span>Ưu đãi Combo:</span>
+                                    <span id="comboDiscountAmount" class="fw-bold">-@comboDiscountAmount.ToString("N0") đ</span>
+                                </div>
+                                <div class="text-muted small text-end" style="font-size: 11px; font-weight: 500;">
+                                    @foreach (var combo in appliedCombos)
+                                    {
+                                        <div>@combo.Name x @combo.Quantity (-@combo.DiscountAmount.ToString("N0")đ)</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <span class="fw-bold fs-5">Tổng cộng:</span>
+                            <span class="total fs-5" id="final-total">
+                                @finalTotal.ToString("N0") đ
+                            </span>
+                        </div>
+
+                        <a asp-controller="Cart" asp-action="ConfirmOrder"
+                           class="btn btn-success w-100 py-3 fw-bold">
+                            Thanh toán ngay
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Giỏ hàng trống -->
+            <div class="text-center py-5">
+                <i class="bi bi-cart-x" style="font-size: 70px; color: #ccc;"></i>
+                <h4 class="mt-3">Giỏ hàng của bạn đang trống</h4>
+                <p class="text-muted">Hãy thêm sản phẩm để tiếp tục mua sắm</p>
+                <a asp-controller="Home" asp-action="Index" class="btn btn-success px-4 py-2 mt-3">
+                    <i class="bi bi-arrow-left"></i> Mua sắm ngay
+                </a>
+            </div>
+        }
+    </div>
+
+    <partial name="_AiChatWidget" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            const cartSubtotal = Number('@subtotalAmount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)');
+            // Membership discount is fixed per session; embed from server
+            const memberDiscountAmt = Number('@memberDiscountAmount.ToString("0", System.Globalization.CultureInfo.InvariantCulture)');
+
+            function formatVnd(value) {
+                return Number(value || 0).toLocaleString('vi-VN') + ' đ';
+            }
+
+            function showDiscountPicker() {
+                $("#discountPicker").addClass("show");
+            }
+
+            function hideDiscountPicker() {
+                $("#discountPicker").removeClass("show");
+            }
+
+            function showDiscountMessage(type, message) {
+                $("#discountMessage")
+                    .empty()
+                    .append($("<div>").addClass("alert alert-" + type).text(message));
+            }
+
+            function markSelectedDiscount(code) {
+                const normalizedCode = String(code || '').toUpperCase();
+                $(".discount-option").removeClass("is-selected").filter(function () {
+                    return String($(this).data("code") || '').toUpperCase() === normalizedCode;
+                }).addClass("is-selected");
+            }
+
+            $("#discountCode").on("focus click", showDiscountPicker);
+
+            $(".discount-option.is-active").on("click", function () {
+                const code = $(this).data("code");
+                $("#discountCode").val(code);
+                markSelectedDiscount(code);
+                hideDiscountPicker();
+            });
+
+            $(document).on("click", function (event) {
+                if (!$(event.target).closest("#discountField").length) {
+                    hideDiscountPicker();
+                }
+            });
+
+            $("#btnApplyDiscount").click(function () {
+                var code = $("#discountCode").val().trim();
+                if (!code) {
+                    showDiscountMessage("warning", "Vui lòng chọn hoặc nhập mã giảm giá!");
+                    showDiscountPicker();
+                    return;
+                }
+
+                $.ajax({
+                    url: '/Discount/ApplyDiscount',
+                    type: 'POST',
+                    data: { code: code },
+                    success: function (response) {
+                        if (response.success) {
+                            showDiscountMessage("success", response.message);
+                            $("#discountCode").val(response.code || code);
+                            markSelectedDiscount(response.code || code);
+                            $("#discountAmount").text('-' + formatVnd(response.discountAmount));
+                            $("#discountAmountRow").removeClass('d-none');
+                            // response.finalTotal already includes membership discount from server
+                            $("#final-total").text(formatVnd(response.finalTotal));
+                            hideDiscountPicker();
+                        } else {
+                            showDiscountMessage("danger", response.message);
+                            $("#discountAmountRow").addClass('d-none');
+                            $("#discountAmount").text('-0 đ');
+                            // When voucher fails, total = subtotal - memberDiscount only
+                            $("#final-total").text(formatVnd(cartSubtotal - memberDiscountAmt));
+                        }
+                    },
+                    error: function (xhr, status, error) {
+                        console.error(xhr.responseText);
+                        alert("Có lỗi xảy ra. Vui lòng thử lại!\n" + error);
+                    }
+                });
+            });
+        });
+
+        window.showCustomAlert = function (message, onOk) {
+            document.getElementById('customAlertModal')?.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'customAlertModal';
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modal.style.zIndex = '999999';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.animation = 'fadeIn 0.2s ease-out';
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.15); animation: scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);">
+                    <div style="width: 60px; height: 60px; background: #e8f7ec; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                        <i class="bi bi-check-circle-fill" style="font-size: 32px; color: #1a7a2e;"></i>
+                    </div>
+                    <h5 style="font-weight: 700; color: #333; margin-bottom: 12px; font-family: 'Outfit', sans-serif;">Thông Báo</h5>
+                    <p style="color: #666; font-size: 14px; margin-bottom: 24px; line-height: 1.5; font-family: 'Outfit', sans-serif;">${message}</p>
+                    <button type="button" id="btnCustomAlertOk" style="background: #1a7a2e; color: white; border: none; padding: 10px 32px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(26,122,46,0.2); font-family: 'Outfit', sans-serif;">
+                        OK
+                    </button>
+                </div>
+                <style>
+                    @@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                    @@keyframes scaleUp { from { transform: scale(0.8); } to { transform: scale(1); } }
+                    #btnCustomAlertOk:hover { background: #155d24; transform: translateY(-1px); }
+                </style>
+            `;
+
+            document.body.appendChild(modal);
+
+            document.getElementById('btnCustomAlertOk').addEventListener('click', () => {
+                modal.remove();
+                if (onOk) onOk();
+            });
+        };
+
+        window.quickAddProduct = function (productId) {
+            $.ajax({
+                url: '/Cart/AddToCart',
+                type: 'POST',
+                data: { productId: productId },
+                success: function (response) {
+                    if (response.success) {
+                        showCustomAlert(response.message, () => {
+                            location.reload();
+                        });
+                    } else {
+                        showCustomAlert(response.message);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error(xhr.responseText);
+                    showCustomAlert("Có lỗi xảy ra khi thêm vào giỏ hàng. Vui lòng thử lại!");
+                }
+            });
+        };
+    </script>
+        </body>
+</html>

@@ -1,0 +1,750 @@
+@using Microsoft.AspNetCore.Identity
+@model IEnumerable<WebBanHang.ViewModels.HRMListItemViewModel>
+
+@{
+    ViewData["Title"] = "Danh sách nhân sự";
+    Layout = "_Layout_HRM";
+}
+
+@section Styles {
+    <style>
+        .hrm-card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.08); overflow: hidden; border: none; }
+        .hrm-table { width: 100%; border-collapse: collapse; }
+        .hrm-table th { background: #f9f9f9; padding: 15px 20px; text-align: left; font-size: 11px; text-transform: uppercase; color: #aaa; letter-spacing: 1px; }
+        .hrm-table td { padding: 18px 20px; border-bottom: 1px solid #eee; font-size: 14px; }
+        
+        .u-info { display: flex; align-items: center; gap: 12px; }
+        .u-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--green-main); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+        
+        .fselect-sm { border-radius: 20px; font-size: 12px; padding: 5px 10px; border: 1.5px solid #ececec; outline: none; transition: 0.2s; }
+        .fselect-sm:focus { border-color: var(--green-main); }
+        
+        .btn-del-outline { color: #ccc; border: none; background: none; font-size: 18px; transition: 0.2s; cursor: pointer; }
+        .btn-del-outline:hover { color: #dc3545; }
+
+        .btn-edit-outline { color: #ccc; border: none; background: none; font-size: 18px; transition: 0.2s; cursor: pointer; }
+        .btn-edit-outline:hover { color: #2563eb; }
+
+        /* Custom Modal Styles */
+        .custom-modal-overlay {
+            display: none;
+            position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.45);
+            align-items: center;
+            justify-content: center;
+        }
+        .custom-modal-overlay.active { display: flex; }
+        .custom-modal-box {
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            padding: 36px 32px 28px;
+            max-width: 440px;
+            width: 90%;
+            animation: modalSlideIn 0.22s ease;
+            text-align: center;
+        }
+        @@keyframes modalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .custom-modal-icon {
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 34px;
+            margin: 0 auto 18px;
+        }
+        .custom-modal-icon.danger { background: #fff0f0; color: #e82828; }
+        .custom-modal-icon.edit   { background: #eff6ff; color: #2563eb; }
+        .modal-btn-row { display: flex; gap: 10px; margin-top: 22px; }
+        .modal-btn-row .btn { flex: 1; border-radius: 25px; padding: 10px; font-weight: 700; border: none; cursor: pointer; transition: 0.18s; }
+        .modal-btn-confirm-del { background: #dc3545; color: #fff; }
+        .modal-btn-confirm-del:hover { background: #b52d3a; }
+        .modal-btn-cancel { background: #f5f5f5; color: #666; }
+        .modal-btn-cancel:hover { background: #e5e5e5; }
+
+        /* Edit modal form */
+        .edit-form-group { text-align: left; margin-bottom: 14px; }
+        .edit-form-group label { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; display: block; }
+        .edit-form-group input, .edit-form-group textarea, .edit-form-group select {
+            width: 100%; border: 1.5px solid #e5e5e5; border-radius: 10px;
+            padding: 9px 13px; font-size: 14px; outline: none; transition: 0.2s;
+            box-sizing: border-box;
+        }
+        .edit-form-group input:focus, .edit-form-group textarea:focus, .edit-form-group select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .modal-btn-confirm-edit { background: #2563eb; color: #fff; }
+        .modal-btn-confirm-edit:hover { background: #1d4ed8; }
+    </style>
+}
+
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 style="font-weight: 900; color: var(--green-dark); margin: 0;">
+        <i class="bi bi-people-fill me-2"></i> QUẢN LÝ NHÂN SỰ
+    </h2>
+    <a asp-action="Create" class="btn" style="background: var(--green-main); color: #fff; border-radius: 25px; padding: 8px 25px; font-weight: 700; font-size: 14px; box-shadow: 0 4px 12px rgba(44,158,71,0.2);">
+        <i class="bi bi-person-plus-fill me-1"></i> THÊM NHÂN VIÊN
+    </a>
+</div>
+
+<div class="hrm-card">
+    <div style="overflow-x:auto;">
+        <table class="hrm-table">
+            <thead>
+                <tr>
+                    <th>Hồ sơ nhân viên</th>
+                    <th>Thông tin liên lạc</th>
+                    <th style="width: 200px;">Gán chức vụ (Role)</th>
+                    <th>Trạng thái</th>
+                    <th style="text-align: center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="u-info">
+                                <div class="u-avatar-container" style="position: relative; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+
+
+                                    @if (!string.IsNullOrEmpty(user.EquippedAvatarFrame) && user.EquippedAvatarFrame != "none")
+                                    {
+                                        <div class="u-avatar" style="position: relative; z-index: 1; margin: 0; width: 45px; height: 45px; border: none; background: var(--green-light); color: var(--green-dark); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; font-weight: 900;">
+                                            @if (!string.IsNullOrWhiteSpace(user.AvatarUrl))
+                                            {
+                                                <img src="@user.AvatarUrl" alt="@user.Email" onerror="this.remove();" style="width: 100%; height: 100%; object-fit: cover;" />
+                                            }
+                                            else
+                                            {
+                                                <span style="font-size: 18px;">@user.UserName.Substring(0, 1).ToUpper()</span>
+                                            }
+                                        </div>
+                                        
+                                        string? frameFile = null;
+                                        string folder = "khung-avatar";
+                                        string frameFilter = "";
+
+                                        if (user.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                                        {
+                                            frameFile = user.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                                            folder = "khung-theo-ngay/khung-thuong";
+                                        }
+                                        else if (user.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                                        {
+                                            frameFile = user.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                                            folder = "khung-theo-ngay/khung-gioi-han";
+                                            frameFilter = "filter: drop-shadow(0 0 2px #ff5722);";
+                                        }
+                                        else
+                                        {
+                                            frameFile = user.EquippedAvatarFrame switch
+                                            {
+                                                "tier-0" => "khung-sat.webp",
+                                                "tier-1" => "khung-dong.webp",
+                                                "tier-2" => "khung-sat.webp",
+                                                "tier-3" => "khung-vang.webp",
+                                                "tier-4" => "khung-bach-kim.webp",
+                                                "tier-5" => "khung-luc-bao.png",
+                                                "tier-6" => "khung-kim-cuong.webp",
+                                                "tier-7" => "khung-ruby.png",
+                                                "tier-8" => "khung-niken.png",
+                                                "tier-9" => "khung-titan.png",
+                                                "tier-10" => "khung-uranium.png",
+                                                "tier-11" => "khung-iridium.png",
+                                                "vip-moc-1" => "khung-vip-moc-1.png",
+                                                "vip-moc-2" => "khung-vip-moc-2.webp",
+                                                "vip-moc-3" => "khung-vip-moc-3.webp",
+                                                "vip-moc-4" => "khung-vip-moc-4.webp",
+                                                _ => null
+                                            };
+                                            frameFilter = user.EquippedAvatarFrame switch
+                                            {
+                                                "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+                                                "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+                                                "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+                                                "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+                                                "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+                                                "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+                                                "vip-moc-1" => "filter: drop-shadow(0 0 2px #ffc107);",
+                                                "vip-moc-2" => "filter: drop-shadow(0 0 3px #ffc107);",
+                                                "vip-moc-3" => "filter: drop-shadow(0 0 4px #ffc107);",
+                                                "vip-moc-4" => "filter: drop-shadow(0 0 5px #ffc107);",
+                                                _ => ""
+                                            };
+                                            var isVipFrame = user.EquippedAvatarFrame.StartsWith("vip-moc-");
+                                            folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                                        }
+
+                                        var frameSize = "width: 52px; height: 52px;";
+                                        if (frameFile != null)
+                                        {
+                                            <img class="avatar-frame-small" src="/image/@folder/@frameFile" style="position: absolute; @(frameSize) top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; @frameFilter" />
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="u-avatar" style="margin: 0; width: 45px; height: 45px; border-radius: 50%; background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; font-weight: 900; overflow: hidden;">
+                                            @if (!string.IsNullOrWhiteSpace(user.AvatarUrl))
+                                            {
+                                                <img src="@user.AvatarUrl" alt="@user.Email" onerror="this.remove();" style="width: 100%; height: 100%; object-fit: cover;" />
+                                            }
+                                            else
+                                            {
+                                                @user.UserName.Substring(0, 1).ToUpper()
+                                            }
+                                        </div>
+                                    }
+
+                                    <!-- Equipped Badge at the bottom right corner of Avatar -->
+                                    @if (!string.IsNullOrEmpty(user.EquippedBadge) && user.EquippedBadge != "none")
+                                    {
+                                        var badgeFile = user.EquippedBadge switch
+                                        {
+                                            "vip-badge-1" => "thich-thi-nap.png",
+                                            "vip-badge-2" => "giau-nut-vach.png",
+                                            "vip-badge-3" => "vung-tien-nhu-nuoc.png",
+                                            "vip-badge-4" => "nha-co-mo.png",
+                                            _ => null
+                                        };
+                                        if (badgeFile != null)
+                                        {
+                                            <div style="position: absolute; bottom: -4px; right: -4px; z-index: 10; pointer-events: none; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.2); padding: 1.5px;">
+                                                <img src="/image/huy-hieu/@badgeFile" style="width: 100%; height: 100%; object-fit: contain;" />
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                <div>
+                                    <div style="font-weight: 800; color: #333;">
+                                        @(string.IsNullOrWhiteSpace(user.FullName) ? user.UserName : user.FullName)
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(user.FullName))
+                                    {
+                                        <div style="font-size: 12px; color: #777;">@user.UserName</div>
+                                    }
+                                    <div style="font-size: 11px; color: #999;">Mã NV: @user.UserId.Substring(0, 8)</div>
+                                    @if (!string.IsNullOrEmpty(user.WorkingBranchName))
+                                    {
+                                        <div style="font-size: 12px; color: #1a7a2e; font-weight: bold; margin-top: 2px;"><i class="bi bi-shop me-1"></i>@user.WorkingBranchName</div>
+                                    }
+                                    else
+                                    {
+                                        <div style="font-size: 12px; color: #dc3545; font-weight: bold; margin-top: 2px;"><i class="bi bi-shop me-1"></i>Chưa phân chi nhánh</div>
+                                    }
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600;">@user.Email</div>
+                            <div style="font-size: 12px; color: #888;">@(user.PhoneNumber ?? "Chưa có SĐT")</div>
+                        </td>
+                        <td>
+                            <form asp-action="AssignRole" method="post">
+                                <input type="hidden" name="userId" value="@user.UserId" />
+                                <select name="roleName" class="fselect-sm w-100" onchange="this.form.submit()">
+                                    <option value="">-- Chọn chức vụ --</option>
+                                    @foreach (var role in ViewBag.AllRoles as List<IdentityRole>)
+                                    {
+                                        <option value="@role.Name" selected="@(role.Name == user.RoleName)">@role.Name</option>
+                                    }
+                                </select>
+                            </form>
+                        </td>
+                        <td>
+                            @{
+                                var isLocked = user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow;
+                                var isOnline = !isLocked && user.IsOnline && user.LastActiveTime.HasValue && (DateTime.Now - user.LastActiveTime.Value).TotalMinutes <= 5;
+                                var isTempLocked = isLocked && (user.LockoutEnd!.Value - DateTimeOffset.UtcNow).TotalMinutes <= 30;
+                            }
+                            @if (isLocked)
+                            {
+                                <div class="status-cell">
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(220,53,69,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="bi bi-lock-fill"></i> Bị khóa
+                                    </span>
+                                    @if (isTempLocked)
+                                    {
+                                        <div class="lockout-timer text-danger small mt-1 font-monospace" data-remaining-seconds="@( (int)Math.Max(0, (user.LockoutEnd.Value - DateTimeOffset.UtcNow).TotalSeconds) )" style="font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-clock-history"></i> Mở sau: <span class="countdown-val">--:--</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-danger small mt-1 font-monospace" style="font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-shield-slash-fill"></i> Khóa vĩnh viễn
+                                        </div>
+                                    }
+                                    @if (ViewBag.Role == 1)
+                                    {
+                                        <form asp-action="UnlockUser" method="post" class="mt-2">
+                                            <input type="hidden" name="userId" value="@user.UserId" />
+                                            <button type="submit" class="btn btn-outline-success" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(40,167,69,0.35);">
+                                                <i class="bi bi-unlock-fill"></i> Mở khóa
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="status-cell">
+                                    @if (isOnline)
+                                    {
+                                        <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(44,158,71,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-circle-fill" style="font-size: 7px; color: #2c9e47;"></i> Trực tuyến
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <div class="offline-container">
+                                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(108,117,125,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                                <i class="bi bi-circle-fill" style="font-size: 7px; color: #6c757d;"></i> Ngoại tuyến
+                                            </span>
+                                            @if (user.LastActiveTime.HasValue)
+                                            {
+                                                <div class="offline-timer text-muted small mt-1 font-monospace" data-elapsed-seconds="@((int)(DateTime.Now - user.LastActiveTime.Value).TotalSeconds)" style="font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                                    <i class="bi bi-clock"></i> <span class="offline-val">--</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    @if (ViewBag.Role == 1)
+                                    {
+                                        <form asp-action="LockUser" method="post" class="mt-2">
+                                            <input type="hidden" name="userId" value="@user.UserId" />
+                                            <button type="submit" class="btn btn-outline-danger" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(220,53,69,0.35);">
+                                                <i class="bi bi-lock-fill"></i> Khóa vĩnh viễn
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td style="text-align: center; vertical-align: middle;">
+                            <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                @if (ViewBag.Role == 1)
+                                {
+                                    <button type="button" class="btn-edit-outline"
+                                            title="Sửa thông tin nhân sự"
+                                            onclick="openEditModal('@user.UserId')">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <button type="button" class="btn-del-outline"
+                                            title="Xóa nhân sự"
+                                            onclick="openDeleteModal('@user.UserId', '@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(user.UserName))')">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn-del-outline"
+                                            title="Xóa nhân sự"
+                                            disabled
+                                            style="opacity:0.3;cursor:not-allowed;">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@* ====== MODAL XÁC NHẬN XÓA NHÂN SỰ ====== *@
+<div class="custom-modal-overlay" id="deleteModal">
+    <div class="custom-modal-box">
+        <div class="custom-modal-icon danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h4 style="font-weight: 800; color: #222; margin-bottom: 8px;">Xác nhận xóa nhân sự?</h4>
+        <p style="color: #888; font-size: 14px; line-height: 1.6; margin: 0;">
+            Bạn đang yêu cầu xóa tài khoản <strong id="deleteModalName"></strong>.<br />
+            Hành động này không thể hoàn tác.
+        </p>
+        <form id="deleteForm" asp-action="Delete" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="deleteModalUserId" />
+            <div class="modal-btn-row">
+                <button type="button" class="btn modal-btn-cancel" onclick="closeDeleteModal()">Hủy</button>
+                <button type="submit" class="btn modal-btn-confirm-del">Đồng ý xóa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* ====== MODAL SỬA THÔNG TIN NHÂN SỰ ====== *@
+<div class="custom-modal-overlay" id="editModal">
+    <div class="custom-modal-box" style="max-width: 600px;">
+        <div class="custom-modal-icon edit">
+            <i class="bi bi-pencil-fill"></i>
+        </div>
+        <h4 style="font-weight: 800; color: #222; margin-bottom: 18px;">Sửa thông tin nhân sự</h4>
+        <form id="editForm" asp-action="EditStaff" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="UserId" id="editModalUserId" />
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalEmail">Email</label>
+                        <input type="email" name="Email" id="editModalEmail" required />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalPhone">Số điện thoại</label>
+                        <input type="tel" name="PhoneNumber" id="editModalPhone" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalFullName">Họ và tên</label>
+                        <input type="text" name="FullName" id="editModalFullName" maxlength="100" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalAvatarUrl">Ảnh đại diện</label>
+                        <input type="text" name="AvatarUrl" id="editModalAvatarUrl" />
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" name="ShippingAddress" id="editModalShippingAddress" />
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalBankAccountLink">Liên kết tài khoản ngân hàng</label>
+                        <input type="text" name="BankAccountLink" id="editModalBankAccountLink" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalNewPassword">Mật khẩu mới</label>
+                        <input type="password" name="NewPassword" id="editModalNewPassword" placeholder="Để trống nếu không đổi..." />
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalLoyaltyPoints">Điểm tích lũy</label>
+                        <input type="number" name="LoyaltyPoints" id="editModalLoyaltyPoints" min="0" />
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="edit-form-group">
+                        <label for="editModalMembershipLevel">Cấp thẻ</label>
+                        <select name="MembershipLevel" id="editModalMembershipLevel">
+                            <option value="0">Cấp sắt</option>
+                            <option value="1">Cấp đồng</option>
+                            <option value="2">Cấp bạc</option>
+                            <option value="3">Cấp vàng</option>
+                            <option value="4">Cấp bạch kim</option>
+                            <option value="5">Cấp lục bảo</option>
+                            <option value="6">Cấp kim cương</option>
+                            <option value="7">Cấp ruby</option>
+                            <option value="8">Cấp niken</option>
+                            <option value="9">Cấp titan</option>
+                            <option value="10">Cấp uranium</option>
+                            <option value="11">Cấp iridium</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="edit-form-group">
+                        <label for="editModalProvince">Tỉnh / Thành phố</label>
+                        <select id="editModalProvince">
+                            <option value="">-- Chọn Tỉnh/TP --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="edit-form-group">
+                        <label for="editModalDistrict">Phường / Xã</label>
+                        <select id="editModalDistrict" disabled>
+                            <option value="">-- Chọn Phường/Xã --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="edit-form-group">
+                        <label for="editModalWorkingBranchId">Chi nhánh làm việc</label>
+                        <select name="WorkingBranchId" id="editModalWorkingBranchId" disabled>
+                            <option value="">-- Không có (Chọn lại mỗi ngày) --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-btn-row">
+                <button type="button" class="btn modal-btn-cancel" onclick="closeEditModal()">Hủy</button>
+                <button type="submit" class="btn modal-btn-confirm-edit">
+                    <i class="bi bi-check2-circle me-1"></i> Xác nhận
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        @if (TempData["Success"] != null) { <text>showToast('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["Success"].ToString()))');</text> }
+        @if (TempData["Error"] != null) { <text>showToast('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["Error"].ToString()))', 'error');</text> }
+
+        /* ── Delete Modal ─────────────────────────── */
+        function openDeleteModal(userId, userName) {
+            document.getElementById('deleteModalUserId').value = userId;
+            document.getElementById('deleteModalName').textContent = userName;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteModal();
+        });
+
+        /* ── Edit Modal ───────────────────────────── */
+        const hrmBranches = @Html.Raw(Json.Serialize(ViewBag.Branches as List<WebBanHang.Models.Branch>));
+
+        function initHrmBranchSelects() {
+            const provinceSelect = document.getElementById('editModalProvince');
+            const districtSelect = document.getElementById('editModalDistrict');
+            const branchSelect = document.getElementById('editModalWorkingBranchId');
+
+            if (!provinceSelect || !districtSelect || !branchSelect) return;
+
+            // Unique provinces
+            const provinces = [...new Set(hrmBranches.map(b => b.province || b.Province))].sort();
+            provinceSelect.innerHTML = '<option value="">-- Chọn Tỉnh/TP --</option>';
+            provinces.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p;
+                opt.textContent = p;
+                provinceSelect.appendChild(opt);
+            });
+
+            provinceSelect.addEventListener('change', function() {
+                const prov = this.value;
+                districtSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                branchSelect.innerHTML = '<option value="">-- Không có (Chọn lại mỗi ngày) --</option>';
+                districtSelect.disabled = true;
+                branchSelect.disabled = true;
+
+                if (!prov) return;
+
+                const districts = [...new Set(hrmBranches
+                    .filter(b => (b.province || b.Province) === prov)
+                    .map(b => b.district || b.District))].sort();
+
+                districts.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    districtSelect.appendChild(opt);
+                });
+                districtSelect.disabled = false;
+            });
+
+            districtSelect.addEventListener('change', function() {
+                const prov = provinceSelect.value;
+                const dist = this.value;
+                branchSelect.innerHTML = '<option value="">-- Không có (Chọn lại mỗi ngày) --</option>';
+                branchSelect.disabled = true;
+
+                if (!prov || !dist) return;
+
+                const filtered = hrmBranches.filter(b => (b.province || b.Province) === prov && (b.district || b.District) === dist);
+                filtered.forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b.id || b.Id;
+                    opt.textContent = b.name || b.Name;
+                    branchSelect.appendChild(opt);
+                });
+                branchSelect.disabled = false;
+            });
+        }
+
+        // Run immediately or on DOMContentLoaded
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initHrmBranchSelects);
+        } else {
+            initHrmBranchSelects();
+        }
+
+        function openEditModal(userId) {
+            fetch('/HRM/EditStaff?id=' + encodeURIComponent(userId))
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) { alert(data.message); return; }
+                    document.getElementById('editModalUserId').value          = data.userId;
+                    document.getElementById('editModalEmail').value           = data.email;
+                    document.getElementById('editModalFullName').value        = data.fullName;
+                    document.getElementById('editModalPhone').value           = data.phoneNumber;
+                    document.getElementById('editModalAvatarUrl').value       = data.avatarUrl;
+                    document.getElementById('editModalShippingAddress').value = data.shippingAddress;
+                    document.getElementById('editModalBankAccountLink').value = data.bankAccountLink;
+                    document.getElementById('editModalLoyaltyPoints').value   = data.loyaltyPoints;
+                    document.getElementById('editModalMembershipLevel').value = data.membershipLevel;
+                    document.getElementById('editModalNewPassword').value     = '';
+
+                    // Populate selects based on workingBranchId
+                    const branchId = data.workingBranchId;
+                    const provinceSelect = document.getElementById('editModalProvince');
+                    const districtSelect = document.getElementById('editModalDistrict');
+                    const branchSelect = document.getElementById('editModalWorkingBranchId');
+
+                    if (branchId) {
+                        const branch = hrmBranches.find(b => (b.id || b.Id) === branchId);
+                        if (branch) {
+                            const prov = branch.province || branch.Province;
+                            const dist = branch.district || branch.District;
+
+                            provinceSelect.value = prov;
+                            
+                            districtSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                            const districts = [...new Set(hrmBranches
+                                .filter(b => (b.province || b.Province) === prov)
+                                .map(b => b.district || b.District))].sort();
+                            districts.forEach(d => {
+                                const opt = document.createElement('option');
+                                opt.value = d;
+                                opt.textContent = d;
+                                districtSelect.appendChild(opt);
+                            });
+                            districtSelect.disabled = false;
+                            districtSelect.value = dist;
+
+                            branchSelect.innerHTML = '<option value="">-- Không có (Chọn lại mỗi ngày) --</option>';
+                            const filtered = hrmBranches.filter(b => (b.province || b.Province) === prov && (b.district || b.District) === dist);
+                            filtered.forEach(b => {
+                                const opt = document.createElement('option');
+                                opt.value = b.id || b.Id;
+                                opt.textContent = b.name || b.Name;
+                                branchSelect.appendChild(opt);
+                            });
+                            branchSelect.disabled = false;
+                            branchSelect.value = branchId;
+                        } else {
+                            provinceSelect.value = "";
+                            districtSelect.value = "";
+                            districtSelect.disabled = true;
+                            branchSelect.innerHTML = '<option value="">-- Không có (Chọn lại mỗi ngày) --</option>';
+                            branchSelect.disabled = true;
+                        }
+                    } else {
+                        provinceSelect.value = "";
+                        districtSelect.innerHTML = '<option value="">-- Chọn Phường/Xã --</option>';
+                        districtSelect.disabled = true;
+                        branchSelect.innerHTML = '<option value="">-- Không có (Chọn lại mỗi ngày) --</option>';
+                        branchSelect.disabled = true;
+                    }
+
+                    document.getElementById('editModal').classList.add('active');
+                })
+                .catch(() => alert('Không thể tải thông tin nhân sự.'));
+        }
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+
+        /* ── Lockout Countdowns ─────────────────────── */
+        function initLockoutCountdowns() {
+            const timers = document.querySelectorAll('.lockout-timer');
+            timers.forEach(timer => {
+                const remaining = parseInt(timer.getAttribute('data-remaining-seconds')) || 0;
+                timer.remainingSeconds = remaining;
+            });
+        }
+
+        function updateLockoutCountdowns() {
+            const timers = document.querySelectorAll('.lockout-timer');
+            timers.forEach(timer => {
+                if (timer.remainingSeconds === undefined) return;
+                
+                if (timer.remainingSeconds <= 0) {
+                    const parent = timer.parentElement;
+                    parent.innerHTML = `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(108,117,125,0.25); display: inline-flex; align-items: center; gap: 4px;">` +
+                                       `<i class="bi bi-circle-fill" style="font-size: 7px; color: #6c757d;"></i> Ngoại tuyến` +
+                                       `</span>`;
+                } else {
+                    const minutes = Math.floor(timer.remainingSeconds / 60);
+                    const seconds = timer.remainingSeconds % 60;
+                    const mm = String(minutes).padStart(2, '0');
+                    const ss = String(seconds).padStart(2, '0');
+                    const countdownVal = timer.querySelector('.countdown-val');
+                    if (countdownVal) countdownVal.textContent = `${mm}:${ss}`;
+                    timer.remainingSeconds--;
+                }
+            });
+        }
+
+        /* ── Offline Timers ─────────────────────────── */
+        function initOfflineTimers() {
+            const timers = document.querySelectorAll('.offline-timer');
+            timers.forEach(timer => {
+                const elapsed = parseInt(timer.getAttribute('data-elapsed-seconds')) || 0;
+                timer.elapsedSeconds = elapsed;
+            });
+        }
+
+        function formatElapsed(seconds) {
+            if (seconds < 60) return seconds + "s";
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            if (minutes < 60) return minutes + "p " + remainingSeconds + "s";
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            if (hours < 24) return hours + "g " + remainingMinutes + "p";
+            const days = Math.floor(hours / 24);
+            const remainingHours = hours % 24;
+            return days + " ngày " + remainingHours + "g";
+        }
+
+        function updateOfflineTimers() {
+            const timers = document.querySelectorAll('.offline-timer');
+            timers.forEach(timer => {
+                if (timer.elapsedSeconds === undefined) return;
+                const offlineVal = timer.querySelector('.offline-val');
+                if (offlineVal) offlineVal.textContent = formatElapsed(timer.elapsedSeconds);
+                timer.elapsedSeconds++;
+            });
+        }
+
+        // ── Chống bfcache ────────────────────────────
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) window.location.reload();
+        });
+
+        initLockoutCountdowns();
+        updateLockoutCountdowns();
+        initOfflineTimers();
+        updateOfflineTimers();
+        setInterval(() => {
+            updateLockoutCountdowns();
+            updateOfflineTimers();
+        }, 1000);
+    </script>
+}

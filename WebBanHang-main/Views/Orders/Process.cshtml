@@ -1,0 +1,207 @@
+@model WebBanHang.Models.Order
+@{
+    ViewData["Title"] = "Soạn hàng đơn #" + Model.Id;
+    Layout = "_Layout_Admin";
+}
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 mb-4" style="border-radius:15px;">
+            <div class="card-body">
+                <h5 class="fw-bold text-success mb-3"><i class="bi bi-person-badge"></i> Thông tin giao hàng</h5>
+                <div class="mb-2"><strong>Người nhận:</strong> @Model.FullName</div>
+                <div class="mb-2"><strong>Số điện thoại:</strong> <span class="text-primary">@Model.Phone</span></div>
+                <div class="mb-3"><strong>Địa chỉ:</strong> <small class="text-muted">@Model.Address</small></div>
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span>Tổng đơn:</span>
+                    <span class="fw-bold text-danger">
+                        @Model.OrderDetails.Sum(x => x.Price).ToString("N0")₫
+                    </span>
+                </div>
+            </div>
+        </div>
+        <a asp-action="PrepareList" class="btn btn-light w-100" style="border-radius:10px;">
+            <i class="bi bi-arrow-left"></i> Quay lại danh sách
+        </a>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0" style="border-radius:15px; overflow:hidden;">
+            <div class="card-header bg-white py-3">
+                <h5 class="m-0 fw-bold"><i class="bi bi-list-check text-success"></i> Danh sách lấy hàng</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="picking-list">
+                    @foreach (var item in Model.OrderDetails)
+                    {
+                        <div class="list-group-item d-flex align-items-center py-3">
+                            <div class="form-check me-3">
+                                <input class="form-check-input item-checkbox" type="checkbox" style="width:25px; height:25px; cursor:pointer;">
+                            </div>
+                            <img src="@item.Product.Image" style="width:60px; height:60px; object-fit:cover; border-radius:8px;" class="me-3 border">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">@item.Product.Name</div>
+                                <div class="text-muted small">Đơn giá: @item.Price.ToString("N0")₫</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="badge bg-danger fs-6">SL: @item.Quantity</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+            
+            <div class="card-footer bg-light p-3">
+                <button type="button" id="btnExport" class="btn btn-secondary btn-lg w-100 fw-bold" disabled style="border-radius:12px;">
+                    <i class="bi bi-truck"></i> XÁC NHẬN XUẤT KHO (0/@Model.OrderDetails.Count)
+                </button>
+                <p id="msg-helper" class="text-center mt-2 small text-muted">Vui lòng tích chọn đủ sản phẩm để xuất kho.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Chọn Shipper -->
+<div class="modal fade" id="shipperModal" tabindex="-1" aria-labelledby="shipperModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
+            <div class="modal-header bg-success text-white border-0 py-3" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                <h5 class="modal-title fw-bold" id="shipperModalLabel"><i class="bi bi-person-check-fill me-2"></i>Chọn Shipper Giao Hàng</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label for="shipperSelect" class="form-label fw-bold text-muted">Nhân viên giao hàng (Shipper)</label>
+                    <select class="form-select form-select-lg rounded-3" id="shipperSelect" style="border: 2px solid #e0e0e0;">
+                        <option value="">-- Chọn Shipper --</option>
+                        @if (ViewBag.Shippers != null)
+                        {
+                            var shipperProfiles = ViewBag.ShipperProfiles as Dictionary<string, string>;
+                            foreach (var shipper in (List<Microsoft.AspNetCore.Identity.IdentityUser>)ViewBag.Shippers)
+                            {
+                                var displayName = (shipperProfiles != null && shipperProfiles.TryGetValue(shipper.Id, out var name) && !string.IsNullOrWhiteSpace(name))
+                                    ? name
+                                    : (shipper.UserName ?? shipper.Email);
+                                <option value="@shipper.Id">@displayName</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-3">
+                <button type="button" class="btn btn-light px-4 rounded-pill fw-bold" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" id="btnConfirmShipper" class="btn btn-success px-4 rounded-pill fw-bold">XÁC NHẬN OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Success Banner Overlay -->
+<div id="successBanner" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-5 text-center shadow-lg rounded-4" style="max-width: 450px; width: 95%;">
+        <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center bg-success text-white rounded-circle" style="width: 80px; height: 80px; font-size: 40px; box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);">
+                <i class="bi bi-check-lg"></i>
+            </span>
+        </div>
+        <h3 class="fw-bold text-success mb-2">Thành công!</h3>
+        <p class="text-muted fs-6 mb-4">Đơn hàng đã được chuyển sang trạng thái <strong>ĐƠN ĐANG ĐI GIAO</strong> thành công.</p>
+        <button type="button" id="btnBannerOk" class="btn btn-success btn-lg w-100 rounded-pill fw-bold py-2 shadow-sm">OK</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.item-checkbox').forEach(chk => {
+            chk.addEventListener('change', function() {
+                const totalItems = document.querySelectorAll('.item-checkbox').length;
+                const checkedItems = document.querySelectorAll('.item-checkbox:checked').length;
+                const btn = document.getElementById('btnExport');
+                const helper = document.getElementById('msg-helper');
+
+                // Cập nhật chữ trên nút
+                btn.innerHTML = `<i class="bi bi-truck"></i> XÁC NHẬN XUẤT KHO (${checkedItems}/${totalItems})`;
+
+                // Nếu tích đủ thì cho bấm nút
+                if (checkedItems === totalItems) {
+                    btn.disabled = false;
+                    btn.classList.replace('btn-secondary', 'btn-success');
+                    helper.innerHTML = "✨ Đã gom đủ hàng! Sẵn sàng xuất đơn.";
+                    helper.classList.add('text-success');
+                } else {
+                    btn.disabled = true;
+                    btn.classList.replace('btn-success', 'btn-secondary');
+                    helper.innerHTML = "Vui lòng lấy đủ sản phẩm để xuất đơn.";
+                    helper.classList.remove('text-success');
+                }
+            });
+        });
+
+        // Xử lý mở modal và xác nhận shipper
+        const btnExport = document.getElementById('btnExport');
+        const btnConfirmShipper = document.getElementById('btnConfirmShipper');
+        const shipperSelect = document.getElementById('shipperSelect');
+        const successBanner = document.getElementById('successBanner');
+        const btnBannerOk = document.getElementById('btnBannerOk');
+        let shipperModalObj = null;
+
+        if (btnExport) {
+            btnExport.addEventListener('click', function() {
+                const checkedItems = document.querySelectorAll('.item-checkbox:checked').length;
+                const totalItems = document.querySelectorAll('.item-checkbox').length;
+                if (checkedItems === totalItems) {
+                    shipperModalObj = new bootstrap.Modal(document.getElementById('shipperModal'));
+                    shipperModalObj.show();
+                }
+            });
+        }
+
+        if (btnConfirmShipper) {
+            btnConfirmShipper.addEventListener('click', function() {
+                const shipperId = shipperSelect.value;
+                if (!shipperId) {
+                    alert('Vui lòng chọn một shipper giao hàng.');
+                    return;
+                }
+
+                // Gửi AJAX POST lên Controller
+                fetch('/Orders/ExportOrder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `id=@Model.Id&shipperId=${encodeURIComponent(shipperId)}`
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (shipperModalObj) {
+                            shipperModalObj.hide();
+                        }
+                        // Hiển thị banner thành công
+                        successBanner.classList.remove('d-none');
+                    } else {
+                        alert(data.message || 'Có lỗi xảy ra khi xuất kho.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Lỗi kết nối hệ thống.');
+                });
+            });
+        }
+
+        if (btnBannerOk) {
+            btnBannerOk.addEventListener('click', function() {
+                window.location.href = '/Orders/PrepareList';
+            });
+        }
+    </script>
+}

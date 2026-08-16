@@ -1,0 +1,155 @@
+@model WebBanHang.Models.Discount
+
+@{
+    ViewData["Title"] = "Thêm mã giảm giá";
+    Layout = "_Layout_Admin";
+}
+
+@section Styles {
+    <style>
+        .form-container { max-width: 900px; margin: 0 auto; }
+        .fcard { background: #fff; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,.07); overflow: hidden; }
+        .fcard-head { padding: 20px 25px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; }
+        .fcard-title { font-size: 18px; font-weight: 800; color: var(--green-dark); margin: 0; }
+        .fcard-body { padding: 28px 25px; }
+        .form-label { font-size: 12px; font-weight: 800; color: #666; margin-bottom: 8px; display: block; text-transform: uppercase; }
+        .form-control {
+            border-radius: 10px;
+            border: 1.5px solid #ececec;
+            padding: 11px 15px;
+            font-size: 14px;
+            background-color: #fafafa;
+            transition: all .2s;
+        }
+        .form-control:focus {
+            border-color: var(--green-main);
+            background-color: #fff;
+            box-shadow: 0 0 0 4px rgba(44,158,71,.1);
+            outline: none;
+        }
+        .input-group-text { border: 1.5px solid #ececec; background: #f8f8f8; border-radius: 10px; font-weight: 800; color: #777; }
+        .hint { color: #999; font-size: 12px; margin-top: 6px; }
+        .switch-box {
+            border: 1.5px solid #ececec;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .switch-title { font-weight: 800; color: #333; font-size: 14px; }
+        .switch-sub { color: #999; font-size: 12px; margin-top: 2px; }
+        .form-check-input { width: 48px; height: 24px; cursor: pointer; }
+        .form-check-input:checked { background-color: var(--green-main); border-color: var(--green-main); }
+        .btn-submit {
+            background: linear-gradient(135deg, var(--green-main), var(--green-accent));
+            color: #fff;
+            border: none;
+            border-radius: 25px;
+            padding: 13px;
+            font-weight: 800;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(44,158,71,.3);
+        }
+        .btn-submit:hover { color: #fff; transform: translateY(-1px); }
+        .btn-back { text-decoration: none; color: #888; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 15px; }
+        .text-danger { font-size: 12px; font-weight: 600; }
+    </style>
+}
+
+<div class="form-container">
+    <a asp-action="Index" class="btn-back">
+        <i class="bi bi-arrow-left"></i> Quay lại danh sách
+    </a>
+
+    <div class="fcard">
+        <div class="fcard-head">
+            <i class="bi bi-plus-circle-fill" style="color: var(--green-main); font-size: 20px;"></i>
+            <h1 class="fcard-title">Cấu hình mã giảm giá mới</h1>
+        </div>
+
+        <div class="fcard-body">
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="Code" class="form-label">Mã giảm giá <span class="text-danger">*</span></label>
+                        <input asp-for="Code" class="form-control" placeholder="Ví dụ: BXANH50K" style="text-transform:uppercase;" />
+                        <div class="hint">Mã sẽ được lưu dưới dạng chữ in hoa.</div>
+                        <span asp-validation-for="Code" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="Quantity" class="form-label">Số lượt dùng</label>
+                        <input asp-for="Quantity" class="form-control" type="number" min="0" />
+                        <span asp-validation-for="Quantity" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <label asp-for="DiscountValue" class="form-label">Mức giảm (%)</label>
+                        <div class="input-group">
+                            <input asp-for="DiscountValue" class="form-control" type="number" min="1" max="100" step="0.001" />
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="hint">Nhập phần trăm giảm từ 1 đến 100.</div>
+                        <span asp-validation-for="DiscountValue" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <label asp-for="MinOrderValue" class="form-label">Đơn tối thiểu</label>
+                        <div class="input-group">
+                            <input asp-for="MinOrderValue" class="form-control" type="number" min="0" step="1000" />
+                            <span class="input-group-text">₫</span>
+                        </div>
+                        <span asp-validation-for="MinOrderValue" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-4 mb-4">
+                        <label asp-for="MaxDiscount" class="form-label">Giảm tối đa</label>
+                        <div class="input-group">
+                            <input asp-for="MaxDiscount" class="form-control" type="number" min="0" step="1000" />
+                            <span class="input-group-text">₫</span>
+                        </div>
+                        <span asp-validation-for="MaxDiscount" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="StartDate" class="form-label">Ngày bắt đầu</label>
+                        <input asp-for="StartDate" class="form-control" type="datetime-local" value="@Model.StartDate.ToString("yyyy-MM-ddTHH:mm")" />
+                        <span asp-validation-for="StartDate" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <label asp-for="EndDate" class="form-label">Ngày kết thúc</label>
+                        <input asp-for="EndDate" class="form-control" type="datetime-local" value="@Model.EndDate.ToString("yyyy-MM-ddTHH:mm")" />
+                        <span asp-validation-for="EndDate" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-12 mb-4">
+                        <div class="switch-box">
+                            <div>
+                                <div class="switch-title">Kích hoạt mã giảm giá</div>
+                                <div class="switch-sub">Chỉ mã đang kích hoạt, còn lượt và trong thời gian hiệu lực mới áp dụng được.</div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input asp-for="IsSee" class="form-check-input" role="switch" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> TẠO MÃ GIẢM GIÁ
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

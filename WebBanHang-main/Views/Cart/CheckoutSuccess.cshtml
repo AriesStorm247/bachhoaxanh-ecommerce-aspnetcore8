@@ -1,0 +1,30 @@
+﻿@{
+    ViewData["Title"] = "Thanh toán thành công";
+}
+
+<div class="container py-5 text-center">
+    <div class="card border-0 shadow-lg p-5 rounded-4" style="max-width: 600px; margin: 0 auto;">
+        <div class="mb-4">
+            <i class="bi bi-check-circle-fill text-success" style="font-size: 80px;"></i>
+        </div>
+        <h2 class="fw-bold text-dark">THANH TOÁN THÀNH CÔNG!</h2>
+        @if (TempData["PaymentMessage"] != null)
+        {
+            <div class="alert alert-success mt-3">@TempData["PaymentMessage"]</div>
+        }
+        <p class="text-muted fs-5">Cảm ơn bạn đã ủng hộ Bách Hóa Xanh.<br>Đơn hàng đang chờ được xác nhận.</p>
+
+        @if (ViewBag.OrderId != null)
+        {
+            <p class="text-secondary">Mã đơn hàng: <strong>#@ViewBag.OrderId</strong></p>
+        }
+
+        <div class="mt-4">
+            <a href="/" class="btn btn-success rounded-pill px-5 py-2 fw-bold">TIẾP TỤC MUA SẮM</a>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(ViewBag.Phone as string))
+        {
+            <a asp-controller="Cart" asp-action="Tracking" asp-route-phone="@ViewBag.Phone" class="btn btn-info mt-3">Theo dõi đơn</a>
+        }
+    </div>
+</div>

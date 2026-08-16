@@ -1,0 +1,505 @@
+@model IEnumerable<WebBanHang.ViewModels.AdminCustomerListItemViewModel>
+
+@{
+    ViewData["Title"] = "Quản lý khách hàng";
+    Layout = "_Layout_HRM";
+}
+
+@section Styles {
+    <style>
+        :root { --green-dark: #1a7a2e; --green-main: #2c9e47; --green-light: #e8f7ec; }
+        .customer-card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.08); overflow: hidden; border: none; }
+        .customer-table { width: 100%; border-collapse: collapse; min-width: 980px; }
+        .customer-table th { background: #f9f9f9; padding: 14px 18px; text-align: left; font-size: 11px; text-transform: uppercase; color: #aaa; letter-spacing: 1px; }
+        .customer-table td { padding: 16px 18px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: middle; }
+        .u-info { display: flex; align-items: center; gap: 12px; }
+        .u-avatar { width: 45px; height: 45px; border-radius: 50%; background: var(--green-light); color: var(--green-dark); display: flex; align-items: center; justify-content: center; font-weight: 900; overflow: hidden; }
+        .u-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        /* Tier chip màu sắc theo cấp */
+        .tier-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 4px 10px; font-size: 12px; font-weight: 800; white-space: nowrap; border: 1.5px solid; }
+        .tier-0 { background: #2b2927; color: #9c968f; border-color: #9c968f; }    /* Sắt */
+        .tier-1 { background: #331f13; color: #a36338; border-color: #a36338; }    /* Đồng */
+        .tier-2 { background: #24292b; color: #9fb2b8; border-color: #9fb2b8; }    /* Bạc */
+        .tier-3 { background: #3a2e11; color: #e5b742; border-color: #e5b742; }    /* Vàng */
+        .tier-4 { background: #13332a; color: #73ffd3; border-color: #73ffd3; }    /* Bạch kim */
+
+        /* === LỤC BẢO: Glowing Emerald Cyan === */
+        @@keyframes lucbao-chip-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(0,255,208,.3); border-color: #00bfa5; }
+            50%       { box-shadow: 0 0 14px rgba(0,255,208,.7), 0 0 24px rgba(0,150,136,.4); border-color: #00ffd0; }
+        }
+        .tier-5 {
+            background: #00332a;
+            color: #00ffd0;
+            border-color: #00bfa5;
+            animation: lucbao-chip-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === KIM CƯƠNG: Ice Blue & Violet Aurora === */
+        @@keyframes kimcuong-chip-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(0,234,255,.3); border-color: #00b4d8; }
+            50%       { box-shadow: 0 0 14px rgba(0,234,255,.7), 0 0 24px rgba(123,47,247,.4); border-color: #7b2ff7; }
+        }
+        .tier-6 {
+            background: linear-gradient(135deg, #0f1c24, #120b24);
+            color: #90e0ef;
+            border-color: #00b4d8;
+            animation: kimcuong-chip-glow 2.5s ease-in-out infinite;
+        }
+        .tier-6 i {
+            background: linear-gradient(90deg, #00eaff, #7b2ff7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* === RUBY: Fiery Glowing Crimson === */
+        @@keyframes ruby-chip-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(255,23,68,.3); border-color: #ff1744; }
+            50%       { box-shadow: 0 0 14px rgba(255,23,68,.7), 0 0 24px rgba(229,57,53,.4); border-color: #ff4d4d; }
+        }
+        .tier-7 {
+            background: #3d0005;
+            color: #ff1744;
+            border-color: #ff1744;
+            animation: ruby-chip-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === NIKEN: Dark Steel + Crimson Energy === */
+        @@keyframes niken-chip-glow {
+            0%, 100% { box-shadow: 0 0 6px rgba(229,57,53,.4), 0 0 14px rgba(255,23,68,.2); border-color: #3d1515; }
+            50%       { box-shadow: 0 0 14px rgba(229,57,53,.9), 0 0 30px rgba(255,23,68,.6), 0 0 50px rgba(229,57,53,.3); border-color: #ff1744; }
+        }
+        .tier-8 {
+            background: #1a0000;
+            color: #ff4d4d;
+            border-color: #3d1515;
+            animation: niken-chip-glow 2.5s ease-in-out infinite;
+        }
+        .tier-8 i { color: #ff1744; }
+
+        /* === TITAN: Holographic Prismatic Aurora === */
+        @@keyframes titan-chip-glow {
+            0%, 100% { box-shadow: 0 0 10px #ff6ec7, 0 0 20px rgba(123,47,247,.5); border-color: #ff6ec7; }
+            25%       { box-shadow: 0 0 10px #00eaff, 0 0 20px rgba(255,110,199,.5); border-color: #00eaff; }
+            50%       { box-shadow: 0 0 10px #ffe600, 0 0 20px rgba(0,234,255,.5);   border-color: #ffe600; }
+            75%       { box-shadow: 0 0 10px #7b2ff7, 0 0 20px rgba(255,230,0,.5);   border-color: #7b2ff7; }
+        }
+        .tier-9 {
+            background: linear-gradient(135deg, #1a0028, #001a2e);
+            color: #ff6ec7;
+            border-color: #ff6ec7;
+            animation: titan-chip-glow 4s ease-in-out infinite;
+        }
+        .tier-9 i { color: #ff6ec7; }
+
+        /* === URANIUM: Radioactive Neon Green (Cấp 10) === */
+        @@keyframes uranium-adm-glow {
+            0%, 100% { box-shadow: 0 0 8px rgba(57,255,20,.45), 0 0 18px rgba(0,255,133,.25); border-color: #2db30a; }
+            50%       { box-shadow: 0 0 20px rgba(57,255,20,1), 0 0 40px rgba(0,255,133,.7), 0 0 60px rgba(57,255,20,.35); border-color: #39FF14; }
+        }
+        .tier-10 {
+            background: #002200;
+            color: #39FF14;
+            border-color: #2db30a;
+            animation: uranium-adm-glow 2s ease-in-out infinite;
+        }
+        .tier-10 i { color: #7fff00; }
+
+        /* === IRIDIUM: Royal Iridescent Purple (Cấp 11) === */
+        @@keyframes iridium-adm-glow {
+            0%   { box-shadow: 0 0 14px rgba(199,125,255,.8), 0 0 30px rgba(183,50,255,.55), 0 0 55px rgba(199,125,255,.3); border-color: #C77DFF; transform: scale(1); }
+            25%  { box-shadow: 0 0 24px rgba(224,64,251,1),   0 0 50px rgba(199,125,255,.8), 0 0 80px rgba(224,64,251,.4);  border-color: #E040FB; transform: scale(1.04); }
+            50%  { box-shadow: 0 0 20px rgba(100,200,255,.9), 0 0 44px rgba(199,125,255,.7), 0 0 70px rgba(100,200,255,.35); border-color: #64C8FF; transform: scale(1); }
+            75%  { box-shadow: 0 0 24px rgba(224,64,251,1),   0 0 50px rgba(199,125,255,.8), 0 0 80px rgba(224,64,251,.4);  border-color: #E040FB; transform: scale(1.04); }
+            100% { box-shadow: 0 0 14px rgba(199,125,255,.8), 0 0 30px rgba(183,50,255,.55), 0 0 55px rgba(199,125,255,.3); border-color: #C77DFF; transform: scale(1); }
+        }
+        .tier-11 {
+            background: #1a0033;
+            color: #C77DFF;
+            border-color: #9b45d6;
+            animation: iridium-adm-glow 2s ease-in-out infinite;
+        }
+        .tier-11 i { color: #E040FB; }
+        .point-chip { display: inline-flex; border-radius: 20px; padding: 5px 10px; font-weight: 900; color: var(--green-dark); background: var(--green-light); }
+        .btn-edit-customer { border: none; background: #eff6ff; color: #2563eb; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; transition: 0.18s; }
+        .btn-edit-customer:hover { background: #dbeafe; color: #1d4ed8; }
+        .btn-del-customer { border: none; background: #fff0f0; color: #dc3545; width: 34px; height: 34px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.18s; }
+        .btn-del-customer:hover { background: #ffd6d6; color: #b52d3a; }
+
+        /* Custom Modal */
+        .custom-modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(0,0,0,0.45);
+            align-items: center; justify-content: center;
+        }
+        .custom-modal-overlay.active { display: flex; }
+        .custom-modal-box {
+            background: #fff; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            padding: 36px 32px 28px; max-width: 440px; width: 90%;
+            animation: modalSlideIn 0.22s ease; text-align: center;
+        }
+        @@keyframes modalSlideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+        .custom-modal-icon { width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 34px; margin: 0 auto 18px; }
+        .custom-modal-icon.danger { background: #fff0f0; color: #e82828; }
+        .modal-btn-row { display: flex; gap: 10px; margin-top: 22px; }
+        .modal-btn-row .btn { flex: 1; border-radius: 25px; padding: 10px; font-weight: 700; border: none; cursor: pointer; transition: 0.18s; }
+        .modal-btn-confirm-del { background: #dc3545; color: #fff; }
+        .modal-btn-confirm-del:hover { background: #b52d3a; }
+        .modal-btn-cancel { background: #f5f5f5; color: #666; }
+        .modal-btn-cancel:hover { background: #e5e5e5; }
+    </style>
+}
+
+<div class="mb-3">
+    <button class="btn btn-outline-success" onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 style="font-weight: 900; color: var(--green-dark); margin: 0;">
+            <i class="bi bi-person-hearts me-2"></i> QUẢN LÝ KHÁCH HÀNG
+        </h2>
+        <p class="mb-0" style="color: #999; font-size: 13px;">Chỉ hiển thị tài khoản thuộc nhóm role Khách hàng/User.</p>
+    </div>
+    <div class="badge bg-success-subtle text-success rounded-pill px-3 py-2">
+        @Model.Count() khách hàng
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<div class="customer-card">
+    <div style="overflow-x:auto;">
+        <table class="customer-table">
+            <thead>
+                <tr>
+                    <th>Khách hàng</th>
+                    <th>Liên hệ</th>
+                    <th>Hạng thành viên</th>
+                    <th>Điểm</th>
+                    <th>Trạng thái</th>
+                    <th style="text-align:center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var customer in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="u-info">
+                                <div class="u-avatar-container" style="position: relative; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    @if (!string.IsNullOrEmpty(customer.EquippedAvatarFrame) && customer.EquippedAvatarFrame != "none")
+                                    {
+                                        <div class="u-avatar" style="position: relative; z-index: 1; margin: 0; width: 45px; height: 45px; border: none; background: var(--green-light); color: var(--green-dark); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                                            @if (!string.IsNullOrWhiteSpace(customer.AvatarUrl))
+                                            {
+                                                <img src="@customer.AvatarUrl" alt="@customer.Email" onerror="this.remove();" />
+                                            }
+                                            else
+                                            {
+                                                <span style="font-size: 18px;">@customer.Email.Substring(0, 1).ToUpper()</span>
+                                            }
+                                        </div>
+                                            string? frameFile = null;
+                                            string folder = "khung-avatar";
+                                            string frameFilter = "";
+
+                                            if (customer.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                                            {
+                                                frameFile = customer.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                                                folder = "khung-theo-ngay/khung-thuong";
+                                            }
+                                            else if (customer.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                                            {
+                                                frameFile = customer.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                                                folder = "khung-theo-ngay/khung-gioi-han";
+                                                frameFilter = "filter: drop-shadow(0 0 2px #ff5722);";
+                                            }
+                                            else
+                                            {
+                                                frameFile = customer.EquippedAvatarFrame switch
+                                                {
+                                                    "tier-0" => "khung-sat.webp",
+                                                    "tier-1" => "khung-dong.webp",
+                                                    "tier-2" => "khung-sat.webp",
+                                                    "tier-3" => "khung-vang.webp",
+                                                    "tier-4" => "khung-bach-kim.webp",
+                                                    "tier-5" => "khung-luc-bao.png",
+                                                    "tier-6" => "khung-kim-cuong.webp",
+                                                    "tier-7" => "khung-ruby.png",
+                                                    "tier-8" => "khung-niken.png",
+                                                    "tier-9" => "khung-titan.png",
+                                                    "tier-10" => "khung-uranium.png",
+                                                    "tier-11" => "khung-iridium.png",
+                                                    _ => null
+                                                };
+                                                frameFilter = customer.EquippedAvatarFrame switch
+                                                {
+                                                    "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+                                                    "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+                                                    "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+                                                    "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+                                                    "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+                                                    "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+                                                    _ => ""
+                                                };
+                                                var isVipFrame = false;
+                                                folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                                            }
+
+                                            var frameSize = "width: 52px; height: 52px;";
+                                            if (frameFile != null)
+                                            {
+                                                <img class="avatar-frame-small" src="/image/@folder/@frameFile" style="position: absolute; @(frameSize) top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; @frameFilter" />
+                                            }
+                                    }
+                                    else
+                                    {
+                                        <div class="u-avatar" style="margin: 0;">
+                                            @if (!string.IsNullOrWhiteSpace(customer.AvatarUrl))
+                                            {
+                                                <img src="@customer.AvatarUrl" alt="@customer.Email" onerror="this.remove();" />
+                                            }
+                                            else
+                                            {
+                                                @customer.Email.Substring(0, 1).ToUpper()
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                                <div>
+                                    <div style="font-weight: 800; color: #333;">@(string.IsNullOrWhiteSpace(customer.FullName) ? customer.Email : customer.FullName)</div>
+                                    @if (!string.IsNullOrWhiteSpace(customer.FullName))
+                                    {
+                                        <div style="font-size: 11px; color: #777;">@customer.Email</div>
+                                    }
+                                    <div style="font-size: 11px; color: #999;">Role: @customer.RoleName</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>@customer.Email</div>
+                            <div class="text-muted small">@(customer.PhoneNumber ?? "Chưa có SĐT")</div>
+                        </td>
+                        <td>
+                            @{
+                                string[] icons = { "bi-circle-fill", "bi-hexagon-fill", "bi-shield-fill", "bi-star-fill", "bi-diamond-fill", "bi-gem", "bi-gem", "bi-trophy-fill", "bi-award-fill", "bi-brightness-high-fill" };
+                                string icon = icons[Math.Clamp(customer.MembershipLevel, 0, icons.Length - 1)];
+                            }
+                            <span class="tier-chip tier-@customer.MembershipLevel">
+                                <i class="bi @icon"></i>@customer.MembershipTierName
+                            </span>
+                        </td>
+                        <td><span class="point-chip">@customer.LoyaltyPoints.ToString("N0")</span></td>
+                        <td>
+                            @{
+                                var isLocked = customer.LockoutEnd.HasValue && customer.LockoutEnd.Value > DateTimeOffset.UtcNow;
+                                var isOnline = !isLocked && customer.IsOnline && customer.LastActiveTime.HasValue && (DateTime.Now - customer.LastActiveTime.Value).TotalMinutes <= 5;
+                            }
+                            @if (isLocked)
+                            {
+                                <div class="status-cell">
+                                    <span class="badge bg-danger-subtle text-danger rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(220,53,69,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="bi bi-lock-fill"></i> Bị khóa
+                                    </span>
+                                    <div class="lockout-timer text-danger small mt-1 font-monospace" data-remaining-seconds="@( (int)Math.Max(0, (customer.LockoutEnd.Value - DateTimeOffset.UtcNow).TotalSeconds) )" style="font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                        <i class="bi bi-clock-history"></i> Mở sau: <span class="countdown-val">--:--</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (isOnline)
+                            {
+                                <span class="badge bg-success-subtle text-success rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(44,158,71,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                    <i class="bi bi-circle-fill" style="font-size: 7px; color: #2c9e47;"></i> Trực tuyến
+                                </span>
+                            }
+                            else
+                            {
+                                <div class="offline-container">
+                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(108,117,125,0.25); display: inline-flex; align-items: center; gap: 4px;">
+                                        <i class="bi bi-circle-fill" style="font-size: 7px; color: #6c757d;"></i> Ngoại tuyến
+                                    </span>
+                                    @if (customer.LastActiveTime.HasValue)
+                                    {
+                                        <div class="offline-timer text-muted small mt-1 font-monospace" data-elapsed-seconds="@((int)(DateTime.Now - customer.LastActiveTime.Value).TotalSeconds)" style="font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+                                            <i class="bi bi-clock"></i> <span class="offline-val">--</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </td>
+                        <td style="text-align:center;">
+                            <div style="display: inline-flex; gap: 6px; align-items: center;">
+                                <a asp-action="Edit" asp-route-id="@customer.UserId" class="btn-edit-customer" title="Chỉnh sửa khách hàng">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </a>
+                                <button type="button" class="btn-del-customer"
+                                        title="Xóa khách hàng"
+                                        onclick="openDeleteCustomerModal('@customer.UserId', '@System.Web.HttpUtility.JavaScriptStringEncode(string.IsNullOrWhiteSpace(customer.FullName) ? customer.Email : customer.FullName)')">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted" style="padding: 42px;">
+                            Chưa có tài khoản khách hàng nào.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@* ====== MODAL XÁC NHẬN XÓA KHÁCH HÀNG ====== *@
+<div class="custom-modal-overlay" id="deleteCustomerModal">
+    <div class="custom-modal-box">
+        <div class="custom-modal-icon danger">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <h4 style="font-weight: 800; color: #222; margin-bottom: 8px;">Xác nhận xóa khách hàng?</h4>
+        <p style="color: #888; font-size: 14px; line-height: 1.6; margin: 0;">
+            Bạn đang yêu cầu xóa tài khoản <strong id="deleteCustomerModalName"></strong>.<br />
+            Hành động này không thể hoàn tác. Toàn bộ hồ sơ và điểm tích lũy sẽ bị xóa vĩnh viễn.
+        </p>
+        <form id="deleteCustomerForm" asp-action="DeleteCustomer" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" id="deleteCustomerModalUserId" />
+            <div class="modal-btn-row">
+                <button type="button" class="btn modal-btn-cancel" onclick="closeDeleteCustomerModal()">Hủy</button>
+                <button type="submit" class="btn modal-btn-confirm-del">Đồng ý xóa</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        /* ── Delete Customer Modal ───────────── */
+        function openDeleteCustomerModal(userId, name) {
+            document.getElementById('deleteCustomerModalUserId').value = userId;
+            document.getElementById('deleteCustomerModalName').textContent = name;
+            document.getElementById('deleteCustomerModal').classList.add('active');
+        }
+        function closeDeleteCustomerModal() {
+            document.getElementById('deleteCustomerModal').classList.remove('active');
+        }
+        document.getElementById('deleteCustomerModal').addEventListener('click', function(e) {
+            if (e.target === this) closeDeleteCustomerModal();
+        });
+
+        @if (TempData["Success"] != null) { <text>showToast('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["Success"].ToString()))');</text> }
+        @if (TempData["Error"] != null) { <text>showToast('@Html.Raw(System.Web.HttpUtility.JavaScriptStringEncode(TempData["Error"].ToString()))', 'error');</text> }
+
+        function initLockoutCountdowns() {
+            const timers = document.querySelectorAll('.lockout-timer');
+            timers.forEach(timer => {
+                const remaining = parseInt(timer.getAttribute('data-remaining-seconds')) || 0;
+                timer.remainingSeconds = remaining;
+            });
+        }
+
+        function updateLockoutCountdowns() {
+            const timers = document.querySelectorAll('.lockout-timer');
+            timers.forEach(timer => {
+                if (timer.remainingSeconds === undefined) return;
+                
+                if (timer.remainingSeconds <= 0) {
+                    // Update layout to Offline when lockout expires
+                    const parent = timer.parentElement;
+                    parent.innerHTML = `<span class="badge bg-secondary-subtle text-secondary rounded-pill px-2.5 py-1.5 fw-bold" style="font-size: 12px; border: 1px solid rgba(108,117,125,0.25); display: inline-flex; align-items: center; gap: 4px;">` +
+                                       `<i class="bi bi-circle-fill" style="font-size: 7px; color: #6c757d;"></i> Ngoại tuyến` +
+                                       `</span>`;
+                } else {
+                    const minutes = Math.floor(timer.remainingSeconds / 60);
+                    const seconds = timer.remainingSeconds % 60;
+                    
+                    const mm = String(minutes).padStart(2, '0');
+                    const ss = String(seconds).padStart(2, '0');
+                    const countdownVal = timer.querySelector('.countdown-val');
+                    if (countdownVal) {
+                        countdownVal.textContent = `${mm}:${ss}`;
+                    }
+                    timer.remainingSeconds--;
+                }
+            });
+        }
+
+        function initOfflineTimers() {
+            const timers = document.querySelectorAll('.offline-timer');
+            timers.forEach(timer => {
+                const elapsed = parseInt(timer.getAttribute('data-elapsed-seconds')) || 0;
+                timer.elapsedSeconds = elapsed;
+            });
+        }
+
+        function formatElapsed(seconds) {
+            if (seconds < 60) {
+                return seconds + "s";
+            }
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            if (minutes < 60) {
+                return minutes + "p " + remainingSeconds + "s";
+            }
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            if (hours < 24) {
+                return hours + "g " + remainingMinutes + "p";
+            }
+            const days = Math.floor(hours / 24);
+            const remainingHours = hours % 24;
+            return days + " ngày " + remainingHours + "g";
+        }
+
+        function updateOfflineTimers() {
+            const timers = document.querySelectorAll('.offline-timer');
+            timers.forEach(timer => {
+                if (timer.elapsedSeconds === undefined) return;
+                
+                const offlineVal = timer.querySelector('.offline-val');
+                if (offlineVal) {
+                    offlineVal.textContent = formatElapsed(timer.elapsedSeconds);
+                }
+                timer.elapsedSeconds++;
+            });
+        }
+
+        // ── Chống bfcache: reload trang khi user nhấn Back từ trang Edit ──────────
+        // Khi trình duyệt khôi phục trang từ bộ nhớ đệm (bfcache), toàn bộ
+        // data-elapsed-seconds sẽ là giá trị cũ và timer bắt đầu lại sai.
+        // Buộc reload để server tính lại elapsed time chính xác.
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) {
+                window.location.reload();
+            }
+        });
+
+        // Run countdowns and timers every second
+        initLockoutCountdowns();
+        updateLockoutCountdowns();
+
+        initOfflineTimers();
+        updateOfflineTimers();
+
+        setInterval(() => {
+            updateLockoutCountdowns();
+            updateOfflineTimers();
+        }, 1000);
+    </script>
+}

@@ -1,0 +1,772 @@
+@model WebBanHang.ViewModels.InventoryReportViewModel
+@{
+    ViewData["Title"] = "Báo cáo hàng tồn";
+    Layout = "_Layout_Admin";
+
+    string FormatQty(decimal quantity, string? unit)
+    {
+        return string.Equals(unit, "kg", StringComparison.OrdinalIgnoreCase)
+            ? quantity.ToString("N2")
+            : quantity.ToString("N0");
+    }
+
+    string StockText(string status) => status switch
+    {
+        "out" => "Hết hàng",
+        "low" => "Tồn thấp",
+        _ => "Ổn định"
+    };
+
+    string StockClass(string status) => status switch
+    {
+        "out" => "pill-danger",
+        "low" => "pill-warning",
+        _ => "pill-success"
+    };
+
+    string ExpiryText(string status) => status switch
+    {
+        "expired" => "Có hàng hết hạn",
+        "expiring" => "Sắp hết hạn",
+        _ => "An toàn"
+    };
+
+    string ExpiryClass(string status) => status switch
+    {
+        "expired" => "pill-danger",
+        "expiring" => "pill-warning",
+        _ => "pill-muted"
+    };
+
+    var selectedProvince = Model.SelectedProvince ?? string.Empty;
+    var selectedDistrict = Model.SelectedDistrict ?? string.Empty;
+    var provinceOptions = Model.Provinces;
+    var districtOptions = Model.Districts;
+    var branchOptions = Model.BranchOptions;
+}
+
+@section Styles {
+    <style>
+        .inventory-page { display: grid; gap: 18px; }
+        .quick-links { display: flex; gap: 10px; flex-wrap: wrap; }
+        .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+        .metric-card {
+            background: #fff;
+            border: 1px solid rgba(0,0,0,.05);
+            border-radius: 14px;
+            padding: 15px;
+            box-shadow: 0 2px 14px rgba(0,0,0,.05);
+            min-height: 96px;
+        }
+        .metric-label {
+            color: #777;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .metric-value {
+            font-size: 22px;
+            font-weight: 900;
+            line-height: 1.15;
+            color: #171717;
+            overflow-wrap: anywhere;
+        }
+        .metric-note { color: #999; font-size: 11px; font-weight: 700; margin-top: 6px; }
+        .report-panel {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid rgba(0,0,0,.05);
+            box-shadow: 0 2px 16px rgba(0,0,0,.06);
+            overflow: hidden;
+        }
+        .report-panel-head {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .report-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--green-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .report-body { padding: 18px 20px; }
+        .form-label { font-size: 12px; font-weight: 800; color: #666; }
+        .form-control, .form-select { border-radius: 10px; border-color: #e4e4e4; font-size: 13px; }
+        .chart-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 18px; }
+        .chart-box { height: 320px; }
+        .inventory-table { width: 100%; border-collapse: collapse; }
+        .inventory-table th {
+            background: #fafafa;
+            color: #888;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+        .inventory-table td {
+            padding: 13px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid #f5f5f5;
+            vertical-align: middle;
+        }
+        .inventory-table tbody tr:hover { background: #fbfffc; }
+        .main-name { font-weight: 900; color: #1f1f1f; }
+        .subtext { color: #8a8a8a; font-size: 11px; margin-top: 2px; }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        .pill-success { background: #e8f7ec; color: #1a7a2e; }
+        .pill-warning { background: #fff8e1; color: #a15c00; }
+        .pill-danger { background: #fff0f0; color: #c62828; }
+        .pill-muted { background: #f2f2f2; color: #666; }
+        .table-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 14px 20px;
+            border-top: 1px solid #f0f0f0;
+        }
+        .pagination-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .page-indicator { font-size: 12px; font-weight: 800; color: #777; }
+        html.dark-theme .metric-card,
+        html.dark-theme .report-panel { background: #1e1e1e !important; border-color: #333 !important; }
+        html.dark-theme .metric-value,
+        html.dark-theme .main-name { color: #f5f5f5 !important; }
+        html.dark-theme .inventory-table th { background: #242424 !important; color: #aaa !important; border-color: #333 !important; }
+        html.dark-theme .inventory-table td { border-color: #333 !important; }
+        html.dark-theme .inventory-table tbody tr:hover { background: #232923 !important; }
+
+        @@media (max-width: 1200px) {
+            .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @@media (max-width: 768px) {
+            .metric-grid { grid-template-columns: 1fr; }
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+        @@media (max-width: 520px) {
+            .report-body, .report-panel-head { padding: 14px; }
+        }
+    </style>
+}
+
+<div class="inventory-page">
+    <div class="quick-links">
+        <a class="btn btn-outline-success" href="/">
+            <i class="bi bi-arrow-left-circle"></i> Quay lại Trang chủ
+        </a>
+        <a class="btn btn-outline-success" asp-action="Index">
+            <i class="bi bi-graph-up-arrow"></i> Báo cáo doanh thu
+        </a>
+        <a class="btn btn-outline-success" asp-controller="InventoryBatches" asp-action="Index">
+            <i class="bi bi-boxes"></i> Quản lý lô hàng
+        </a>
+    </div>
+
+    <div class="metric-grid">
+        <div class="metric-card" style="border-left: 5px solid #2c9e47;">
+            <div class="metric-label">Tổng tồn vật lý</div>
+            <div class="metric-value">@Model.TotalPhysicalQuantity.ToString("N0")</div>
+            <div class="metric-note">Tất cả chi nhánh đang lọc</div>
+        </div>
+        <div class="metric-card" style="border-left: 5px solid #0dcaf0;">
+            <div class="metric-label">Tồn bán được</div>
+            <div class="metric-value text-info">@Model.TotalSellableQuantity.ToString("N0")</div>
+            <div class="metric-note">Đã loại hàng hết hạn</div>
+        </div>
+        <div class="metric-card" style="border-left: 5px solid #198754;">
+            <div class="metric-label">Giá trị tồn kho</div>
+            <div class="metric-value text-success">@Model.TotalInventoryValue.ToString("N0") ₫</div>
+            <div class="metric-note">Theo giá bán hiện tại</div>
+        </div>
+        <div class="metric-card" style="border-left: 5px solid #ffc107;">
+            <div class="metric-label">Sản phẩm tồn thấp</div>
+            <div class="metric-value text-warning">@Model.LowStockCount</div>
+            <div class="metric-note">Ngưỡng @Model.LowStockThreshold đơn vị</div>
+        </div>
+        <div class="metric-card" style="border-left: 5px solid #dc3545;">
+            <div class="metric-label">Sản phẩm hết hàng</div>
+            <div class="metric-value text-danger">@Model.OutOfStockCount</div>
+            <div class="metric-note">Không còn lô bán được</div>
+        </div>
+        <div class="metric-card" style="border-left: 5px solid #fd7e14;">
+            <div class="metric-label">Cảnh báo hạn dùng</div>
+            <div class="metric-value" style="color:#fd7e14">@((Model.ExpiringBatchCount + Model.ExpiredBatchCount).ToString("N0"))</div>
+            <div class="metric-note">@Model.ExpiringBatchCount sắp hết hạn, @Model.ExpiredBatchCount hết hạn</div>
+        </div>
+    </div>
+
+    <div class="report-panel">
+        <div class="report-panel-head">
+            <div class="report-title">
+                <i class="bi bi-funnel-fill"></i> Bộ lọc hàng tồn
+            </div>
+        </div>
+        <div class="report-body">
+            <form method="get" asp-action="Inventory" class="row g-3 align-items-end">
+                <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label">Tỉnh/Thành phố</label>
+                    <select name="province" id="provinceFilter" class="form-select" data-selected="@selectedProvince">
+                        <option value="">Tất cả tỉnh/TP</option>
+                        @foreach (var province in provinceOptions)
+                        {
+                            if (selectedProvince == province)
+                            {
+                                <option value="@province" selected>@province</option>
+                            }
+                            else
+                            {
+                                <option value="@province">@province</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label">Phường/Xã</label>
+                    <select name="district" id="districtFilter" class="form-select" data-selected="@selectedDistrict">
+                        <option value="">Tất cả phường/xã</option>
+                        @foreach (var district in districtOptions)
+                        {
+                            if (selectedDistrict == district)
+                            {
+                                <option value="@district" selected>@district</option>
+                            }
+                            else
+                            {
+                                <option value="@district">@district</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label">Chi nhánh</label>
+                    <select name="branchId" id="branchFilter" class="form-select" data-selected="@(Model.SelectedBranchId?.ToString() ?? string.Empty)">
+                        <option value="">Tất cả chi nhánh</option>
+                        @foreach (var branch in branchOptions)
+                        {
+                            if (Model.SelectedBranchId == branch.Id)
+                            {
+                                <option value="@branch.Id" selected>@branch.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@branch.Id">@branch.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 col-xl-2">
+                    <label class="form-label">Danh mục</label>
+                    <select name="categoryId" class="form-select">
+                        <option value="">Tất cả</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            if (Model.SelectedCategoryId == category.Id)
+                            {
+                                <option value="@category.Id" selected>@category.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@category.Id">@category.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <label class="form-label">Tồn kho</label>
+                    <select name="stockStatus" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="ok" selected="@(Model.StockStatus == "ok")">Ổn định</option>
+                        <option value="low" selected="@(Model.StockStatus == "low")">Tồn thấp</option>
+                        <option value="out" selected="@(Model.StockStatus == "out")">Hết hàng</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-4 col-xl-2">
+                    <label class="form-label">Hạn dùng</label>
+                    <select name="expiryStatus" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="safe" selected="@(Model.ExpiryStatus == "safe")">An toàn</option>
+                        <option value="expiring" selected="@(Model.ExpiryStatus == "expiring")">Sắp hết hạn</option>
+                        <option value="expired" selected="@(Model.ExpiryStatus == "expired")">Có hàng hết hạn</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-3 col-xl-1">
+                    <label class="form-label">Tồn thấp</label>
+                    <input name="lowStockThreshold" type="number" min="1" class="form-control" value="@Model.LowStockThreshold" />
+                </div>
+                <div class="col-6 col-md-3 col-xl-1">
+                    <label class="form-label">HSD</label>
+                    <input name="warningDays" type="number" min="1" class="form-control" value="@Model.WarningDays" />
+                </div>
+                <div class="col-6 col-md-3 col-xl-1">
+                    <label class="form-label">Dòng</label>
+                    <select name="pageSize" class="form-select">
+                        <option value="25" selected="@(Model.PageSize == 25)">25</option>
+                        <option value="50" selected="@(Model.PageSize == 50)">50</option>
+                        <option value="100" selected="@(Model.PageSize == 100)">100</option>
+                        <option value="200" selected="@(Model.PageSize == 200)">200</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-3 col-xl-1 d-flex gap-2">
+                    <button class="btn btn-success flex-fill" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <a class="btn btn-outline-secondary flex-fill" asp-action="Inventory">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="report-panel">
+            <div class="report-panel-head">
+                <div class="report-title">
+                    <i class="bi bi-bar-chart-fill"></i> Tồn kho theo danh mục
+                </div>
+            </div>
+            <div class="report-body">
+                <div class="chart-box">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="report-panel">
+            <div class="report-panel-head">
+                <div class="report-title">
+                    <i class="bi bi-pie-chart-fill"></i> Trạng thái cảnh báo
+                </div>
+            </div>
+            <div class="report-body">
+                <div class="chart-box">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-panel">
+        <div class="report-panel-head">
+            <div class="report-title">
+                <i class="bi bi-table"></i> Chi tiết hàng tồn
+            </div>
+            <div class="text-muted fw-bold small">Hiển thị @Model.Rows.Count / @Model.TotalRows dòng</div>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Sản phẩm</th>
+                        <th>Chi nhánh</th>
+                        <th>Tồn vật lý</th>
+                        <th>Bán được</th>
+                        <th>Giá trị</th>
+                        <th>Lô</th>
+                        <th>Hạn gần nhất</th>
+                        <th>Tồn kho</th>
+                        <th>Hạn dùng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td>
+                                <div class="main-name">@row.ProductName</div>
+                                <div class="subtext">@row.CategoryName</div>
+                            </td>
+                            <td>
+                                <div class="main-name">@row.BranchName</div>
+                                <div class="subtext">@row.BranchLocation</div>
+                            </td>
+                            <td>@FormatQty(row.PhysicalQuantity, row.Unit) @row.Unit</td>
+                            <td>
+                                <strong>@FormatQty(row.SellableQuantity, row.Unit) @row.Unit</strong>
+                                @if (row.ExpiredQuantity > 0)
+                                {
+                                    <div class="subtext text-danger">Hết hạn: @FormatQty(row.ExpiredQuantity, row.Unit) @row.Unit</div>
+                                }
+                                @if (row.ExpiringQuantity > 0)
+                                {
+                                    <div class="subtext text-warning">Sắp hết hạn: @FormatQty(row.ExpiringQuantity, row.Unit) @row.Unit</div>
+                                }
+                            </td>
+                            <td>@row.InventoryValue.ToString("N0") ₫</td>
+                            <td>@row.BatchCount</td>
+                            <td>
+                                @if (row.NearestExpiryDate.HasValue)
+                                {
+                                    <strong>@row.NearestExpiryDate.Value.ToString("dd/MM/yyyy")</strong>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Chưa có lô</span>
+                                }
+                            </td>
+                            <td>
+                                <span class="pill @StockClass(row.StockStatus)">
+                                    <i class="bi @(row.StockStatus == "out" ? "bi-x-circle-fill" : row.StockStatus == "low" ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill")"></i>
+                                    @StockText(row.StockStatus)
+                                </span>
+                            </td>
+                            <td>
+                                <span class="pill @ExpiryClass(row.ExpiryStatus)">
+                                    <i class="bi @(row.ExpiryStatus == "expired" ? "bi-exclamation-octagon-fill" : row.ExpiryStatus == "expiring" ? "bi-hourglass-split" : "bi-shield-check")"></i>
+                                    @ExpiryText(row.ExpiryStatus)
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                Không có dữ liệu hàng tồn phù hợp với bộ lọc.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="table-footer">
+            <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                <span>Trang</span>
+                <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                       style="width: 48px; height: 28px; font-size: 13px;"
+                       value="@Model.Page" min="1" max="@Model.TotalPages"
+                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                <span>/ @Model.TotalPages</span>
+                <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                        style="height: 28px; font-size: 12px; border-radius: 6px;"
+                        onclick="window.goToPage(this);">
+                    OK
+                </button>
+            </div>
+            <div class="pagination-actions">
+                @if (Model.Page > 1)
+                {
+                    <a class="btn btn-outline-success btn-sm"
+                       asp-action="Inventory"
+                       asp-route-province="@Model.SelectedProvince"
+                       asp-route-district="@Model.SelectedDistrict"
+                       asp-route-branchId="@Model.SelectedBranchId"
+                       asp-route-categoryId="@Model.SelectedCategoryId"
+                       asp-route-stockStatus="@Model.StockStatus"
+                       asp-route-expiryStatus="@Model.ExpiryStatus"
+                       asp-route-lowStockThreshold="@Model.LowStockThreshold"
+                       asp-route-warningDays="@Model.WarningDays"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.Page - 1)">
+                        <i class="bi bi-chevron-left"></i> Trước
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-outline-secondary btn-sm disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                }
+
+                @if (Model.Page < Model.TotalPages)
+                {
+                    <a class="btn btn-outline-success btn-sm"
+                       asp-action="Inventory"
+                       asp-route-province="@Model.SelectedProvince"
+                       asp-route-district="@Model.SelectedDistrict"
+                       asp-route-branchId="@Model.SelectedBranchId"
+                       asp-route-categoryId="@Model.SelectedCategoryId"
+                       asp-route-stockStatus="@Model.StockStatus"
+                       asp-route-expiryStatus="@Model.ExpiryStatus"
+                       asp-route-lowStockThreshold="@Model.LowStockThreshold"
+                       asp-route-warningDays="@Model.WarningDays"
+                       asp-route-pageSize="@Model.PageSize"
+                       asp-route-page="@(Model.Page + 1)">
+                        Sau <i class="bi bi-chevron-right"></i>
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-outline-secondary btn-sm disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const inventoryDistrictsUrl = '@Url.Action("InventoryDistricts", "Reports")';
+        const inventoryBranchesUrl = '@Url.Action("InventoryBranches", "Reports")';
+        const categoryLabels = @Html.Raw(Json.Serialize(Model.CategorySummaries.Select(x => x.CategoryName)));
+        const categoryData = @Html.Raw(Json.Serialize(Model.CategorySummaries.Select(x => x.Quantity)));
+        const statusLabels = @Html.Raw(Json.Serialize(Model.StatusSummaries.Select(x => x.Label)));
+        const statusData = @Html.Raw(Json.Serialize(Model.StatusSummaries.Select(x => x.Count)));
+
+        const provinceFilter = document.getElementById('provinceFilter');
+        const districtFilter = document.getElementById('districtFilter');
+        const branchFilter = document.getElementById('branchFilter');
+        const districtPlaceholderText = districtFilter?.options[0]?.text || 'Tat ca phuong/xa';
+        const branchPlaceholderText = branchFilter?.options[0]?.text || 'Tat ca chi nhanh';
+
+        const loadSelectItems = async url => {
+            try {
+                const response = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    return [];
+                }
+
+                return await response.json();
+            } catch {
+                return [];
+            }
+        };
+
+        const fillSelect = (select, placeholder, items, selectedValue) => {
+            if (!select) return;
+            select.innerHTML = '';
+
+            const placeholderOption = new Option(placeholder, '');
+            select.add(placeholderOption);
+
+            items.forEach(item => {
+                select.add(new Option(item.label, String(item.value)));
+            });
+
+            const hasSelectedValue = items.some(item => String(item.value) === selectedValue);
+            select.value = hasSelectedValue ? selectedValue : '';
+        };
+
+        let refreshBranches = async keepCurrent => {
+            const province = provinceFilter?.value || '';
+            const district = districtFilter?.value || '';
+            const currentBranchId = keepCurrent ? (branchFilter?.value || branchFilter?.dataset.selected || '') : '';
+            fillSelect(branchFilter, 'Táº¥t cáº£ chi nhÃ¡nh', [], '');
+
+            if (!province || !district) {
+                if (branchFilter) {
+                    branchFilter.dataset.selected = '';
+                }
+                return;
+            }
+
+            const url = `${inventoryBranchesUrl}?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`;
+            const branches = await loadSelectItems(url);
+
+            fillSelect(branchFilter, 'Tất cả chi nhánh', branches, currentBranchId);
+            if (branchFilter) {
+                branchFilter.dataset.selected = branchFilter.value;
+            }
+        };
+
+        let refreshDistricts = async keepCurrent => {
+            const province = provinceFilter?.value || '';
+            const currentDistrict = keepCurrent ? (districtFilter?.value || districtFilter?.dataset.selected || '') : '';
+            fillSelect(districtFilter, 'Táº¥t cáº£ phÆ°á»ng/xÃ£', [], '');
+            fillSelect(branchFilter, 'Táº¥t cáº£ chi nhÃ¡nh', [], '');
+
+            if (!province) {
+                if (districtFilter) {
+                    districtFilter.dataset.selected = '';
+                }
+                if (branchFilter) {
+                    branchFilter.dataset.selected = '';
+                }
+                return;
+            }
+
+            const districts = await loadSelectItems(`${inventoryDistrictsUrl}?province=${encodeURIComponent(province)}`);
+
+            fillSelect(districtFilter, 'Tất cả phường/xã', districts, currentDistrict);
+            if (districtFilter) {
+                districtFilter.dataset.selected = districtFilter.value;
+            }
+            await refreshBranches(keepCurrent);
+        };
+
+        refreshBranches = async keepCurrent => {
+            const province = provinceFilter?.value || '';
+            const district = districtFilter?.value || '';
+            const currentBranchId = keepCurrent ? (branchFilter?.value || branchFilter?.dataset.selected || '') : '';
+
+            fillSelect(branchFilter, branchPlaceholderText, [], '');
+            if (!province || !district) {
+                if (branchFilter) {
+                    branchFilter.dataset.selected = '';
+                }
+                return;
+            }
+
+            const url = `${inventoryBranchesUrl}?province=${encodeURIComponent(province)}&district=${encodeURIComponent(district)}`;
+            const branches = await loadSelectItems(url);
+
+            fillSelect(branchFilter, branchPlaceholderText, branches, currentBranchId);
+            if (branchFilter) {
+                branchFilter.dataset.selected = branchFilter.value;
+            }
+        };
+
+        refreshDistricts = async keepCurrent => {
+            const province = provinceFilter?.value || '';
+            const currentDistrict = keepCurrent ? (districtFilter?.value || districtFilter?.dataset.selected || '') : '';
+
+            fillSelect(districtFilter, districtPlaceholderText, [], '');
+            fillSelect(branchFilter, branchPlaceholderText, [], '');
+            if (!province) {
+                if (districtFilter) {
+                    districtFilter.dataset.selected = '';
+                }
+                if (branchFilter) {
+                    branchFilter.dataset.selected = '';
+                }
+                return;
+            }
+
+            const districts = await loadSelectItems(`${inventoryDistrictsUrl}?province=${encodeURIComponent(province)}`);
+
+            fillSelect(districtFilter, districtPlaceholderText, districts, currentDistrict);
+            if (districtFilter) {
+                districtFilter.dataset.selected = districtFilter.value;
+            }
+            await refreshBranches(keepCurrent);
+        };
+
+        provinceFilter?.addEventListener('change', () => {
+            if (provinceFilter) {
+                provinceFilter.dataset.selected = provinceFilter.value;
+            }
+            if (districtFilter) {
+                districtFilter.dataset.selected = '';
+            }
+            if (branchFilter) {
+                branchFilter.dataset.selected = '';
+            }
+            refreshDistricts(false);
+        });
+
+        districtFilter?.addEventListener('change', () => {
+            if (districtFilter) {
+                districtFilter.dataset.selected = districtFilter.value;
+            }
+            if (branchFilter) {
+                branchFilter.dataset.selected = '';
+            }
+            refreshBranches(false);
+        });
+
+        branchFilter?.addEventListener('change', () => {
+            branchFilter.dataset.selected = branchFilter.value;
+        });
+
+        if (districtFilter) {
+            districtFilter.dataset.selected = districtFilter.value;
+        }
+
+        if (branchFilter) {
+            branchFilter.dataset.selected = branchFilter.value;
+        }
+
+        const chartTextColor = () => document.documentElement.classList.contains('dark-theme') ? '#cfcfcf' : '#555';
+        const chartGridColor = () => document.documentElement.classList.contains('dark-theme') ? 'rgba(255,255,255,.14)' : 'rgba(0,0,0,.08)';
+
+        const categoryCtx = document.getElementById('categoryChart');
+        const statusCtx = document.getElementById('statusChart');
+
+        const showChartFallback = () => {
+            document.querySelectorAll('.chart-box').forEach(box => {
+                if (!box.querySelector('canvas')) return;
+                box.innerHTML = '<div class="text-muted fw-bold d-flex align-items-center justify-content-center h-100">Không tải được biểu đồ</div>';
+            });
+        };
+
+        const renderInventoryCharts = () => {
+            if (!window.Chart) {
+                showChartFallback();
+                return;
+            }
+
+            if (categoryCtx) {
+            new Chart(categoryCtx, {
+                type: 'bar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Tồn bán được',
+                        data: categoryData,
+                        backgroundColor: '#2c9e47',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: chartTextColor() }, grid: { color: chartGridColor() } },
+                        y: { beginAtZero: true, ticks: { color: chartTextColor() }, grid: { color: chartGridColor() } }
+                    }
+                }
+            });
+            }
+
+            if (statusCtx) {
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: statusLabels,
+                    datasets: [{
+                        data: statusData,
+                        backgroundColor: ['#2c9e47', '#ffc107', '#dc3545', '#fd7e14', '#8b1d1d'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: chartTextColor(), boxWidth: 12, font: { size: 11, weight: '700' } }
+                        }
+                    }
+                }
+            });
+            }
+        };
+
+        window.addEventListener('load', () => {
+            if (window.Chart) {
+                renderInventoryCharts();
+                return;
+            }
+
+            const chartScript = document.createElement('script');
+            chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+            chartScript.async = true;
+            chartScript.onload = renderInventoryCharts;
+            chartScript.onerror = showChartFallback;
+            document.head.appendChild(chartScript);
+        });
+    </script>
+}

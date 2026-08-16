@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /Areas/Admin/
+Disallow: /Identity/Account/Manage/
+Disallow: /Cart/Checkout
+
+Sitemap: https://storebhx-001-site1.ktempurl.com/sitemap.xml

@@ -1,0 +1,35 @@
+## Build & Output Folders
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+*.log
+*.err
+
+## Visual Studio & IDEs
+.vs/
+*.user
+*.userprefs
+*.suo
+*.userosscache
+*.sln.docstates
+.vscode/
+*.DotSettings.user
+
+## ASP.NET Data Protection & Secrets
+.aspnet-data-protection-keys/
+appsettings.Production.json
+appsettings.Local.json
+
+## Local Documents & Drafts (Outside Solution)
+Database_And_Docs/
+*.docx
+
+## OS Generated Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+## Antigravity / AI Agent Artifacts
+.agents/

@@ -1,0 +1,831 @@
+@using System.Security.Claims
+@using WebBanHang.Data
+@using WebBanHang.Models
+@using WebBanHang.Services
+@inject RoleService RoleService
+@inject ApplicationDbContext Db
+@{
+    int role = RoleService.GetRole(User);
+    string? currentUserId = null;
+    CustomerProfile? customerProfile = null;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+        {
+            customerProfile = Db.CustomerProfiles.FirstOrDefault(p => p.UserId == currentUserId);
+        }
+    }
+
+    string LoyaltyTierStyle(int level) => level switch
+    {
+        0 => "color:#9c968f;",           // Sắt
+        1 => "color:#a36338;",           // Đồng
+        2 => "color:#9fb2b8;",           // Bạc
+        3 => "color:#e5b742;",           // Vàng
+        4 => "color:#73ffd3;",           // Bạch kim
+        _ => "color:#ff1744;"
+    };
+
+    string LoyaltyTierClass(int level) => level switch
+    {
+        5 => "loyalty-lucbao",
+        6 => "loyalty-kimcuong",
+        7 => "loyalty-ruby",
+        8 => "loyalty-niken",
+        9 => "loyalty-titan",
+        10 => "loyalty-uranium",
+        11 => "loyalty-iridium",
+        _ => ""
+    };
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] – Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --green-dark: #1a7a2e;
+            --green-main: #2c9e47;
+            --green-light: #e8f7ec;
+            --green-accent: #38b558;
+            --yellow: #ffd600;
+            --red: #e82828;
+            --sidebar-w: 224px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background: #f0f2f0;
+            color: #333;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: var(--green-dark);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            inset: 0 auto 0 0;
+            z-index: 100;
+            overflow-y: auto;
+        }
+
+        .sb-brand { padding: 22px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.1); }
+        .sb-brand .name { font-size: 19px; font-weight: 900; color: #fff; line-height: 1; }
+        .sb-brand .name span { color: var(--yellow); }
+        .sb-brand .tag { font-size: 10px; color: rgba(255,255,255,.6); font-style: italic; margin-top: 2px; }
+        .sb-admin-badge { margin-top: 10px; display: inline-flex; align-items: center; gap: 5px; background: rgba(255,255,255,.13); border-radius: 20px; padding: 3px 10px; font-size: 11px; color: rgba(255,255,255,.85); font-weight: 600; }
+
+        .sb-section { padding: 16px 14px 5px; font-size: 10px; font-weight: 800; color: rgba(255,255,255,.35); letter-spacing: 1.2px; text-transform: uppercase; }
+        .sb-nav { list-style: none; padding: 0 8px; }
+        .sb-nav li a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: rgba(255,255,255,.72); font-size: 13px; font-weight: 600; text-decoration: none; transition: background .15s, color .15s; margin-bottom: 2px; }
+        .sb-nav li a i { font-size: 16px; width: 20px; text-align: center; }
+        .sb-nav li a:hover { background: rgba(255,255,255,.1); color: #fff; }
+        .sb-nav li a.active { background: var(--green-main); color: #fff; }
+
+        /* MAIN WRAP */
+        .main-wrap { margin-left: var(--sidebar-w); flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        /* TOPBAR */
+        .topbar { background: #fff; padding: 42px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 50; }
+        .topbar-title { font-size: 17px; font-weight: 900; color: var(--green-dark); display: flex; align-items: center; gap: 8px; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .avatar-container { position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .profile-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--green-light); display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1.5px solid var(--green-accent); }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-frame { position: absolute; width: 60px; height: 60px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; }
+
+        .content { padding: 24px 28px; flex: 1; }
+
+        /* TOAST */
+        .toast-stack { position: fixed; bottom: 22px; right: 22px; z-index: 400; display: flex; flex-direction: column; gap: 8px; }
+        .toast-item { background: var(--green-dark); color: #fff; border-radius: 10px; padding: 11px 18px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 9px; box-shadow: 0 4px 18px rgba(0,0,0,.2); animation: slideUp .28s ease; }
+        @@keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* === Lục Bảo Tier: Glowing Emerald Cyan === */
+        @@keyframes lucbao-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(0,255,208,.4), 0 0 12px rgba(0,188,212,.2); color: #00ffd0; }
+            50%       { text-shadow: 0 0 12px rgba(0,255,208,.8), 0 0 24px rgba(0,150,136,.6); color: #00e5c4; }
+        }
+        .loyalty-lucbao {
+            font-weight: 900 !important;
+            animation: lucbao-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Kim Cương Tier: Ice Blue & Prismatic Lavender === */
+        @@keyframes kimcuong-sweep {
+            0%   { background-position: 0% 50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @@keyframes kimcuong-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(0,234,255,.4), 0 0 12px rgba(123,47,247,.2); }
+            50%       { text-shadow: 0 0 12px rgba(0,234,255,.8), 0 0 24px rgba(123,47,247,.6); }
+        }
+        .loyalty-kimcuong {
+            font-weight: 900 !important;
+            background: linear-gradient(90deg, #90e0ef, #00b4d8, #7b2ff7, #00b4d8, #90e0ef);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: kimcuong-sweep 3s linear infinite, kimcuong-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Ruby Tier: Fiery Glowing Crimson === */
+        @@keyframes ruby-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(255,23,68,.4), 0 0 12px rgba(229,57,53,.2); color: #ff1744; }
+            50%       { text-shadow: 0 0 12px rgba(255,23,68,.8), 0 0 24px rgba(229,57,53,.6); color: #ff4d4d; }
+        }
+        .loyalty-ruby {
+            font-weight: 900 !important;
+            animation: ruby-glow 2s ease-in-out infinite;
+        }
+
+        /* === Niken Tier: Dark Steel + Crimson Energy === */
+        @@keyframes niken-crimson-sweep {
+            0%   { background-position: 200% center; }
+            100% { background-position: -200% center; }
+        }
+        @@keyframes niken-glow {
+            0%, 100% { text-shadow: 0 0 6px rgba(229,57,53,.5), 0 0 14px rgba(255,23,68,.3); }
+            50%       { text-shadow: 0 0 14px rgba(229,57,53,1), 0 0 28px rgba(255,23,68,.8), 0 0 50px rgba(229,57,53,.4); }
+        }
+        .loyalty-niken {
+            font-weight: 900 !important;
+            background: linear-gradient(90deg,
+                #111 0%, #2d2d2d 10%, #3d3d3d 20%,
+                #ff1744 33%, #c0c0c0 42%, #ff4d4d 50%,
+                #c0c0c0 58%, #ff1744 67%,
+                #3d3d3d 80%, #2d2d2d 90%, #111 100%);
+            background-size: 250% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: niken-crimson-sweep 3s linear infinite, niken-glow 2.5s ease-in-out infinite;
+        }
+
+        /* === Titan Tier: Holographic Aurora === */
+        @@keyframes titan-rainbow {
+            0%   { background-position: 0%   50%; }
+            50%  { background-position: 100% 50%; }
+            100% { background-position: 0%   50%; }
+        }
+        @@keyframes titan-glow {
+            0%, 100% { text-shadow: 0 0 8px #ff6ec7, 0 0 16px #7b2ff7, 0 0 30px #00eaff; }
+            33%       { text-shadow: 0 0 8px #00eaff, 0 0 16px #ff6ec7, 0 0 30px #ffe600; }
+            66%       { text-shadow: 0 0 8px #ffe600, 0 0 16px #00eaff, 0 0 30px #7b2ff7; }
+        }
+        .loyalty-titan {
+            font-weight: 900 !important;
+            background: linear-gradient(270deg,
+                #ff6ec7, #ff9d3d, #ffe600, #78ff44,
+                #00eaff, #7b2ff7, #ff6ec7);
+            background-size: 400% 400%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: titan-rainbow 4s ease infinite, titan-glow 4s ease-in-out infinite;
+        }
+
+        /* === Uranium Tier: Radioactive Neon Green (Cấp 10) === */
+        @@keyframes uranium-glow {
+            0%, 100% { text-shadow: 0 0 8px rgba(57,255,20,.6), 0 0 18px rgba(0,255,133,.4); }
+            50%       { text-shadow: 0 0 16px rgba(57,255,20,1), 0 0 32px rgba(0,255,133,.7); }
+        }
+        .loyalty-uranium {
+            font-weight: 900 !important;
+            color: #39FF14;
+            animation: uranium-glow 2s ease-in-out infinite;
+        }
+
+        /* === Iridium Tier: Royal Iridescent Purple (Cấp 11) === */
+        @@keyframes iridium-glow {
+            0%   { text-shadow: 0 0 10px rgba(199,125,255,.8), 0 0 22px rgba(183,50,255,.6), 0 0 40px rgba(199,125,255,.3); }
+            25%  { text-shadow: 0 0 18px rgba(224,64,251,1),   0 0 36px rgba(199,125,255,.9), 0 0 60px rgba(224,64,251,.5); }
+            50%  { text-shadow: 0 0 16px rgba(100,200,255,1),  0 0 32px rgba(199,125,255,.8), 0 0 55px rgba(100,200,255,.4); }
+            75%  { text-shadow: 0 0 18px rgba(224,64,251,1),   0 0 36px rgba(199,125,255,.9), 0 0 60px rgba(224,64,251,.5); }
+            100% { text-shadow: 0 0 10px rgba(199,125,255,.8), 0 0 22px rgba(183,50,255,.6), 0 0 40px rgba(199,125,255,.3); }
+        }
+        .loyalty-iridium {
+            font-weight: 900 !important;
+            color: #C77DFF;
+            animation: iridium-glow 2s ease-in-out infinite;
+        }
+
+        /* Responsive */
+        @@media (max-width: 768px) {
+            .sidebar {
+                position: fixed !important;
+                top: 0;
+                bottom: 0;
+                left: -224px;
+                width: 224px;
+                transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex !important;
+                z-index: 9999 !important;
+            }
+            .sidebar.open {
+                left: 0 !important;
+                box-shadow: 4px 0 24px rgba(0,0,0,0.3) !important;
+            }
+            .main-wrap { margin-left: 0 !important; }
+            .sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.55);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                z-index: 9998;
+            }
+            .sidebar-overlay.show {
+                display: block;
+            }
+        }
+
+        /* DARK THEME STYLES FOR ADMIN */
+        html.dark-theme body {
+            background: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .sidebar {
+            background: #1a1a1a !important;
+            border-right: 1px solid #333 !important;
+        }
+        html.dark-theme .sidebar .sb-brand {
+            border-bottom: 1px solid #333 !important;
+        }
+        html.dark-theme .topbar {
+            background-color: #1e1e1e !important;
+            border-bottom: 1px solid #333 !important;
+            color: #fff !important;
+        }
+        html.dark-theme .topbar-title {
+            color: #8ae49f !important;
+        }
+        html.dark-theme .topbar-right div {
+            color: #fff !important;
+        }
+        html.dark-theme .profile-avatar {
+            background: #242424 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .content {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .card, 
+        html.dark-theme .modal-content, 
+        html.dark-theme .dropdown-menu {
+            background-color: #1e1e1e !important;
+            color: #e0e0e0 !important;
+            border-color: #333 !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.5) !important;
+        }
+        html.dark-theme .modal-header,
+        html.dark-theme .modal-footer {
+            border-color: #333 !important;
+        }
+        html.dark-theme .form-control,
+        html.dark-theme .form-select {
+            background-color: #242424 !important;
+            color: #f5f5f5 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .form-control:focus,
+        html.dark-theme .form-select:focus {
+            background-color: #2b2b2b !important;
+            color: #fff !important;
+            border-color: var(--green-accent) !important;
+        }
+        html.dark-theme .form-control::placeholder {
+            color: #777 !important;
+        }
+        html.dark-theme .bg-white {
+            background-color: #1e1e1e !important;
+        }
+        html.dark-theme .bg-light {
+            background-color: #242424 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .text-dark {
+            color: #ffffff !important;
+        }
+        html.dark-theme .text-muted {
+            color: #aaa !important;
+        }
+        html.dark-theme .border,
+        html.dark-theme .border-bottom,
+        html.dark-theme .border-top,
+        html.dark-theme .border-end,
+        html.dark-theme .border-start {
+            border-color: #333 !important;
+        }
+        html.dark-theme table {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme table th,
+        html.dark-theme table td {
+            border-color: #333 !important;
+        }
+        html.dark-theme .text-danger {
+            color: #ff6b6b !important;
+        }
+        html.dark-theme .text-success {
+            color: #8ae49f !important;
+        }
+        /* Custom card elements in stats pages */
+        html.dark-theme .p-3.shadow-sm[style*="background: #fff"] {
+            background: #1e1e1e !important;
+        }
+        html.dark-theme .card-header {
+            background-color: #1e1e1e !important;
+            border-bottom-color: #333 !important;
+        }
+        html.dark-theme .card-header .m-0.fw-bold {
+            color: #fff !important;
+        }
+        /* Make product names black and categories darker green in dark theme to match white card background */
+        html.dark-theme .prod-name {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        html.dark-theme .ptable td span.badge.bg-success-subtle {
+            background-color: rgba(44, 158, 71, 0.1) !important;
+            color: #1a7a2e !important;
+            font-weight: 700 !important;
+        }
+        /* Date picker calendar icon styling */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            margin-right: -6px !important;
+            cursor: pointer;
+        }
+        html.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) !important;
+        }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <div class="sidebar-overlay"></div>
+
+    <aside class="sidebar">
+        <div class="sb-brand">
+            <a href="/" class="text-decoration-none">
+                <div class="name">Bách hóa <span>XANH</span></div>
+                <div class="tag">Siêu thị gần nhà, giá tiết kiệm</div>
+            </a>
+            <div class="sb-admin-badge"><i class="bi bi-shield-fill-check"></i> Admin Panel</div>
+        </div>
+
+        <div class="sb-section">Tổng quan & Báo Cáo</div>
+        <ul class="sb-nav">
+            <li><a href="/Reports/Index"><i class="bi bi-graph-up-arrow"></i> Thống kê doanh thu</a></li>
+            <li><a href="/Reports/Inventory" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Reports" && ViewContext.RouteData.Values["Action"]?.ToString() == "Inventory" ? "active" : "")">
+                <i class="bi bi-clipboard-data-fill"></i> Báo cáo hàng tồn</a>
+            </li>
+        </ul>
+
+        <div class="sb-section">Quản lý Sản Phẩm</div>
+        <ul class="sb-nav">
+            <li><a href="/Products" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Products" ? "active" : "")">
+                <i class="bi bi-box-seam-fill"></i> Sản phẩm</a>
+            </li>
+            <li><a href="/InventoryBatches" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "InventoryBatches" ? "active" : "")">
+                <i class="bi bi-boxes"></i> Lô hàng / HSD</a>
+            </li>
+            <li><a href="/Categories" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Categories" ? "active" : "")">
+                <i class="bi bi-tags-fill"></i> Danh mục</a>
+            </li>
+            <li><a href="/Discount" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Discount" ? "active" : "")">
+                <i class="bi bi-ticket-perforated-fill"></i> Mã giảm giá</a>
+            </li>
+            <li><a href="/ComboPromotion" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "ComboPromotion" ? "active" : "")">
+                <i class="bi bi-tags-fill"></i> Combo Khuyến Mãi</a>
+            </li>
+        </ul>
+
+
+        <div class="sb-section">Quản Lý Giao Hàng</div>
+        <ul class="sb-nav">
+            <li><a href="/Orders/History" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["Action"]?.ToString() == "History" ? "active" : "")">
+                <i class="bi bi-tags-fill"></i>Lịch Sử Đơn Hàng</a>
+            </li>
+            <li><a href="/Orders/Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active" : "")">
+                <i class="bi bi-cart-fill"></i> Đơn hàng</a>
+            </li>
+            <li><a href="/Orders/PrepareList" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["Action"]?.ToString() == "PrepareList" ? "active" : "")">
+                <i class="bi bi-cart-fill"></i> Soạn Đơn</a>
+            </li>
+            <li><a href="/Orders/Shipping" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "Orders" && ViewContext.RouteData.Values["Action"]?.ToString() == "Shipping" ? "active" : "")">
+                <i class="bi bi-cart-fill"></i> Giao Hàng</a>
+            </li>
+        </ul>
+
+        <div class="sb-section">Hệ thống</div>
+        <ul class="sb-nav">
+            <li><a href="#" data-bs-toggle="modal" data-bs-target="#settingsModal"><i class="bi bi-gear-fill"></i> Cài đặt</a></li>
+        </ul>
+    </aside>
+
+    <div class="main-wrap">
+        <div class="topbar">
+            <div class="topbar-title d-flex align-items-center">
+                 <button class="btn btn-link text-success p-0 d-md-none me-3 sidebar-toggle-btn" style="font-size: 24px; border: none; outline: none; line-height: 1;" type="button">
+                     <i class="bi bi-list"></i>
+                 </button>
+                 @ViewData["Title"]
+            </div>
+            <div class="topbar-right">
+                @{
+                    var displayLvl = customerProfile?.DisplayMembershipLevel ?? customerProfile?.MembershipLevel ?? 0;
+                    var tierClass = LoyaltyTierClass(displayLvl);
+                }
+                <div class="avatar-container" style="position: relative; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+
+
+                    @if (customerProfile != null && !string.IsNullOrEmpty(customerProfile.EquippedAvatarFrame) && customerProfile.EquippedAvatarFrame != "none")
+                    {
+                        <span class="profile-avatar" style="position: relative; z-index: 1; margin: 0; width: 52px; height: 52px; border: none; background: rgba(0,0,0,.05); border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                            @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                            {
+                                <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-fill text-success" style="font-size: 18px;"></i>
+                            }
+                        </span>
+                        string? frameFile = null;
+                        string folder = "khung-avatar";
+                        string frameFilter = "";
+
+                        if (customerProfile.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                        {
+                            frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                            folder = "khung-theo-ngay/khung-thuong";
+                        }
+                        else if (customerProfile.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                        {
+                            frameFile = customerProfile.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                            folder = "khung-theo-ngay/khung-gioi-han";
+                            frameFilter = "filter: drop-shadow(0 0 3px #ff5722);";
+                        }
+                        else
+                        {
+                            frameFile = customerProfile.EquippedAvatarFrame switch
+                            {
+                                "tier-0" => "khung-sat.webp",
+                                "tier-1" => "khung-dong.webp",
+                                "tier-2" => "khung-sat.webp",
+                                "tier-3" => "khung-vang.webp",
+                                "tier-4" => "khung-bach-kim.webp",
+                                "tier-5" => "khung-luc-bao.png",
+                                "tier-6" => "khung-kim-cuong.webp",
+                                "tier-7" => "khung-ruby.png",
+                                "tier-8" => "khung-niken.png",
+                                "tier-9" => "khung-titan.png",
+                                "tier-10" => "khung-uranium.png",
+                                "tier-11" => "khung-iridium.png",
+                                "vip-moc-1" => "khung-vip-moc-1.png",
+                                "vip-moc-2" => "khung-vip-moc-2.webp",
+                                "vip-moc-3" => "khung-vip-moc-3.webp",
+                                "vip-moc-4" => "khung-vip-moc-4.webp",
+                                _ => null
+                            };
+                            frameFilter = customerProfile.EquippedAvatarFrame switch
+                            {
+                                "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+                                "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+                                "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+                                "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+                                "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+                                "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+                                "vip-moc-1" => "filter: drop-shadow(0 0 2px #ffc107);",
+                                "vip-moc-2" => "filter: drop-shadow(0 0 3px #ffc107);",
+                                "vip-moc-3" => "filter: drop-shadow(0 0 4px #ffc107);",
+                                "vip-moc-4" => "filter: drop-shadow(0 0 5px #ffc107);",
+                                _ => ""
+                            };
+                            var isVipFrame = customerProfile.EquippedAvatarFrame.StartsWith("vip-moc-");
+                            folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                        }
+
+                        if (frameFile != null)
+                        {
+                            <img class="avatar-frame" src="/image/@folder/@frameFile" asp-append-version="true" style="position: absolute; width: 60px; height: 60px; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2; pointer-events: none; max-width: none !important; max-height: none !important; @frameFilter" />
+                        }
+                    }
+                    else
+                    {
+                        <span class="profile-avatar" style="margin: 0;">
+                            @if (!string.IsNullOrWhiteSpace(customerProfile?.AvatarUrl))
+                            {
+                                <img src="@customerProfile.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                            }
+                            else
+                            {
+                                <i class="bi bi-person-fill text-success"></i>
+                            }
+                        </span>
+                    }
+
+                    <!-- Equipped Badge at the bottom of Avatar -->
+                    @if (customerProfile != null && !string.IsNullOrEmpty(customerProfile.EquippedBadge) && customerProfile.EquippedBadge != "none")
+                    {
+                        var badgeFile = customerProfile.EquippedBadge switch
+                        {
+                            "vip-badge-1" => "thich-thi-nap.png",
+                            "vip-badge-2" => "giau-nut-vach.png",
+                            "vip-badge-3" => "vung-tien-nhu-nuoc.png",
+                            "vip-badge-4" => "nha-co-mo.png",
+                            _ => null
+                        };
+                        if (badgeFile != null)
+                        {
+                            <div style="position: absolute; bottom: -70px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center;">
+                                <img src="/image/huy-hieu/@badgeFile" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));" />
+                            </div>
+                        }
+                    }
+                </div>
+                <div class="d-none d-sm-block text-start" style="line-height: 1.2;">
+                    <div style="font-size:13px;font-weight:800;color:#333;">
+                        @(string.IsNullOrWhiteSpace(customerProfile?.FullName) ? User.Identity?.Name : customerProfile.FullName)
+                    </div>
+                    <span class="small @tierClass" style="font-size:11px; font-weight:700; @(string.IsNullOrEmpty(tierClass) ? LoyaltyTierStyle(displayLvl) : "")">
+                        @(customerProfile == null ? "Khách hàng thân thiết" : LoyaltyService.GetTierName(displayLvl))
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            @RenderBody()
+        </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const lastShownToasts = window._lastShownToasts || (window._lastShownToasts = new Set());
+        function showToast(msg, type='success') {
+            if (lastShownToasts.has(msg + '|' + type)) return;
+            lastShownToasts.add(msg + '|' + type);
+            setTimeout(() => lastShownToasts.delete(msg + '|' + type), 1000);
+
+            const s = document.getElementById('toastStack');
+            const t = document.createElement('div');
+            t.className = 'toast-item';
+            t.style.background = type === 'success' ? 'var(--green-dark)' : 'var(--red)';
+            t.innerHTML = '<i class="bi bi-' + (type==='success' ? 'check-circle-fill' : 'exclamation-circle-fill') + '"></i>' + msg;
+            s.appendChild(t);
+            setTimeout(() => { 
+                t.style.opacity='0'; 
+                t.style.transition='opacity .3s'; 
+                setTimeout(()=>t.remove(), 300); 
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            @if (TempData["Success"] != null)
+            {
+                <text>
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Success"]?.ToString() ?? ""))', 'success');
+                </text>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <text>
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Error"]?.ToString() ?? ""))', 'error');
+                </text>
+            }
+        });
+    </script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            (function () {
+                // Check for session conflict across tabs
+                var serverUser = '@(User.Identity?.Name ?? "")';
+                if (serverUser) {
+                    var cachedUser = sessionStorage.getItem('currentUserEmail');
+                    if (!cachedUser) {
+                        sessionStorage.setItem('currentUserEmail', serverUser);
+                    } else if (cachedUser !== serverUser) {
+                        sessionStorage.removeItem('currentUserEmail');
+                        window.location.href = '/Identity/Account/Logout?returnUrl=%2FIdentity%2FAccount%2FLogin';
+                        return;
+                    }
+                } else {
+                    sessionStorage.removeItem('currentUserEmail');
+                }
+
+                function checkLockout() {
+                    fetch('/Home/CheckLockoutStatus')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.isLocked) {
+                                window.location.href = '/Identity/Account/Lockout?email=' + encodeURIComponent(data.email);
+                            }
+                        })
+                        .catch(err => console.error("Error checking lockout status:", err));
+                }
+                // Check every 8 seconds
+                setInterval(checkLockout, 8000);
+
+                // --- Presence tracking for immediate offline updates ---
+                var isInternalNavigation = false;
+
+                document.addEventListener('click', function (e) {
+                    var anchor = e.target.closest('a');
+                    if (anchor && anchor.href) {
+                        try {
+                            var url = new URL(anchor.href, window.location.href);
+                            var isLogout = url.pathname.toLowerCase().includes('/logout');
+                            if (url.origin === window.location.origin && !isLogout) {
+                                isInternalNavigation = true;
+                            }
+                        } catch (err) {}
+                    }
+                });
+
+                document.addEventListener('submit', function (e) {
+                    var form = e.target.closest('form');
+                    if (form) {
+                        var action = form.getAttribute('action') || window.location.href;
+                        try {
+                            var url = new URL(action, window.location.href);
+                            var isLogout = url.pathname.toLowerCase().includes('/logout');
+                            if (url.origin === window.location.origin && !isLogout) {
+                                isInternalNavigation = true;
+                            }
+                        } catch (err) {}
+                    }
+                });
+
+                window.addEventListener('pagehide', function () {
+                    if (!isInternalNavigation) {
+                        var url = '/CustomerProfile/SetOffline';
+                        if (navigator.sendBeacon) {
+                            navigator.sendBeacon(url);
+                        } else {
+                            fetch(url, { method: 'POST', keepalive: true, credentials: 'same-origin' });
+                        }
+                    }
+                });
+            })();
+        </script>
+    }
+    <!-- Modal Cài đặt -->
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden;">
+                <div class="modal-header bg-success text-white py-3 border-0">
+                    <h5 class="modal-title fw-bold" id="settingsModalLabel">
+                        <i class="bi bi-gear-fill me-2"></i>Cài đặt giao diện
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-muted mb-3" style="font-size: 14px;">Chế độ giao diện (Nền)</label>
+                        <div class="d-flex gap-3">
+                            <button type="button" class="btn btn-outline-success flex-grow-1 py-3 fw-bold theme-toggle-btn" data-theme="light" style="border-radius: 12px; border-width: 2px;">
+                                <i class="bi bi-sun-fill me-2 fs-5"></i>Nền sáng
+                            </button>
+                            <button type="button" class="btn btn-outline-success flex-grow-1 py-3 fw-bold theme-toggle-btn" data-theme="dark" style="border-radius: 12px; border-width: 2px;">
+                                <i class="bi bi-moon-stars-fill me-2 fs-5"></i>Nền tối
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            function updateThemeButtons(theme) {
+                document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+                    const btnTheme = btn.getAttribute('data-theme');
+                    if (btnTheme === theme) {
+                        btn.classList.remove('btn-outline-success');
+                        btn.classList.add('btn-success');
+                    } else {
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-success');
+                    }
+                });
+            }
+
+            function setTheme(theme) {
+                if (theme === 'dark') {
+                    document.documentElement.classList.add('dark-theme');
+                } else {
+                    document.documentElement.classList.remove('dark-theme');
+                }
+                localStorage.setItem('theme', theme);
+                updateThemeButtons(theme);
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: theme } }));
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                setTheme(savedTheme);
+
+                document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const theme = btn.getAttribute('data-theme');
+                        setTheme(theme);
+                    });
+                });
+
+                const settingsModal = document.getElementById('settingsModal');
+                if (settingsModal) {
+                    settingsModal.addEventListener('show.bs.modal', () => {
+                        const currentTheme = localStorage.getItem('theme') || 'light';
+                        updateThemeButtons(currentTheme);
+                    });
+                }
+
+                // Toggle sidebar on mobile
+                const sidebarToggleBtn = document.querySelector('.sidebar-toggle-btn');
+                const sidebar = document.querySelector('.sidebar');
+                const overlay = document.querySelector('.sidebar-overlay');
+                
+                if (sidebarToggleBtn && sidebar && overlay) {
+                    sidebarToggleBtn.addEventListener('click', () => {
+                        sidebar.classList.toggle('open');
+                        overlay.classList.toggle('show');
+                    });
+                    overlay.addEventListener('click', () => {
+                        sidebar.classList.remove('open');
+                        overlay.classList.remove('show');
+                    });
+                }
+            });
+        })();
+
+        window.goToPage = function (el, customPageParam) {
+            if (!el) return;
+            let input = null;
+            if (el.tagName === 'INPUT') {
+                input = el;
+            } else {
+                const parent = el.closest('.d-flex') || el.closest('.pagination-wrap') || el.parentElement;
+                input = parent ? parent.querySelector('input[type="number"], input') : null;
+            }
+            if (!input || !input.value) return;
+
+            let p = parseInt(input.value, 10);
+            if (isNaN(p) || p < 1) p = 1;
+
+            if (input.max) {
+                const maxP = parseInt(input.max, 10);
+                if (!isNaN(maxP) && p > maxP) p = maxP;
+            }
+
+            const pageParam = customPageParam || input.getAttribute('data-param') || input.getAttribute('data-page-param') || 'page';
+
+            const u = new URL(window.location.href);
+            u.searchParams.set(pageParam, p);
+
+            const section = input.getAttribute('data-section');
+            if (section) u.searchParams.set('activeSection', section);
+
+            const sub = input.getAttribute('data-sub');
+            if (sub) u.searchParams.set('activeSubInventory', sub);
+
+            const path = window.location.pathname.toLowerCase();
+            if (path === '/' || path.endsWith('/home') || path.endsWith('/home/index')) {
+                u.searchParams.set('showAll', 'True');
+            }
+            u.hash = '';
+            window.location.assign(u.toString());
+        };
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

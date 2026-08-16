@@ -1,0 +1,287 @@
+@model WebBanHang.Models.Discount
+
+@{
+    ViewData["Title"] = "Chỉnh sửa mã #" + Model.Id;
+    Layout = "_Layout_Admin";
+    var discountPercentValue = DiscountPercent.FormatForInput(Model.DiscountValue);
+}
+
+@functions {
+    private static string GetStatusText(WebBanHang.Models.Discount discount)
+    {
+        var now = DateTime.Now;
+
+        if (!discount.IsSee)
+        {
+            return "Tạm ẩn";
+        }
+
+        if (discount.EndDate < now)
+        {
+            return "Hết hạn";
+        }
+
+        if (discount.Quantity <= 0)
+        {
+            return "Hết lượt";
+        }
+
+        if (discount.StartDate > now)
+        {
+            return "Sắp áp dụng";
+        }
+
+        return "Đang áp dụng";
+    }
+}
+
+@section Styles {
+    <style>
+        .page-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; max-width: 1050px; }
+        .fcard { background: #fff; border-radius: 14px; box-shadow: 0 2px 14px rgba(0,0,0,.07); margin-bottom: 20px; border: none; overflow: hidden; }
+        .fcard-head { padding: 15px 22px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .fcard-title { font-size: 15px; font-weight: 800; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
+        .fcard-title i { color: var(--green-main); }
+        .fcard-body { padding: 22px; }
+        .field { margin-bottom: 20px; }
+        .flabel { font-size: 12px; font-weight: 800; color: #666; margin-bottom: 8px; display: block; text-transform: uppercase; }
+        .req { color: var(--red); }
+        .finput {
+            width: 100%;
+            padding: 11px 15px;
+            border: 1.5px solid #ececec;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #fafafa;
+            transition: all .2s;
+            outline: none;
+        }
+        .finput:focus {
+            border-color: var(--green-main);
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(44,158,71,.1);
+        }
+        .input-group-text { border: 1.5px solid #ececec; background: #f8f8f8; border-radius: 10px; font-weight: 800; color: #777; }
+        .changed { border-color: #ff6b00 !important; background: #fffdf5 !important; }
+        .change-badge { background: #fff8e1; color: #b45309; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; display: none; align-items: center; gap: 5px; }
+        .change-badge.show { display: inline-flex; }
+        .btn-save { background: linear-gradient(135deg, var(--green-main), var(--green-accent)); color: #fff; border: none; border-radius: 25px; padding: 12px; font-weight: 800; width: 100%; box-shadow: 0 4px 12px rgba(44,158,71,.2); transition: all .2s; cursor: pointer; }
+        .btn-save:hover { color: #fff; transform: translateY(-1px); }
+        .btn-back { text-decoration: none; color: #888; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+        .diff-summary { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px; margin-bottom: 20px; display: none; }
+        .diff-summary.show { display: block; }
+        .diff-row { font-size: 12px; color: #92400e; margin-bottom: 4px; }
+        .diff-row .new { font-weight: 800; color: var(--green-dark); }
+        .switch-box {
+            border: 1.5px solid #ececec;
+            border-radius: 12px;
+            padding: 14px 16px;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .switch-title { font-weight: 800; color: #333; font-size: 14px; }
+        .switch-sub { color: #999; font-size: 12px; margin-top: 2px; }
+        .form-check-input { width: 48px; height: 24px; cursor: pointer; }
+        .form-check-input:checked { background-color: var(--green-main); border-color: var(--green-main); }
+        .status-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 6px 11px; background: var(--green-light); color: var(--green-dark); font-size: 12px; font-weight: 800; }
+        .info-line { font-size: 13px; color: #777; margin-bottom: 10px; }
+        .info-line strong { color: #333; }
+        .code-preview {
+            background: #ecfdf3;
+            border: 1px solid #c9f0d5;
+            color: var(--green-dark);
+            border-radius: 12px;
+            padding: 14px;
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: .5px;
+            text-align: center;
+            word-break: break-word;
+        }
+        .text-danger { font-size: 12px; font-weight: 600; }
+        @@media (max-width: 900px) { .page-grid { grid-template-columns: 1fr; } }
+    </style>
+}
+
+<div class="breadcrumb-bar mb-3">
+    <a asp-action="Index" class="btn-back">
+        <i class="bi bi-arrow-left"></i> Quay lại danh sách
+    </a>
+</div>
+
+<form asp-action="Edit" id="editForm" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+
+    <div class="page-grid">
+        <div>
+            <div class="fcard">
+                <div class="fcard-head">
+                    <div class="fcard-title"><i class="bi bi-pencil-square"></i> Nội dung mã giảm giá</div>
+                    <span class="change-badge" id="changeBadge"><i class="bi bi-exclamation-circle"></i> Đã chỉnh sửa</span>
+                </div>
+                <div class="fcard-body">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row">
+                        <div class="col-md-6 field">
+                            <label asp-for="Code" class="flabel">Mã giảm giá <span class="req">*</span></label>
+                            <input asp-for="Code" class="finput" id="fCode" data-orig="@Model.Code" oninput="syncCodePreview(); trackChange(this)" style="text-transform:uppercase;" />
+                            <span asp-validation-for="Code" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 field">
+                            <label asp-for="Quantity" class="flabel">Số lượt dùng</label>
+                            <input asp-for="Quantity" class="finput" id="fQuantity" data-orig="@Model.Quantity" type="number" min="0" oninput="trackChange(this)" />
+                            <span asp-validation-for="Quantity" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 field">
+                            <label asp-for="DiscountValue" class="flabel">Mức giảm (%) <span class="req">*</span></label>
+                            <div class="input-group">
+                                <input name="DiscountValue" class="finput" id="fDiscountValue" data-orig="@discountPercentValue" value="@discountPercentValue" type="number" min="1" max="100" step="0.001" oninput="trackChange(this)" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <span asp-validation-for="DiscountValue" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4 field">
+                            <label asp-for="MinOrderValue" class="flabel">Đơn tối thiểu</label>
+                            <div class="input-group">
+                                <input asp-for="MinOrderValue" class="finput" id="fMinOrderValue" data-orig="@Model.MinOrderValue" type="number" min="0" step="1000" oninput="trackChange(this)" />
+                                <span class="input-group-text">₫</span>
+                            </div>
+                            <span asp-validation-for="MinOrderValue" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-4 field">
+                            <label asp-for="MaxDiscount" class="flabel">Giảm tối đa</label>
+                            <div class="input-group">
+                                <input asp-for="MaxDiscount" class="finput" id="fMaxDiscount" data-orig="@Model.MaxDiscount" type="number" min="0" step="1000" oninput="trackChange(this)" />
+                                <span class="input-group-text">₫</span>
+                            </div>
+                            <span asp-validation-for="MaxDiscount" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 field">
+                            <label asp-for="StartDate" class="flabel">Ngày bắt đầu</label>
+                            <input asp-for="StartDate" class="finput" id="fStartDate" data-orig="@Model.StartDate.ToString("yyyy-MM-ddTHH:mm")" type="datetime-local" value="@Model.StartDate.ToString("yyyy-MM-ddTHH:mm")" oninput="trackChange(this)" />
+                            <span asp-validation-for="StartDate" class="text-danger"></span>
+                        </div>
+
+                        <div class="col-md-6 field">
+                            <label asp-for="EndDate" class="flabel">Ngày kết thúc</label>
+                            <input asp-for="EndDate" class="finput" id="fEndDate" data-orig="@Model.EndDate.ToString("yyyy-MM-ddTHH:mm")" type="datetime-local" value="@Model.EndDate.ToString("yyyy-MM-ddTHH:mm")" oninput="trackChange(this)" />
+                            <span asp-validation-for="EndDate" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <div class="switch-box">
+                            <div>
+                                <div class="switch-title">Kích hoạt mã giảm giá</div>
+                                <div class="switch-sub">Tắt mục này nếu chưa muốn khách hàng sử dụng mã.</div>
+                            </div>
+                            <div class="form-check form-switch m-0">
+                                <input asp-for="IsSee" class="form-check-input" id="fIsSee" data-orig="@Model.IsSee.ToString().ToLowerInvariant()" role="switch" onchange="trackChange(this)" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diff-summary" id="diffSummary">
+                <div style="font-weight: 800; font-size: 12px; margin-bottom: 8px; color: #b45309;">
+                    <i class="bi bi-info-circle-fill"></i> CÁC THAY ĐỔI CHƯA LƯU:
+                </div>
+                <div id="diffRows"></div>
+            </div>
+
+            <button type="submit" class="btn-save">
+                <i class="bi bi-cloud-check-fill"></i> LƯU THAY ĐỔI
+            </button>
+        </div>
+
+        <div>
+            <div class="fcard">
+                <div class="fcard-head">
+                    <div class="fcard-title"><i class="bi bi-ticket-detailed"></i> Mã hiện tại</div>
+                </div>
+                <div class="fcard-body">
+                    <div class="code-preview" id="codePreview">@Model.Code</div>
+                </div>
+            </div>
+
+            <div class="fcard">
+                <div class="fcard-body">
+                    <div class="flabel" style="margin-bottom: 12px;">Thông tin hệ thống</div>
+                    <div class="info-line">Mã số: <strong>#@Model.Id</strong></div>
+                    <div class="info-line">Trạng thái: <span class="status-chip">@GetStatusText(Model)</span></div>
+                    <div class="info-line">Còn lượt: <strong>@Model.Quantity</strong></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const FIELDS = {
+            fCode: 'Mã giảm giá',
+            fQuantity: 'Số lượt dùng',
+            fDiscountValue: 'Mức giảm (%)',
+            fMinOrderValue: 'Đơn tối thiểu',
+            fMaxDiscount: 'Giảm tối đa',
+            fStartDate: 'Ngày bắt đầu',
+            fEndDate: 'Ngày kết thúc',
+            fIsSee: 'Kích hoạt'
+        };
+
+        function readValue(el) {
+            return el.type === 'checkbox' ? el.checked.toString() : el.value.toString();
+        }
+
+        function trackChange(el) {
+            const orig = el.getAttribute('data-orig') || '';
+            const current = readValue(el);
+
+            if (current !== orig.toString()) {
+                el.classList.add('changed');
+            } else {
+                el.classList.remove('changed');
+            }
+
+            renderDiff();
+        }
+
+        function renderDiff() {
+            let hasChange = false;
+            let html = '';
+
+            Object.keys(FIELDS).forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.classList.contains('changed')) {
+                    hasChange = true;
+                    const displayValue = el.type === 'checkbox' ? (el.checked ? 'Bật' : 'Tắt') : el.value;
+                    html += `<div class="diff-row">• <strong>${FIELDS[id]}</strong>: <span class="new">${displayValue}</span></div>`;
+                }
+            });
+
+            document.getElementById('changeBadge').classList.toggle('show', hasChange);
+            document.getElementById('diffSummary').classList.toggle('show', hasChange);
+            document.getElementById('diffRows').innerHTML = html;
+        }
+
+        function syncCodePreview() {
+            document.getElementById('codePreview').textContent = document.getElementById('fCode').value || 'CHƯA CÓ MÃ';
+        }
+    </script>
+}

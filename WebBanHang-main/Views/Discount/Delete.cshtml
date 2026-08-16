@@ -1,0 +1,79 @@
+@model WebBanHang.Models.Discount
+
+@{
+    ViewData["Title"] = "Xóa mã giảm giá";
+    Layout = "_Layout_Admin";
+}
+
+@section Styles {
+    <style>
+        .delete-wrap { max-width: 620px; margin: 20px auto 0; }
+        .delete-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 16px rgba(0,0,0,.08); overflow: hidden; text-align: center; }
+        .delete-head { padding: 28px 28px 12px; }
+        .delete-icon { width: 64px; height: 64px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #fff0f0; color: var(--red); font-size: 28px; margin-bottom: 14px; }
+        .delete-title { font-size: 22px; font-weight: 900; color: #222; margin-bottom: 8px; }
+        .delete-desc { color: #777; font-size: 14px; margin: 0; }
+        .code-chip { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; background: #ecfdf3; color: var(--green-dark); border: 1px solid #c9f0d5; border-radius: 12px; padding: 10px 14px; font-size: 17px; font-weight: 900; letter-spacing: .5px; }
+        .delete-body { padding: 20px 28px 26px; }
+        .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 24px; text-align: left; }
+        .info-box { background: #fafafa; border-radius: 12px; padding: 12px; }
+        .info-label { color: #999; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+        .info-value { color: #333; font-size: 14px; font-weight: 800; }
+        .delete-actions { display: flex; gap: 10px; justify-content: center; }
+        .btn-cancel { border: 1.5px solid #ddd; color: #666; border-radius: 24px; padding: 11px 22px; font-weight: 800; text-decoration: none; background: #fff; }
+        .btn-delete { border: none; color: #fff; border-radius: 24px; padding: 11px 22px; font-weight: 800; background: var(--red); }
+        @@media (max-width: 560px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .delete-actions { flex-direction: column; }
+        }
+    </style>
+}
+
+<div class="delete-wrap">
+    <a asp-action="Index" style="text-decoration:none; color:#888; font-weight:700; display:inline-flex; align-items:center; gap:6px; margin-bottom:15px;">
+        <i class="bi bi-arrow-left"></i> Quay lại danh sách
+    </a>
+
+    <div class="delete-card">
+        <div class="delete-head">
+            <div class="delete-icon"><i class="bi bi-trash3-fill"></i></div>
+            <div class="delete-title">Xóa mã giảm giá?</div>
+            <p class="delete-desc">Thao tác này sẽ xóa mã khỏi danh sách quản lý và khách hàng không thể áp dụng mã này nữa.</p>
+            <div class="code-chip">
+                <i class="bi bi-ticket-detailed-fill"></i>
+                @Model.Code
+            </div>
+        </div>
+
+        <div class="delete-body">
+            <div class="info-grid">
+                <div class="info-box">
+                    <div class="info-label">Mức giảm</div>
+                    <div class="info-value">@DiscountPercent.Format(Model.DiscountValue)%</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Số lượt còn</div>
+                    <div class="info-value">@Model.Quantity</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Bắt đầu</div>
+                    <div class="info-value">@Model.StartDate.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Kết thúc</div>
+                    <div class="info-value">@Model.EndDate.ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+            </div>
+
+            <form asp-action="Delete" method="post">
+                <input type="hidden" asp-for="Id" />
+                <div class="delete-actions">
+                    <a asp-action="Index" class="btn-cancel">Huỷ</a>
+                    <button type="submit" class="btn-delete">
+                        <i class="bi bi-trash3-fill me-1"></i> Xóa mã
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

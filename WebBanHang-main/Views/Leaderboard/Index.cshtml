@@ -1,0 +1,584 @@
+@model List<WebBanHang.Services.LeaderboardRowViewModel>
+@using System.Security.Claims
+@{
+    ViewData["Title"] = "Bảng Xếp Hạng Chiến Thần Tiêu Dùng";
+    var currentUserId = ViewBag.CurrentUserId as string;
+    var period = ViewBag.Period as string ?? "month";
+    var userRank = ViewBag.UserRank as int? ?? 0;
+    var userTotalSpent = ViewBag.UserTotalSpent as decimal? ?? 0m;
+    var tenthSpent = ViewBag.TenthSpent as decimal? ?? 0m;
+    
+    // Tìm các vị trí Top 1, 2, 3
+    var top1 = Model.FirstOrDefault(m => m.Rank == 1);
+    var top2 = Model.FirstOrDefault(m => m.Rank == 2);
+    var top3 = Model.FirstOrDefault(m => m.Rank == 3);
+    var rest = Model.Where(m => m.Rank > 3).OrderBy(m => m.Rank).ToList();
+
+    // Tính tiến trình cho Thẻ cá nhân
+    double progressPct = 0;
+    decimal neededSpent = 0m;
+    if (userRank > 10 || userRank == 0)
+    {
+        neededSpent = tenthSpent - userTotalSpent;
+        if (neededSpent < 0) neededSpent = 0;
+        
+        if (tenthSpent > 0)
+        {
+            progressPct = (double)(userTotalSpent / tenthSpent) * 100;
+            if (progressPct > 100) progressPct = 100;
+        }
+    }
+    else
+    {
+        progressPct = 100;
+    }
+}
+
+@functions {
+    public string MaskName(string name, bool isCurrentUser)
+    {
+        if (isCurrentUser || string.IsNullOrWhiteSpace(name)) return name;
+        var parts = name.Trim().Split(' ');
+        if (parts.Length <= 1) return name;
+        if (parts.Length == 2)
+        {
+            return $"{parts[0]} *{parts[1].Substring(Math.Min(1, parts[1].Length))}";
+        }
+        
+        // Nguyễn Văn An -> Nguyễn V*** An
+        var middleParts = parts.Skip(1).Take(parts.Length - 2).Select(p => p[0] + "***");
+        return $"{parts[0]} {string.Join(" ", middleParts)} {parts[parts.Length - 1]}";
+    }
+
+    public string GetBadgeTitle(string badgeFileName)
+    {
+        return badgeFileName switch
+        {
+            "thich-thi-nap.png" => "Thích Thì Nạp",
+            "vung-tien-nhu-nuoc.png" => "Vung Tiền Như Nước",
+            "giau-nut-vach.png" => "Giàu Nứt Vách",
+            _ => "Chiến Thần"
+        };
+    }
+
+    public string GetFrameUrl(string? frameKey, out string filterStyle)
+    {
+        filterStyle = "";
+        if (string.IsNullOrEmpty(frameKey) || frameKey == "none") return "";
+
+        if (frameKey.StartsWith("khung-top-"))
+        {
+            return $"/image/khung-top/{frameKey}";
+        }
+        
+        if (frameKey.StartsWith("daily-normal-"))
+        {
+            return $"/image/khung-theo-ngay/khung-thuong/{frameKey.Substring("daily-normal-".Length)}";
+        }
+        
+        if (frameKey.StartsWith("daily-limited-"))
+        {
+            filterStyle = "filter: drop-shadow(0 0 3px #ff5722);";
+            return $"/image/khung-theo-ngay/khung-gioi-han/{frameKey.Substring("daily-limited-".Length)}";
+        }
+
+        if (frameKey.StartsWith("vip-moc-"))
+        {
+            filterStyle = "filter: drop-shadow(0 0 3px #ffc107);";
+            var file = frameKey switch
+            {
+                "vip-moc-1" => "khung-vip-moc-1.png",
+                "vip-moc-2" => "khung-vip-moc-2.webp",
+                "vip-moc-3" => "khung-vip-moc-3.webp",
+                "vip-moc-4" => "khung-vip-moc-4.webp",
+                _ => "khung-vip-moc-1.png"
+            };
+            return $"/image/khung-vip/{file}";
+        }
+
+        var tierFile = frameKey switch
+        {
+            "tier-0" => "khung-sat.webp",
+            "tier-1" => "khung-dong.webp",
+            "tier-2" => "khung-sat.webp",
+            "tier-3" => "khung-vang.webp",
+            "tier-4" => "khung-bach-kim.webp",
+            "tier-5" => "khung-luc-bao.png",
+            "tier-6" => "khung-kim-cuong.webp",
+            "tier-7" => "khung-ruby.png",
+            "tier-8" => "khung-niken.png",
+            "tier-9" => "khung-titan.png",
+            "tier-10" => "khung-uranium.png",
+            "tier-11" => "khung-iridium.png",
+            _ => null
+        };
+
+        if (tierFile == null) return "";
+
+        filterStyle = frameKey switch
+        {
+            "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+            "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+            "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+            "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+            "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+            "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+            _ => ""
+        };
+
+        return $"/image/khung-avatar/{tierFile}";
+    }
+}
+
+<div class="container py-4">
+    <!-- Header Hero Section -->
+    <div class="text-center mb-5 hero-header">
+        <h1 class="display-5 fw-bold text-success mb-2">
+            <i class="bi bi-trophy-fill text-warning me-2"></i>CHIẾN THẦN TIÊU DÙNG
+        </h1>
+        <p class="text-secondary fs-5">Vinh danh Top 10 khách hàng có chi tiêu mua sắm cao nhất trên toàn hệ thống siêu thị</p>
+        <div class="header-divider"></div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="d-flex justify-content-center mb-4">
+        <div class="btn-group period-tabs p-1 bg-white rounded-pill shadow-sm" role="group">
+            <a href="@Url.Action("Index", "Leaderboard", new { period = "month" })" 
+               class="btn rounded-pill px-4 py-2 @(period == "month" ? "btn-success active-tab" : "btn-light text-secondary")">
+                Tháng Này
+            </a>
+            <a href="@Url.Action("Index", "Leaderboard", new { period = "year" })" 
+               class="btn rounded-pill px-4 py-2 @(period == "year" ? "btn-success active-tab" : "btn-light text-secondary")">
+                Năm Này
+            </a>
+            <a href="@Url.Action("Index", "Leaderboard", new { period = "alltime" })" 
+               class="btn rounded-pill px-4 py-2 @(period == "alltime" ? "btn-success active-tab" : "btn-light text-secondary")">
+                Tất Cả Thời Gian
+            </a>
+        </div>
+    </div>
+
+    <!-- Podium Top 3 3D -->
+    <div class="row justify-content-center align-items-end podium-container g-3 mb-5 px-2">
+        <!-- TOP 2 -->
+        <div class="col-4 col-md-3 order-1 text-center">
+            @if (top2 != null)
+            {
+                bool isMe = top2.UserId == currentUserId;
+                <div class="podium-card silver-glow p-3 rounded-4 bg-white shadow-sm mb-3">
+                    <div class="rank-badge silver-badge">2</div>
+                    <div class="avatar-wrapper position-relative mx-auto mb-3 d-flex align-items-center justify-content-center">
+                        <img src="@(string.IsNullOrEmpty(top2.AvatarUrl) ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23edf2f7'/><path d='M32 36c-8.84 0-16 7.16-16 16h32c0-8.84-7.16-16-16-16zm0-24a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' fill='%23a0aec0'/></svg>" : top2.AvatarUrl)" class="avatar-img rounded-circle" style="margin: 0 !important;" />
+                        @{
+                            string filter2 = "";
+                            string frameUrl2 = GetFrameUrl(top2.EquippedAvatarFrame, out filter2);
+                        }
+                        @if (!string.IsNullOrEmpty(frameUrl2))
+                        {
+                            <img src="@frameUrl2" class="frame-overlay" style="@filter2" />
+                        }
+                    </div>
+                    <h5 class="fw-bold mb-1 text-truncate">
+                        @MaskName(top2.FullName, isMe)
+                        @if (isMe) { <span class="badge bg-success ms-1">Bạn</span> }
+                    </h5>
+                    @if (!string.IsNullOrEmpty(top2.EquippedBadge) && top2.EquippedBadge != "none")
+                    {
+                        <span class="badge bg-light text-dark border mb-2 d-inline-flex align-items-center gap-1">
+                            <img src="/image/huy-hieu/@top2.EquippedBadge" style="width:16px; height:16px;" />
+                            @GetBadgeTitle(top2.EquippedBadge)
+                        </span>
+                    }
+                    <div class="text-secondary small">@top2.MembershipTierName</div>
+                    <div class="fw-bold text-success mt-2 fs-6">@top2.TotalSpent.ToString("N0") đ</div>
+                </div>
+                <div class="podium-pillar bg-silver rounded-top-4 shadow-sm" style="height: 110px;"></div>
+            }
+            else
+            {
+                <div class="podium-card empty-podium p-3 rounded-4 border-dashed mb-3">
+                    <div class="text-muted small">Hạng 2 trống</div>
+                </div>
+                <div class="podium-pillar bg-light-gray rounded-top-4" style="height: 110px;"></div>
+            }
+        </div>
+
+        <!-- TOP 1 -->
+        <div class="col-4 col-md-4 order-2 text-center">
+            @if (top1 != null)
+            {
+                bool isMe = top1.UserId == currentUserId;
+                <div class="podium-card gold-glow p-4 rounded-4 bg-white shadow mb-3 position-relative gold-card">
+                    <!-- Vương miện hoạt ảnh lắc lư -->
+                    <div class="crown-animation-wrap">
+                        <i class="bi bi-award-fill text-warning crown-icon"></i>
+                    </div>
+                    <div class="rank-badge gold-badge">1</div>
+                    <div class="avatar-wrapper position-relative mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 105px; height: 105px;">
+                        <img src="@(string.IsNullOrEmpty(top1.AvatarUrl) ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23edf2f7'/><path d='M32 36c-8.84 0-16 7.16-16 16h32c0-8.84-7.16-16-16-16zm0-24a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' fill='%23a0aec0'/></svg>" : top1.AvatarUrl)" class="avatar-img rounded-circle" style="width: 90px; height: 90px; margin: 0 !important;" />
+                        @{
+                            string filter1 = "";
+                            string frameUrl1 = GetFrameUrl(top1.EquippedAvatarFrame, out filter1);
+                        }
+                        @if (!string.IsNullOrEmpty(frameUrl1))
+                        {
+                            <img src="@frameUrl1" class="frame-overlay" style="width:105px; height:105px; @filter1" />
+                        }
+                    </div>
+                    <h4 class="fw-bold mb-1 text-truncate">
+                        @MaskName(top1.FullName, isMe)
+                        @if (isMe) { <span class="badge bg-success ms-1">Bạn</span> }
+                    </h4>
+                    @if (!string.IsNullOrEmpty(top1.EquippedBadge) && top1.EquippedBadge != "none")
+                    {
+                        <span class="badge bg-light text-dark border mb-2 d-inline-flex align-items-center gap-1">
+                            <img src="/image/huy-hieu/@top1.EquippedBadge" style="width:18px; height:18px;" />
+                            @GetBadgeTitle(top1.EquippedBadge)
+                        </span>
+                    }
+                    <div class="text-secondary small">@top1.MembershipTierName</div>
+                    <div class="fw-bold text-orange mt-2 fs-5">@top1.TotalSpent.ToString("N0") đ</div>
+                </div>
+                <div class="podium-pillar bg-gold rounded-top-4 shadow" style="height: 160px;"></div>
+            }
+            else
+            {
+                <div class="podium-card empty-podium p-4 rounded-4 border-dashed mb-3">
+                    <div class="text-muted small">Hạng 1 trống</div>
+                </div>
+                <div class="podium-pillar bg-light-gray rounded-top-4" style="height: 160px;"></div>
+            }
+        </div>
+
+        <!-- TOP 3 -->
+        <div class="col-4 col-md-3 order-3 text-center">
+            @if (top3 != null)
+            {
+                bool isMe = top3.UserId == currentUserId;
+                <div class="podium-card bronze-glow p-3 rounded-4 bg-white shadow-sm mb-3">
+                    <div class="rank-badge bronze-badge">3</div>
+                    <div class="avatar-wrapper position-relative mx-auto mb-3 d-flex align-items-center justify-content-center">
+                        <img src="@(string.IsNullOrEmpty(top3.AvatarUrl) ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23edf2f7'/><path d='M32 36c-8.84 0-16 7.16-16 16h32c0-8.84-7.16-16-16-16zm0-24a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' fill='%23a0aec0'/></svg>" : top3.AvatarUrl)" class="avatar-img rounded-circle" style="margin: 0 !important;" />
+                        @{
+                            string filter3 = "";
+                            string frameUrl3 = GetFrameUrl(top3.EquippedAvatarFrame, out filter3);
+                        }
+                        @if (!string.IsNullOrEmpty(frameUrl3))
+                        {
+                            <img src="@frameUrl3" class="frame-overlay" style="@filter3" />
+                        }
+                    </div>
+                    <h5 class="fw-bold mb-1 text-truncate">
+                        @MaskName(top3.FullName, isMe)
+                        @if (isMe) { <span class="badge bg-success ms-1">Bạn</span> }
+                    </h5>
+                    @if (!string.IsNullOrEmpty(top3.EquippedBadge) && top3.EquippedBadge != "none")
+                    {
+                        <span class="badge bg-light text-dark border mb-2 d-inline-flex align-items-center gap-1">
+                            <img src="/image/huy-hieu/@top3.EquippedBadge" style="width:16px; height:16px;" />
+                            @GetBadgeTitle(top3.EquippedBadge)
+                        </span>
+                    }
+                    <div class="text-secondary small">@top3.MembershipTierName</div>
+                    <div class="fw-bold text-success mt-2 fs-6">@top3.TotalSpent.ToString("N0") đ</div>
+                </div>
+                <div class="podium-pillar bg-bronze rounded-top-4 shadow-sm" style="height: 80px;"></div>
+            }
+            else
+            {
+                <div class="podium-card empty-podium p-3 rounded-4 border-dashed mb-3">
+                    <div class="text-muted small">Hạng 3 trống</div>
+                </div>
+                <div class="podium-pillar bg-light-gray rounded-top-4" style="height: 80px;"></div>
+            }
+        </div>
+    </div>
+
+    <!-- Ranks 4-10 Table List -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+        <div class="card-header bg-white py-3 border-bottom-0">
+            <h5 class="m-0 fw-bold text-dark"><i class="bi bi-list-ol text-success me-2"></i>BẢNG VÀNG THÀNH VIÊN</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle m-0">
+                <thead class="table-light text-secondary">
+                    <tr>
+                        <th class="ps-4" style="width: 100px;">Hạng</th>
+                        <th>Khách hàng</th>
+                        <th>Cấp thành viên</th>
+                        <th class="text-end pe-4" style="width: 200px;">Tổng chi tiêu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (rest.Any())
+                    {
+                        foreach (var row in rest)
+                        {
+                            bool isMe = row.UserId == currentUserId;
+                            <tr class="@(isMe ? "table-success-highlight" : "")">
+                                <td class="ps-4">
+                                    <span class="badge bg-secondary rounded-circle rank-number-badge">@row.Rank</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="avatar-wrapper position-relative d-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+                                            <img src="@(string.IsNullOrEmpty(row.AvatarUrl) ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23edf2f7'/><path d='M32 36c-8.84 0-16 7.16-16 16h32c0-8.84-7.16-16-16-16zm0-24a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' fill='%23a0aec0'/></svg>" : row.AvatarUrl)" class="avatar-img rounded-circle" style="width: 40px; height: 40px; margin: 0 !important; border: none;" />
+                                            @{
+                                                string filterRow = "";
+                                                string frameUrlRow = GetFrameUrl(row.EquippedAvatarFrame, out filterRow);
+                                            }
+                                            @if (!string.IsNullOrEmpty(frameUrlRow))
+                                            {
+                                                <img src="@frameUrlRow" class="frame-overlay" style="width: 48px; height: 48px; @filterRow" />
+                                            }
+                                        </div>
+                                        <div>
+                                            <span class="fw-bold d-flex align-items-center gap-1">
+                                                @MaskName(row.FullName, isMe)
+                                                @if (isMe) { <span class="badge bg-success badge-sm">Bạn</span> }
+                                                @if (!string.IsNullOrEmpty(row.EquippedBadge) && row.EquippedBadge != "none")
+                                                {
+                                                    <img src="/image/huy-hieu/@row.EquippedBadge" title="@GetBadgeTitle(row.EquippedBadge)" style="width:18px; height:18px; vertical-align: middle;" />
+                                                }
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="text-secondary">@row.MembershipTierName</span>
+                                </td>
+                                <td class="text-end pe-4 fw-bold text-success">
+                                    @row.TotalSpent.ToString("N0") đ
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">Không có thêm thành viên xếp hạng</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Sticky Bottom Personal Card -->
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="personal-rank-sticky shadow-lg border-top bg-white py-3">
+        <div class="container">
+            <div class="row align-items-center g-3">
+                <div class="col-md-4 d-flex align-items-center gap-3">
+                    <div class="avatar-sticky-wrap">
+                        <i class="bi bi-person-circle text-success fs-2"></i>
+                    </div>
+                    <div>
+                        <div class="fw-bold text-dark">Thứ hạng của bạn</div>
+                        <div class="fs-5 text-success">
+                            @if (userRank > 0)
+                            {
+                                <span class="fw-black">Hạng #@userRank</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Chưa có xếp hạng</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-5">
+                    <div class="d-flex justify-content-between mb-1 small text-secondary">
+                        <span>Chi tiêu chu kỳ này: <strong>@userTotalSpent.ToString("N0")đ</strong></span>
+                        @if (userRank > 10 || userRank == 0)
+                        {
+                            <span>Cần thêm: <strong>@neededSpent.ToString("N0")đ</strong> để lọt Top 10</span>
+                        }
+                        else
+                        {
+                            <span class="text-warning fw-bold"><i class="bi bi-star-fill me-1"></i>Đã trong Top 10</span>
+                        }
+                    </div>
+                    <div class="progress rounded-pill" style="height: 12px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                             role="progressbar" 
+                             style="width: @progressPct.ToString("F0")%" 
+                             aria-valuenow="@progressPct" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="col-md-3 text-end">
+                    <a href="/" class="btn btn-warning rounded-pill px-4 w-100 fw-bold text-success btn-shopping shadow-sm">
+                        <i class="bi bi-cart-plus-fill me-2"></i>Mua sắm ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Leaderboard specific CSS Styling -->
+<style>
+    .podium-container {
+        margin-top: 40px;
+    }
+    .podium-card {
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        z-index: 10;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .podium-card:hover {
+        transform: translateY(-8px);
+    }
+    .gold-card {
+        border: 2px solid #ffd600 !important;
+    }
+    .gold-glow {
+        box-shadow: 0 10px 30px rgba(255, 214, 0, 0.2) !important;
+    }
+    .silver-glow {
+        box-shadow: 0 10px 25px rgba(209, 213, 219, 0.15) !important;
+    }
+    .bronze-glow {
+        box-shadow: 0 10px 25px rgba(180, 83, 9, 0.1) !important;
+    }
+    .avatar-wrapper {
+        width: 86px;
+        height: 86px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .avatar-img {
+        width: 72px;
+        height: 72px;
+        object-fit: cover;
+        border: 2px solid #fff;
+        margin: 0 !important;
+    }
+    .frame-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+    .rank-badge {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        color: white;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: -25px auto 10px auto;
+        font-size: 14px;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .gold-badge { background-color: #ffd600; color: #1e3a1e; }
+    .silver-badge { background-color: #d1d5db; color: #1e293b; }
+    .bronze-badge { background-color: #b45309; }
+
+    /* Crown Wiggle animation */
+    .crown-animation-wrap {
+        position: absolute;
+        top: -24px;
+        right: 15px;
+        z-index: 100;
+    }
+    .crown-icon {
+        font-size: 32px;
+        display: inline-block;
+        animation: crownWiggle 2.5s infinite ease-in-out;
+        transform-origin: bottom center;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    @@keyframes crownWiggle {
+        0%, 100% { transform: rotate(-5deg); }
+        50% { transform: rotate(8deg) scale(1.05); }
+    }
+
+    /* Pillars */
+    .podium-pillar {
+        border-radius: 12px 12px 0 0;
+    }
+    .bg-gold {
+        background: linear-gradient(180deg, #ffe066 0%, #ffd600 100%);
+    }
+    .bg-silver {
+        background: linear-gradient(180deg, #e5e7eb 0%, #9ca3af 100%);
+    }
+    .bg-bronze {
+        background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+    }
+    .bg-light-gray { background-color: #e5e7eb; }
+    .empty-podium { border: 2px dashed #ccc; background-color: rgba(0,0,0,0.02); height: 120px; display: flex; align-items: center; justify-content: center; }
+
+    /* Divider */
+    .header-divider {
+        width: 60px;
+        height: 4px;
+        background-color: var(--green-main);
+        margin: 15px auto 0 auto;
+        border-radius: 2px;
+    }
+    
+    .period-tabs {
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+    .active-tab {
+        background-color: var(--green-main) !important;
+        color: white !important;
+        font-weight: bold;
+        box-shadow: 0 4px 10px rgba(44, 158, 71, 0.2);
+    }
+    
+    /* Table styling */
+    .table-success-highlight {
+        background-color: rgba(44, 158, 71, 0.05) !important;
+    }
+    .rank-number-badge {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        background-color: #f3f4f6 !important;
+        color: #4b5563 !important;
+    }
+    
+    /* Personal Rank sticky panel */
+    .personal-rank-sticky {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+        box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
+        backdrop-filter: blur(10px);
+        background-color: rgba(255, 255, 255, 0.95) !important;
+    }
+    .btn-shopping:hover {
+        background-color: #ff9e00;
+        border-color: #ff9e00;
+        color: white !important;
+    }
+    
+    /* Padding for page to not get hidden behind sticky bar */
+    body {
+        padding-bottom: 90px;
+    }
+    
+    .text-orange {
+        color: #ff6b00;
+    }
+</style>

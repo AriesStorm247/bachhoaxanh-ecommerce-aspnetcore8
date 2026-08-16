@@ -1,0 +1,500 @@
+@model List<WebBanHang.Services.NotificationItemViewModel>
+@{
+    ViewData["Title"] = "Hộp Thư Thông Báo";
+    var unreadCount = ViewBag.UnreadCount as int? ?? 0;
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <div>
+            <h2 class="fw-bold text-success m-0"><i class="bi bi-envelope-paper-heart-fill me-2"></i>HỘP THƯ THÔNG BÁO</h2>
+            <p class="text-secondary m-0">Xem và quản lý các ưu đãi, cập nhật hệ thống và quà tặng dành riêng cho bạn</p>
+        </div>
+        <button id="btnMarkAllRead" class="btn btn-outline-success rounded-pill px-4 fw-bold @(unreadCount == 0 ? "disabled" : "")">
+            <i class="bi bi-envelope-open-fill me-2"></i>Đánh dấu tất cả đã đọc
+        </button>
+    </div>
+
+    <!-- Main Inbox Wrapper -->
+    <div class="row g-4 inbox-wrapper">
+        <!-- CỘT TRÁI: DANH SÁCH THÔNG BÁO -->
+        <div class="col-12 col-md-5 col-lg-4" id="inboxListColumn">
+            <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 d-flex flex-column" style="min-height: 500px; max-height: 700px;">
+                <!-- Bộ lọc tab phân loại -->
+                <div class="card-header bg-white border-bottom p-2">
+                    <ul class="nav nav-pills nav-fill filter-pills" id="notificationFilter" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active rounded-pill py-2 small fw-semibold" data-filter="all">Tất cả</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill py-2 small fw-semibold" data-filter="Promotion">Ưu đãi</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill py-2 small fw-semibold" data-filter="Reward">Quà tặng</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link rounded-pill py-2 small fw-semibold" data-filter="System">Hệ thống</button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- Danh sách thông báo dạng cuộn -->
+                <div class="card-body p-0 overflow-y-auto flex-grow-1" id="notificationsScrollContainer">
+                    @if (Model.Any())
+                    {
+                        <div class="list-group list-group-flush" id="notificationListGroup">
+                            @foreach (var n in Model)
+                            {
+                                var typeClass = n.Type switch
+                                {
+                                    WebBanHang.Models.NotificationType.Promotion => "promo-item",
+                                    WebBanHang.Models.NotificationType.Reward => "reward-item",
+                                    _ => "system-item"
+                                };
+                                
+                                <button type="button" 
+                                        class="list-group-item list-group-item-action p-3 border-bottom position-relative notification-card @typeClass @(n.IsRead ? "read-card" : "unread-card")"
+                                        data-id="@n.Id" 
+                                        data-type="@n.Type"
+                                        data-title="@n.Title"
+                                        data-date="@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")"
+                                        onclick="selectNotification(this)">
+                                    
+                                    <!-- Thanh báo chưa đọc màu xanh lá mép trái -->
+                                    <div class="unread-stripe"></div>
+                                    
+                                    <div class="d-flex align-items-start gap-3">
+                                        <!-- Icon Phân Loại -->
+                                        <div class="icon-badge rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+                                            @if (n.Type == WebBanHang.Models.NotificationType.Promotion)
+                                            {
+                                                <i class="bi bi-tag-fill text-orange"></i>
+                                            }
+                                            else if (n.Type == WebBanHang.Models.NotificationType.Reward)
+                                            {
+                                                <i class="bi bi-gift-fill text-pink"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-gear-fill text-primary"></i>
+                                            }
+                                        </div>
+
+                                        <div class="flex-grow-1 min-w-0">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <span class="badge-type text-uppercase fw-bold small">
+                                                    @(n.Type == WebBanHang.Models.NotificationType.Promotion ? "Ưu đãi" : n.Type == WebBanHang.Models.NotificationType.Reward ? "Quà tặng" : "Hệ thống")
+                                                </span>
+                                                <small class="text-muted text-nowrap">@n.CreatedAt.ToString("dd/MM/yyyy")</small>
+                                            </div>
+                                            <h6 class="fw-bold mb-1 text-truncate card-msg-title">@n.Title</h6>
+                                            <p class="text-secondary small m-0 text-truncate text-wrap-two-lines" id="summaryText-@n.Id">
+                                                <!-- Strip HTML to show text summary -->
+                                            </p>
+                                            <!-- Lưu trữ nội dung HTML đầy đủ ẩn -->
+                                            <div class="d-none" id="htmlContent-@n.Id">@Html.Raw(n.Content)</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Chấm tròn chưa đọc góc phải -->
+                                    <div class="unread-dot rounded-circle"></div>
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5 text-muted px-3">
+                            <i class="bi bi-envelope-open text-secondary display-4 d-block mb-3"></i>
+                            Hộp thư của bạn hiện đang trống.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: TRÌNH ĐỌC CHI TIẾT THÔNG BÁO -->
+        <div class="col-12 col-md-7 col-lg-8" id="inboxDetailColumn">
+            <div class="card border-0 shadow-sm rounded-4 h-100 overflow-hidden d-flex flex-column" style="min-height: 500px;">
+                <!-- Header của cột chi tiết trên mobile (nút Back) -->
+                <div class="card-header bg-white border-bottom p-3 d-md-none d-flex align-items-center gap-2">
+                    <button class="btn btn-light rounded-circle" onclick="backToList()"><i class="bi bi-arrow-left"></i></button>
+                    <span class="fw-bold text-dark">Quay lại Hộp thư</span>
+                </div>
+
+                <!-- Empty State (Khi chưa chọn tin) -->
+                <div class="card-body d-flex flex-column align-items-center justify-content-center text-center p-5 flex-grow-1" id="emptyState">
+                    <img src="/image/gmail.png" class="mb-4 opacity-50 animated-mailbox" style="width: 80px; height: 80px;" alt="Mailbox icon" />
+                    <h5 class="fw-bold text-dark">Không có thông báo nào được chọn</h5>
+                    <p class="text-secondary small">Vui lòng bấm chọn một thông báo ở danh sách bên trái để đọc nội dung chi tiết.</p>
+                </div>
+
+                <!-- Khung hiển thị nội dung thư thực tế (Ẩn mặc định) -->
+                <div class="card-body p-4 d-none flex-grow-1 overflow-y-auto" id="detailReader" style="max-height: 600px;">
+                    <div class="border-bottom pb-3 mb-4">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="badge rounded-pill px-3 py-1 text-uppercase fw-bold shadow-sm" id="detailBadge">Hệ thống</span>
+                            <span class="text-muted small" id="detailDate"></span>
+                        </div>
+                        <h3 class="fw-extrabold text-success mb-0" id="detailTitle"></h3>
+                    </div>
+                    <div class="detail-content-html" id="detailBody">
+                        <!-- Chèn HTML động ở đây -->
+                    </div>
+                </div>
+
+                <!-- Nút CTA hành động dưới chân thư -->
+                <div class="card-footer bg-light p-3 d-none text-end" id="detailFooter">
+                    <a href="/" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm" id="detailActionBtn">
+                        <i class="bi bi-cart-check-fill me-2"></i>Mua sắm ngay
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS cho Hộp thư -->
+<style>
+    .inbox-wrapper {
+        align-items: stretch;
+    }
+    .filter-pills .nav-link {
+        color: #4b5563;
+        background-color: transparent;
+        transition: all 0.2s;
+    }
+    .filter-pills .nav-link:hover {
+        background-color: #f3f4f6;
+    }
+    .filter-pills .nav-link.active {
+        background-color: var(--green-main) !important;
+        color: white !important;
+        box-shadow: 0 2px 6px rgba(44,158,71,0.25);
+    }
+    
+    /* Card thông báo bên trái */
+    .notification-card {
+        border-left: 0 !important;
+        transition: transform 0.2s ease, background-color 0.2s ease;
+        overflow: hidden;
+    }
+    .notification-card:hover {
+        transform: translateX(4px);
+        background-color: var(--green-light) !important;
+    }
+    .notification-card.active-card {
+        background-color: #f0fdf4 !important;
+        border-right: 3px solid var(--green-main) !important;
+    }
+    
+    /* Stripe chỉ báo chưa đọc */
+    .unread-stripe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 4px;
+        background-color: var(--green-main);
+        display: none;
+    }
+    .unread-card .unread-stripe {
+        display: block;
+    }
+    .unread-card {
+        background-color: #fcfdfc;
+    }
+    .read-card {
+        opacity: 0.85;
+    }
+    .read-card .card-msg-title {
+        font-weight: 500 !important;
+        color: #4b5563;
+    }
+
+    /* Iconbadges */
+    .icon-badge {
+        width: 44px;
+        height: 44px;
+        background-color: #f3f4f6;
+        font-size: 18px;
+    }
+    .promo-item .icon-badge { background-color: #fff7ed; }
+    .reward-item .icon-badge { background-color: #fdf2f8; }
+    .system-item .icon-badge { background-color: #eff6ff; }
+    
+    .badge-type {
+        font-size: 10px;
+        letter-spacing: 0.5px;
+    }
+    .promo-item .badge-type { color: #ff6b00; }
+    .reward-item .badge-type { color: #e91e8c; }
+    .system-item .badge-type { color: var(--green-dark); }
+    
+    /* Chấm tròn chưa đọc */
+    .unread-dot {
+        position: absolute;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        width: 8px;
+        height: 8px;
+        background-color: var(--green-main);
+        display: none;
+    }
+    .unread-card .unread-dot {
+        display: block;
+    }
+    .active-card .unread-dot {
+        display: none; /* Ẩn khi được chọn */
+    }
+
+    /* Animations */
+    .animated-mailbox {
+        animation: pulse 3s infinite ease-in-out;
+    }
+    @@keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.08); }
+    }
+    
+    .text-wrap-two-lines {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+    }
+    
+    .text-orange { color: #ff6b00; }
+    .text-pink { color: #e91e8c; }
+    
+    /* Render HTML inside reader */
+    .detail-content-html {
+        line-height: 1.6;
+        color: #374151;
+    }
+    .detail-content-html h3 {
+        margin-top: 20px;
+        font-size: 1.25rem;
+    }
+    
+    /* Mobile responsive layout transitions */
+    @@media (max-width: 767.98px) {
+        #inboxDetailColumn {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1050;
+            background: white;
+            min-height: 100vh !important;
+        }
+        #inboxDetailColumn.slide-in {
+            display: flex !important;
+        }
+    }
+</style>
+
+<!-- Custom JS Hộp thư -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Tóm tắt văn bản xem trước cho các thẻ thông báo bên trái
+        const cards = document.querySelectorAll(".notification-card");
+        cards.forEach(card => {
+            const id = card.getAttribute("data-id");
+            const htmlContent = document.getElementById("htmlContent-" + id).innerHTML;
+            const summaryText = document.getElementById("summaryText-" + id);
+            
+            // Xóa thẻ HTML để chỉ lấy chữ tóm tắt
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = htmlContent;
+            summaryText.textContent = tempDiv.textContent.substring(0, 100).trim() + "...";
+        });
+
+        // Xử lý bộ lọc tabs phân loại
+        const filterPills = document.querySelectorAll("#notificationFilter button");
+        filterPills.forEach(pill => {
+            pill.addEventListener("click", function () {
+                // Đổi active tab button
+                filterPills.forEach(p => p.classList.remove("active"));
+                this.classList.add("active");
+
+                const filterValue = this.getAttribute("data-filter");
+                const items = document.querySelectorAll(".notification-card");
+
+                items.forEach(item => {
+                    const itemType = item.getAttribute("data-type");
+                    if (filterValue === "all" || itemType === filterValue) {
+                        item.classList.remove("d-none");
+                    } else {
+                        item.classList.add("d-none");
+                    }
+                });
+            });
+        });
+
+        // Click "Đánh dấu tất cả đã đọc"
+        const btnMarkAll = document.getElementById("btnMarkAllRead");
+        if (btnMarkAll) {
+            btnMarkAll.addEventListener("click", function () {
+                if (this.classList.contains("disabled")) return;
+
+                fetch('/Notification/MarkAllAsRead', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        // Đổi tất cả thẻ thành read-card
+                        document.querySelectorAll(".notification-card").forEach(c => {
+                            c.classList.remove("unread-card");
+                            c.classList.add("read-card");
+                        });
+                        
+                        // Disable nút bấm
+                        btnMarkAll.classList.add("disabled");
+                        
+                        // Cập nhật số đếm chuông thông báo về 0
+                        updateNavbarBellCount(0);
+                    }
+                });
+            });
+        }
+    });
+
+    // Khi click chọn một thông báo từ danh sách
+    function selectNotification(element) {
+        // Đổi trạng thái active class
+        const cards = document.querySelectorAll(".notification-card");
+        cards.forEach(c => c.classList.remove("active-card"));
+        element.classList.add("active-card");
+
+        const id = element.getAttribute("data-id");
+        const title = element.getAttribute("data-title");
+        const type = element.getAttribute("data-type");
+        const date = element.getAttribute("data-date");
+        const htmlBody = document.getElementById("htmlContent-" + id).innerHTML;
+
+        // Cập nhật Trình đọc cột bên phải
+        document.getElementById("emptyState").classList.add("d-none");
+        
+        const reader = document.getElementById("detailReader");
+        reader.classList.remove("d-none");
+        
+        const footer = document.getElementById("detailFooter");
+        footer.classList.remove("d-none");
+
+        document.getElementById("detailTitle").innerText = title;
+        document.getElementById("detailDate").innerHTML = '<i class="bi bi-clock me-1"></i> Gửi lúc: ' + date;
+        document.getElementById("detailBody").innerHTML = htmlBody;
+
+        // Cập nhật badge loại thư
+        const badge = document.getElementById("detailBadge");
+        badge.className = "badge rounded-pill px-3 py-1 text-uppercase fw-bold shadow-sm";
+        let actionUrl = "/";
+        let actionText = "Mua sắm ngay";
+        let actionIcon = "bi-cart-check-fill";
+
+        if (type === "Promotion") {
+            badge.innerText = "Ưu đãi";
+            badge.classList.add("bg-warning", "text-dark");
+            actionUrl = "/Home/Index?isPromoOnly=true";
+            actionText = "Xem sản phẩm khuyến mãi";
+        } else if (type === "Reward") {
+            badge.innerText = "Quà tặng";
+            badge.classList.add("bg-pink-theme");
+            actionUrl = "/CustomerProfile/Edit?activeSection=inventory&activeSubInventory=voucher"; // Dẫn tới ví voucher của bạn
+            actionText = "Kiểm tra ví voucher";
+            actionIcon = "bi-wallet2";
+            
+            // Nếu có mã voucher nằm trong text, cho nút dẫn đến voucher, nếu không thì dẫn ra leaderboard
+            if (htmlBody.includes("TOP")) {
+                actionUrl = "/Leaderboard/Index";
+                actionText = "Xem bảng xếp hạng";
+                actionIcon = "bi-trophy";
+            }
+        } else {
+            badge.innerText = "Hệ thống";
+            badge.classList.add("bg-success", "text-white");
+            actionUrl = "/";
+            actionText = "Quay về trang chủ";
+        }
+
+        // Cập nhật nút CTA dưới footer
+        const actBtn = document.getElementById("detailActionBtn");
+        actBtn.setAttribute("href", actionUrl);
+        actBtn.innerHTML = `<i class="bi ${actionIcon} me-2"></i>${actionText}`;
+
+        // Hiển thị panel trên mobile (slide-in)
+        const detailCol = document.getElementById("inboxDetailColumn");
+        detailCol.classList.add("slide-in");
+
+        // Gọi AJAX đánh dấu đã đọc trên database nếu thẻ chưa đọc
+        if (element.classList.contains("unread-card")) {
+            fetch(`/Notification/MarkAsRead?id=${id}`, {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    element.classList.remove("unread-card");
+                    element.classList.add("read-card");
+                    
+                    // Lấy số lượng unread hiện tại để trừ đi 1
+                    fetch('/Notification/GetUnreadCount')
+                        .then(r => r.json())
+                        .then(d => {
+                            updateNavbarBellCount(d.count);
+                            
+                            // Nếu hết chưa đọc, disable nút "Đánh dấu tất cả"
+                            if (d.count === 0) {
+                                document.getElementById("btnMarkAllRead")?.classList.add("disabled");
+                            }
+                        });
+                }
+            });
+        }
+    }
+
+    // Quay lại danh sách thông báo trên di động
+    function backToList() {
+        const detailCol = document.getElementById("inboxDetailColumn");
+        detailCol.classList.remove("slide-in");
+        
+        const activeCard = document.querySelector(".notification-card.active-card");
+        if (activeCard) {
+            activeCard.classList.remove("active-card");
+        }
+    }
+
+    // Hàm cập nhật badge chuông ở Navbar (để gọi từ AJAX)
+    function updateNavbarBellCount(count) {
+        const bellBadges = document.querySelectorAll(".bell-unread-count");
+        bellBadges.forEach(badge => {
+            if (count > 0) {
+                badge.innerText = count;
+                badge.classList.remove("d-none");
+            } else {
+                badge.innerText = "";
+                badge.classList.add("d-none");
+            }
+        });
+    }
+</script>
+
+<!-- Màu hồng bổ sung cho CSS vì BS5 không có sẵn bg-pink -->
+<style>
+    .bg-pink-theme {
+        background-color: #e91e8c !important;
+        color: white !important;
+    }
+</style>

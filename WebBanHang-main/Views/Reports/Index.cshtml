@@ -1,0 +1,357 @@
+@{
+    ViewData["Title"] = "Báo cáo doanh thu";
+    Layout = "_Layout_Admin";
+}
+
+@section Styles {
+    <style>
+        .page-title-wrap h2 {
+            font-size: 1.75rem;
+        }
+
+        .quick-links {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .quick-links .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .stat-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+        }
+        .stat-card-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #888;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            line-height: 1.2;
+            text-transform: uppercase;
+        }
+        .stat-card-value {
+            font-size: 1.35rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .gradient-card {
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            min-height: 110px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+        }
+        .gradient-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        html.dark-theme .stat-card {
+            background: #1e1e1e !important;
+            border-color: #2d2d2d !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        }
+        html.dark-theme .stat-card:hover {
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3) !important;
+        }
+        html.dark-theme .stat-card-label {
+            color: #aaa !important;
+        }
+
+        @@media (max-width: 576px) {
+            .page-title-wrap h2 {
+                font-size: 1.3rem !important;
+            }
+            .stat-card {
+                padding: 12px 10px !important;
+                min-height: 80px !important;
+            }
+            .stat-card-label {
+                font-size: 9px !important;
+                margin-bottom: 4px !important;
+            }
+            .stat-card-value {
+                font-size: 1.1rem !important;
+            }
+            .gradient-card {
+                padding: 16px !important;
+                min-height: 95px !important;
+            }
+            .gradient-card .fs-2 {
+                font-size: 1.35rem !important;
+            }
+            .gradient-card .small {
+                font-size: 10px !important;
+            }
+            .gradient-card i.bi {
+                font-size: 40px !important;
+                bottom: 5px !important;
+                right: 10px !important;
+            }
+            .chart-title {
+                font-size: 0.95rem !important;
+            }
+            .input-group-text {
+                padding: 0.375rem 0.5rem !important;
+                font-size: 13px !important;
+            }
+            .form-control, .form-select {
+                padding: 0.375rem 0.5rem !important;
+                font-size: 13px !important;
+            }
+            #revenueChart {
+                max-height: 240px !important;
+            }
+            .quick-links .btn {
+                width: 100%;
+            }
+        }
+    </style>
+}
+
+<div class="quick-links">
+    <a class="btn btn-outline-success" href="/">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại Trang chủ
+    </a>
+    <a class="btn btn-outline-success" asp-action="Inventory">
+        <i class="bi bi-box-seam"></i> Báo cáo hàng tồn
+    </a>
+    <a class="btn btn-outline-success" asp-controller="InventoryBatches" asp-action="Index">
+        <i class="bi bi-boxes"></i> Quản lý lô hàng
+    </a>
+</div>
+<div class="container-fluid">
+    <div class="mb-4 page-title-wrap">
+        <h2 style="font-weight: 900; color: var(--green-dark);">
+            <i class="bi bi-graph-up-arrow me-2"></i> THỐNG KÊ DOANH THU
+        </h2>
+    </div>
+
+    <!-- Hệ thống thống kê tổng quan -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-lg-2">
+            <div class="stat-card" style="border-left: 5px solid #2c9e47;">
+                <div class="stat-card-label">Doanh thu hôm nay</div>
+                <div class="stat-card-value text-success">@ViewBag.TodayRevenue.ToString("N0") ₫</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="stat-card" style="border-left: 5px solid #0dcaf0;">
+                <div class="stat-card-label">Doanh thu tháng này</div>
+                <div class="stat-card-value text-info">@ViewBag.MonthRevenue.ToString("N0") ₫</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-lg-3">
+            <div class="stat-card" style="border-left: 5px solid #ffc107;">
+                <div class="stat-card-label">Tổng doanh thu</div>
+                <div class="stat-card-value text-warning">@ViewBag.TotalRevenue.ToString("N0") ₫</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-6 col-lg-2">
+            <div class="stat-card" style="border-left: 5px solid #fd7e14;">
+                <div class="stat-card-label">Đơn thành công</div>
+                <div class="stat-card-value" style="color:#fd7e14">@ViewBag.OrderCount</div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-2">
+            <div class="stat-card" style="border-left: 5px solid #dc3545;">
+                <div class="stat-card-label">Đơn đã hủy</div>
+                <div class="stat-card-value text-danger">@ViewBag.CancelledOrderCount</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Kết quả Thống kê trong kỳ -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="p-4 shadow-sm text-white gradient-card" style="background: linear-gradient(135deg, #198754, #146c43);">
+                <div class="small fw-bold opacity-75 text-uppercase text-truncate">Doanh thu kỳ này</div>
+                <div class="fs-2 fw-bold my-1">@ViewBag.RangeRevenue.ToString("N0") ₫</div>
+                <div class="small opacity-75"><i class="bi bi-check-circle-fill me-1"></i>@ViewBag.RangeOrderCount đơn hàng</div>
+                <i class="bi bi-cash-coin" style="position: absolute; right: 15px; bottom: 10px; font-size: 55px; opacity: 0.15;"></i>
+            </div>
+        </div>
+        <div class="col-6 col-sm-6 col-md-3">
+            <div class="p-4 shadow-sm text-white gradient-card" style="background: linear-gradient(135deg, #0dcaf0, #0aa2c0);">
+                <div class="small fw-bold opacity-75 text-uppercase text-truncate" title="Đơn Ship COD (Thanh toán khi nhận)">Ship COD</div>
+                <div class="fs-2 fw-bold my-1">@ViewBag.CodRevenue.ToString("N0") ₫</div>
+                <div class="small opacity-75"><i class="bi bi-truck me-1"></i>@ViewBag.CodCount đơn</div>
+                <i class="bi bi-box-seam" style="position: absolute; right: 15px; bottom: 10px; font-size: 55px; opacity: 0.15;"></i>
+            </div>
+        </div>
+        <div class="col-6 col-sm-6 col-md-3">
+            <div class="p-4 shadow-sm text-white gradient-card" style="background: linear-gradient(135deg, #ffc107, #d39e00);">
+                <div class="small fw-bold opacity-75 text-uppercase text-truncate" title="Thanh toán trực tuyến (Online)">Online</div>
+                <div class="fs-2 fw-bold my-1">@ViewBag.OnlineRevenue.ToString("N0") ₫</div>
+                <div class="small opacity-75"><i class="bi bi-credit-card me-1"></i>@ViewBag.OnlineCount đơn</div>
+                <i class="bi bi-qr-code" style="position: absolute; right: 15px; bottom: 10px; font-size: 55px; opacity: 0.15;"></i>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <div class="p-4 shadow-sm text-white gradient-card" style="background: linear-gradient(135deg, #6f42c1, #59359a);">
+                <div class="small fw-bold opacity-75 text-uppercase text-truncate" title="Mua trực tiếp tại cửa hàng">Tại cửa hàng</div>
+                <div class="fs-2 fw-bold my-1">@ViewBag.DirectRevenue.ToString("N0") ₫</div>
+                <div class="small opacity-75"><i class="bi bi-shop me-1"></i>@ViewBag.DirectCount đơn</div>
+                <i class="bi bi-shop" style="position: absolute; right: 15px; bottom: 10px; font-size: 55px; opacity: 0.15;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bộ lọc Thống kê doanh thu -->
+    <div class="card border-0 shadow-sm mb-4" style="border-radius:15px; background: #fff;">
+        <div class="card-body p-4">
+            <h5 class="fw-bold mb-3 text-success"><i class="bi bi-funnel-fill me-2"></i>Bộ lọc thống kê nâng cao</h5>
+            <form method="get" asp-action="Index" class="row g-3 align-items-end">
+                <input type="hidden" name="type" value="@ViewBag.Filter" />
+                <div class="col-6 col-md-2">
+                    <label for="startDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Từ ngày</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                        <input type="date" id="startDate" name="startDate" class="form-control bg-light border-start-0" value="@ViewBag.StartDate" style="border-radius: 0 8px 8px 0;" />
+                    </div>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label for="endDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Đến ngày</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                        <input type="date" id="endDate" name="endDate" class="form-control bg-light border-start-0" value="@ViewBag.EndDate" style="border-radius: 0 8px 8px 0;" />
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-2">
+                    <label for="status" class="form-label fw-bold text-muted" style="font-size: 13px;">Trạng thái đơn hàng</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-tag-fill"></i></span>
+                        <select id="status" name="status" class="form-select bg-light border-start-0" style="border-radius: 0 8px 8px 0;">
+                            <option value="3" selected="@(ViewBag.Status == 3)">Thành công</option>
+                            <option value="5" selected="@(ViewBag.Status == 5)">Đã hủy</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-6 col-md-3">
+                    <label for="paymentMethod" class="form-label fw-bold text-muted" style="font-size: 13px;">Phương thức thanh toán</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-credit-card-2-front-fill"></i></span>
+                        <select id="paymentMethod" name="paymentMethod" class="form-select bg-light border-start-0" style="border-radius: 0 8px 8px 0;">
+                            <option value="">Tất cả</option>
+                            <option value="COD" selected="@(ViewBag.PaymentMethod == "COD")">Tiền mặt (COD)</option>
+                            <option value="Online" selected="@(ViewBag.PaymentMethod == "Online")">Chuyển khoản / Trực tuyến</option>
+                            <option value="Direct" selected="@(ViewBag.PaymentMethod == "Direct")">Mua tại cửa hàng</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3 d-flex flex-column flex-sm-row gap-2 mt-3 mt-md-0">
+                    <button type="submit" class="btn btn-success flex-grow-1 fw-bold" style="border-radius: 8px; background-color: var(--green-dark); border-color: var(--green-dark); height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="bi bi-funnel-fill"></i> Lọc kết quả
+                    </button>
+                    <a asp-action="Index" asp-route-type="@ViewBag.Filter" class="btn btn-outline-secondary fw-bold" style="border-radius: 8px; height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                        <i class="bi bi-x-circle"></i> Xóa lọc
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="border-radius:15px;">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="m-0 fw-bold chart-title"><i class="bi bi-bar-chart-line text-success"></i>
+                @if (ViewBag.ChartStartDate != null && ViewBag.ChartEndDate != null)
+                {
+                    <text>Biểu đồ doanh thu từ @(DateTime.Parse(ViewBag.ChartStartDate).ToString("dd/MM/yyyy")) đến @(DateTime.Parse(ViewBag.ChartEndDate).ToString("dd/MM/yyyy"))</text>
+                }
+                else
+                {
+                    <text>Biểu đồ doanh thu</text>
+                }
+            </h5>
+        </div>
+        <div class="card-body">
+            <canvas id="revenueChart" style="max-height: 380px; width: 100%;"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const canvasEl = document.getElementById('revenueChart');
+        if (canvasEl) {
+            const ctx = canvasEl.getContext('2d');
+            const getChartColors = () => {
+                const isDark = document.documentElement.classList.contains('dark-theme');
+                return {
+                    grid: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                    text: isDark ? '#aaa' : '#666'
+                };
+            };
+            let colors = getChartColors();
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(Json.Serialize(ViewBag.ChartLabels)),
+                    datasets: [{
+                        label: 'Doanh thu',
+                        data: @Html.Raw(Json.Serialize(ViewBag.ChartData)),
+                        borderColor: '#2c9e47',
+                        backgroundColor: 'rgba(44, 158, 71, 0.1)',
+                        fill: true,
+                        tension: 0,
+                        spanGaps: false,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#2c9e47',
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { color: colors.grid },
+                            ticks: { color: colors.text }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: colors.grid },
+                            ticks: { 
+                                color: colors.text,
+                                callback: function(v) { return v.toLocaleString() + ' ₫'; } 
+                            }
+                        }
+                    }
+                }
+            });
+
+            window.addEventListener('themeChanged', (e) => {
+                const newColors = getChartColors();
+                chart.options.scales.x.grid.color = newColors.grid;
+                chart.options.scales.x.ticks.color = newColors.text;
+                chart.options.scales.y.grid.color = newColors.grid;
+                chart.options.scales.y.ticks.color = newColors.text;
+                chart.update();
+            });
+        }
+    </script>
+}

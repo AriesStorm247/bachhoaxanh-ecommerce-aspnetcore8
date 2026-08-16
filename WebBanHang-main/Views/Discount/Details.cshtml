@@ -1,0 +1,146 @@
+@model WebBanHang.Models.Discount
+
+@{
+    ViewData["Title"] = "Chi tiết mã giảm giá";
+    Layout = "_Layout_Admin";
+}
+
+@functions {
+    private static string GetStatusText(WebBanHang.Models.Discount discount)
+    {
+        var now = DateTime.Now;
+
+        if (!discount.IsSee)
+        {
+            return "Tạm ẩn";
+        }
+
+        if (discount.EndDate < now)
+        {
+            return "Hết hạn";
+        }
+
+        if (discount.Quantity <= 0)
+        {
+            return "Hết lượt";
+        }
+
+        if (discount.StartDate > now)
+        {
+            return "Sắp áp dụng";
+        }
+
+        return "Đang áp dụng";
+    }
+}
+
+@section Styles {
+    <style>
+        .page-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; max-width: 1000px; }
+        .info-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 14px rgba(0,0,0,.07); overflow: hidden; border: none; }
+        .info-card-head { padding: 18px 25px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .info-card-title { font-size: 16px; font-weight: 800; color: var(--green-dark); margin: 0; display: flex; align-items: center; gap: 8px; }
+        .info-body { padding: 25px; }
+        .info-row { display: flex; padding: 12px 0; border-bottom: 1px dashed #eee; gap: 14px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { width: 170px; font-size: 13px; font-weight: 800; color: #888; text-transform: uppercase; letter-spacing: .4px; }
+        .info-value { flex: 1; font-size: 15px; font-weight: 600; color: #333; }
+        .price-tag { color: var(--red); font-size: 20px; font-weight: 900; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; border-radius: 20px; padding: 6px 12px; background: var(--green-light); color: var(--green-dark); font-size: 12px; font-weight: 800; }
+        .code-card { background: #ecfdf3; border: 1px solid #c9f0d5; color: var(--green-dark); border-radius: 14px; padding: 22px 14px; text-align: center; font-size: 22px; font-weight: 900; letter-spacing: .6px; word-break: break-word; }
+        .action-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-edit-lg { background: linear-gradient(135deg, var(--green-main), var(--green-accent)); color: #fff; border: none; border-radius: 25px; padding: 12px; font-weight: 800; text-align: center; text-decoration: none; box-shadow: 0 4px 12px rgba(44,158,71,.25); transition: all .2s; }
+        .btn-edit-lg:hover { transform: translateY(-1px); color: #fff; }
+        .btn-back-outline { border: 1.5px solid #ddd; color: #666; border-radius: 25px; padding: 10px; text-align: center; text-decoration: none; font-weight: 700; font-size: 14px; transition: all .2s; }
+        .btn-back-outline:hover { background: #f5f5f5; color: #333; }
+        .id-chip { background: #f0f0f0; padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; color: #999; }
+        @@media (max-width: 850px) {
+            .page-grid { grid-template-columns: 1fr; }
+            .info-row { flex-direction: column; gap: 4px; }
+            .info-label { width: auto; }
+        }
+    </style>
+}
+
+<div class="breadcrumb-bar mb-4">
+    <a asp-action="Index" style="text-decoration: none; color: #888; font-size: 14px; font-weight: 700;">
+        <i class="bi bi-chevron-left"></i> Quay lại danh sách
+    </a>
+</div>
+
+<div class="page-grid">
+    <div>
+        <div class="info-card">
+            <div class="info-card-head">
+                <h2 class="info-card-title">
+                    <i class="bi bi-info-circle-fill"></i> Thông tin chi tiết mã giảm giá
+                </h2>
+                <span class="id-chip">#@Model.Id</span>
+            </div>
+
+            <div class="info-body">
+                <div class="info-row">
+                    <div class="info-label">Mã giảm giá</div>
+                    <div class="info-value">@Model.Code</div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Mức giảm</div>
+                    <div class="info-value price-tag">@DiscountPercent.Format(Model.DiscountValue)%</div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Đơn tối thiểu</div>
+                    <div class="info-value">@Model.MinOrderValue.ToString("N0")₫</div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Giảm tối đa</div>
+                    <div class="info-value">@(Model.MaxDiscount > 0 ? $"{Model.MaxDiscount.ToString("N0")}₫" : "Không giới hạn")</div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Số lượt dùng</div>
+                    <div class="info-value">@Model.Quantity lượt</div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Thời gian áp dụng</div>
+                    <div class="info-value">
+                        @Model.StartDate.ToString("dd/MM/yyyy HH:mm") - @Model.EndDate.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <div class="info-label">Trạng thái</div>
+                    <div class="info-value">
+                        <span class="status-badge">
+                            <i class="bi bi-circle-fill" style="font-size:7px;"></i>
+                            @GetStatusText(Model)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="info-card">
+            <div class="info-body">
+                <div class="code-card">
+                    <i class="bi bi-ticket-detailed-fill d-block mb-2"></i>
+                    @Model.Code
+                </div>
+            </div>
+        </div>
+
+        <div class="action-btns">
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn-edit-lg">
+                <i class="bi bi-pencil-square me-1"></i> Chỉnh sửa mã
+            </a>
+            <a asp-action="Index" class="btn-back-outline">
+                Trở về danh sách
+            </a>
+        </div>
+    </div>
+</div>

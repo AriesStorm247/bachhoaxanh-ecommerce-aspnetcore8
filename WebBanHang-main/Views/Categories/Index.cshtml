@@ -1,0 +1,334 @@
+@model IEnumerable<WebBanHang.Models.Category>
+
+@{
+    ViewData["Title"] = "Quản lý danh mục";
+    Layout = "_Layout_Admin";
+    var productCounts = ViewBag.ProductCounts as IDictionary<int, int> ?? new Dictionary<int, int>();
+    var stockTotals = ViewBag.StockTotals as IDictionary<int, long> ?? new Dictionary<int, long>();
+    int totalProducts = ViewBag.TotalProducts ?? productCounts.Values.Sum();
+    long totalStock = ViewBag.TotalStock ?? 0L;
+    int uncategorizedCount = ViewBag.UncategorizedCount ?? 0;
+    int totalCategorizedSKUs = productCounts.Values.Sum();
+}
+
+@section Styles {
+    <style>
+        .category-stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .stat-box {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            box-shadow: 0 2px 14px rgba(0,0,0,.06);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .stat-box i {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--green-light);
+            color: var(--green-main);
+            font-size: 20px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: 900;
+            line-height: 1;
+            color: #111;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .category-panel {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 16px rgba(0,0,0,.07);
+            overflow: hidden;
+        }
+
+        .panel-head {
+            padding: 18px 22px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .panel-title {
+            font-weight: 900;
+            color: var(--green-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .add-form {
+            display: flex;
+            gap: 8px;
+            min-width: min(420px, 100%);
+        }
+
+        .cat-input {
+            border: 1.5px solid #e7e7e7;
+            border-radius: 10px;
+            padding: 10px 12px;
+            outline: none;
+            font-size: 13px;
+            width: 100%;
+        }
+
+        .cat-input:focus {
+            border-color: var(--green-main);
+            box-shadow: 0 0 0 3px rgba(44,158,71,.1);
+        }
+
+        .btn-green {
+            border: none;
+            border-radius: 10px;
+            background: var(--green-main);
+            color: #fff;
+            font-weight: 800;
+            padding: 9px 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-soft {
+            border: none;
+            border-radius: 9px;
+            width: 36px;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-save-cat { background: #eff6ff; color: #2563eb; }
+        .btn-delete-cat { background: #fff0f0; color: var(--red); }
+
+        .category-head,
+        .category-row {
+            display: grid;
+            grid-template-columns: 88px minmax(220px, 1fr) 150px 112px;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 22px;
+        }
+
+        .category-head {
+            background: #fafafa;
+            color: #999;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .category-row {
+            border-top: 1px solid #f4f4f4;
+        }
+
+        .category-row:hover {
+            background: #fbfffc;
+        }
+
+        .id-chip {
+            background: #f2f2f2;
+            color: #888;
+            border-radius: 7px;
+            padding: 4px 9px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .count-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--green-light);
+            color: var(--green-dark);
+            border-radius: 20px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 800;
+            width: fit-content;
+        }
+
+        .row-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .empty-category {
+            padding: 46px 20px;
+            text-align: center;
+            color: #888;
+        }
+
+        @@media (max-width: 820px) {
+            .category-stats { grid-template-columns: 1fr; }
+            .category-head { display: none; }
+            .category-row {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+            .row-actions { justify-content: flex-start; }
+        }
+    </style>
+}
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<div class="category-stats">
+    <div class="stat-box">
+        <i class="bi bi-tags-fill"></i>
+        <div>
+            <div class="stat-number">@Model.Count()</div>
+            <div class="stat-label">Danh mục hiện có</div>
+        </div>
+    </div>
+    <div class="stat-box">
+        <i class="bi bi-box-seam-fill"></i>
+        <div>
+            <div class="stat-number">@totalCategorizedSKUs / @totalProducts</div>
+            <div class="stat-label">Loại mặt hàng đã phân loại</div>
+        </div>
+    </div>
+    <div class="stat-box">
+        <i class="bi bi-boxes"></i>
+        <div>
+            <div class="stat-number">@totalStock.ToString("N0")</div>
+            <div class="stat-label">Tổng tồn kho sản phẩm</div>
+        </div>
+    </div>
+</div>
+
+<div class="category-panel">
+    <div class="panel-head">
+        <div class="panel-title">
+            <i class="bi bi-list-ul"></i>
+            Danh sách danh mục
+        </div>
+
+        <form asp-action="Create" method="post" class="add-form">
+            <input name="name" class="cat-input" placeholder="Nhập tên danh mục mới..." />
+            <button type="submit" class="btn-green">
+                <i class="bi bi-plus-lg"></i>
+                Thêm
+            </button>
+        </form>
+    </div>
+
+    <div class="category-head">
+        <div>Mã</div>
+        <div>Tên danh mục</div>
+        <div>Mặt hàng & Tồn kho</div>
+        <div style="text-align:right;">Thao tác</div>
+    </div>
+
+    @if (Model.Any())
+    {
+        @foreach (var category in Model)
+        {
+            var count = productCounts.TryGetValue(category.Id, out var value) ? value : 0;
+            var stock = stockTotals.TryGetValue(category.Id, out var sVal) ? sVal : 0L;
+
+            <div class="category-row">
+                <div><span class="id-chip">#@category.Id</span></div>
+
+                <form asp-action="Edit" method="post" id="edit-category-@category.Id">
+                    <input type="hidden" name="id" value="@category.Id" />
+                    <input name="name" value="@category.Name" class="cat-input" aria-label="Tên danh mục" />
+                </form>
+
+                <div>
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                        <span class="count-chip">
+                            <i class="bi bi-box2-heart"></i>
+                            @count loại mặt hàng
+                        </span>
+                        <span style="font-size: 11px; color: #555; font-weight: 600; padding-left: 4px;">
+                            📦 Tồn kho: <strong style="color:#059669;">@stock.ToString("N0")</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="row-actions">
+                    <button type="submit" form="edit-category-@category.Id" class="btn-soft btn-save-cat" title="Lưu danh mục">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+
+                    <form asp-action="Delete" method="post" onsubmit="return confirm('Xóa danh mục @category.Name? Các sản phẩm thuộc danh mục này sẽ chuyển về chưa phân loại.');">
+                        <input type="hidden" name="id" value="@category.Id" />
+                        <button type="submit" class="btn-soft btn-delete-cat" title="Xóa danh mục">
+                            <i class="bi bi-trash3-fill"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        @if (uncategorizedCount > 0)
+        {
+            <div class="category-row" style="background: #fffbe6; border-top: 1px dashed #ffe58f;">
+                <div><span class="id-chip" style="background:#fff1b8; color:#d48806;">#N/A</span></div>
+                <div>
+                    <strong style="color: #d48806;"><i class="bi bi-exclamation-circle-fill"></i> Sản phẩm chưa phân loại</strong>
+                    <div style="font-size:11px; color:#8c6b00;">Các sản phẩm hiện chưa được gán danh mục</div>
+                </div>
+                <div>
+                    <span class="count-chip" style="background:#fff1b8; color:#d48806;">
+                        <i class="bi bi-question-circle"></i>
+                        @uncategorizedCount mặt hàng
+                    </span>
+                </div>
+                <div class="row-actions">
+                    <a asp-controller="Products" asp-action="Index" class="btn btn-sm btn-outline-warning" style="font-size:12px; font-weight:700;">
+                        Xem & Phân loại
+                    </a>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="empty-category">
+            <i class="bi bi-inbox" style="font-size:42px;"></i>
+            <p class="mt-2 mb-0">Chưa có danh mục nào. Hãy thêm danh mục đầu tiên để phân loại sản phẩm.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        @if (TempData["Success"] != null) { <text>showToast('@TempData["Success"]');</text> }
+        @if (TempData["Error"] != null) { <text>showToast('@TempData["Error"]', 'error');</text> }
+    </script>
+}

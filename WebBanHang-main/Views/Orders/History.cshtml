@@ -1,0 +1,202 @@
+@model IEnumerable<WebBanHang.Models.Order>
+@{
+    ViewData["Title"] = "Lịch sử đơn hàng";
+    Layout = "_Layout_Admin";
+}
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<div class="mb-4">
+    <h2 style="font-weight: 900; color: var(--green-dark);">
+        <i class="bi bi-clock-history me-2"></i> LỊCH SỬ ĐƠN HÀNG
+    </h2>
+    <p class="text-muted">Danh sách các đơn hàng đã giao thành công và hoàn tất thanh toán.</p>
+</div>
+
+<div class="fcard mb-4" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); padding: 20px;">
+    <form method="get" asp-action="History" class="row g-3 align-items-end">
+        <div class="col-md-3">
+            <label for="startDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Từ ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="startDate" name="startDate" class="form-control bg-light border-start-0" value="@ViewBag.StartDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label for="endDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Đến ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="endDate" name="endDate" class="form-control bg-light border-start-0" value="@ViewBag.EndDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-3">
+            <label for="status" class="form-label fw-bold text-muted" style="font-size: 13px;">Trạng thái</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-tag-fill"></i></span>
+                <select id="status" name="status" class="form-select bg-light border-start-0" style="border-radius: 0 8px 8px 0;">
+                    <option value="">Tất cả (Thành công & Hủy)</option>
+                    <option value="3" selected="@(ViewBag.Status == 3)">Thành công</option>
+                    <option value="5" selected="@(ViewBag.Status == 5)">Đã hủy</option>
+                </select>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1 fw-bold" style="border-radius: 8px; background-color: var(--green-dark); border-color: var(--green-dark); height: 38px;">
+                <i class="bi bi-funnel-fill"></i> Lọc
+            </button>
+            <a asp-action="History" class="btn btn-outline-secondary fw-bold" style="border-radius: 8px; height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+                <i class="bi bi-x-circle me-1"></i> Xóa bộ lọc
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="fcard" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); overflow:hidden;">
+    <table class="table align-middle m-0">
+        <thead style="background:#f8f9fa;">
+            <tr>
+                <th style="padding:15px;">Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Ngày hoàn tất</th>
+                <th>Trạng thái</th>
+                <th>Phương thức thanh toán</th>
+                <th style="text-align:right; padding:15px;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td style="padding:15px;"><b>#@item.Id</b></td>
+                    <td>
+                        <div style="font-weight:700;">@item.FullName</div>
+                        <div style="font-size:12px; color:#666;">@item.Phone</div>
+                    </td>
+                    <td style="font-size:13px; color:#999;">@item.OrderDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        @if (item.Status == 3)
+                        {
+                            <span class="badge bg-success" style="border-radius:10px;">Thành công</span>
+                        }
+                        else if (item.Status == 5)
+                        {
+                            <span class="badge bg-danger" style="border-radius:10px;">Đã hủy</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary" style="border-radius:10px;">Khác (@item.Status)</span>
+                        }
+                    </td>
+                    <td>
+                        @{
+                            var displayMethod = item.PaymentMethod;
+                            var isOnlineOld = false;
+                            if (string.IsNullOrWhiteSpace(displayMethod))
+                            {
+                                if (item.IsPaid)
+                                {
+                                    displayMethod = "QRCode";
+                                    isOnlineOld = true;
+                                }
+                                else
+                                {
+                                    displayMethod = "COD";
+                                }
+                            }
+                        }
+                        @if (string.Equals(displayMethod, "COD", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge bg-secondary" style="border-radius:10px; background-color: #6c757d !important; color: #fff;">Tiền mặt (COD)</span>
+                        }
+                        else if (string.Equals(displayMethod, "QRCode", StringComparison.OrdinalIgnoreCase) || string.Equals(displayMethod, "BankTransfer", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge bg-info text-dark" style="border-radius:10px; background-color: #0dcaf0 !important;">
+                                @(isOnlineOld ? "Chuyển khoản" : "Chuyển khoản QR")
+                            </span>
+                        }
+                        else if (string.Equals(displayMethod, "Online", StringComparison.OrdinalIgnoreCase) || string.Equals(displayMethod, "VNPay", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <span class="badge bg-primary text-white" style="border-radius:10px; background-color: #0d6efd !important;">VNPay</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-light text-dark" style="border-radius:10px; border: 1px solid #ddd;">@displayMethod</span>
+                        }
+                    </td>
+                    <td style="text-align:right; padding:15px;">
+                        @if (item.Status != 5)
+                        {
+                            <a href="@Url.Action("PrintInvoice", "Orders", new { id = item.Id })" target="_blank" class="btn btn-sm btn-outline-success fw-bold me-2" style="border-radius:20px; padding:5px 15px;">
+                                <i class="bi bi-printer"></i> In hóa đơn
+                            </a>
+                        }
+                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary fw-bold" style="border-radius:20px; padding:5px 15px;">
+                            <i class="bi bi-eye"></i> Xem chi tiết
+                        </a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" class="text-center p-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size:40px;"></i>
+                        <p class="mt-2">Không tìm thấy đơn hàng nào.</p>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-white">
+        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+            <span>Trang</span>
+            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                   style="width: 48px; height: 28px; font-size: 13px;"
+                   value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+            <span>/ @ViewBag.TotalPages</span>
+            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                    onclick="window.goToPage(this);">
+                OK
+            </button>
+        </div>
+        <div class="d-flex gap-2">
+            @if (ViewBag.Page > 1)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="History"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-status="@ViewBag.Status"
+                   asp-route-page="@(ViewBag.Page - 1)">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+            }
+
+            @if (ViewBag.Page < ViewBag.TotalPages)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="History"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-status="@ViewBag.Status"
+                   asp-route-page="@(ViewBag.Page + 1)">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,134 @@
+@{
+    ViewData["Title"] = "Chọn phương thức thanh toán";
+    var totalAmount = ViewBag.TotalAmount as decimal? ?? 0M;
+    var subtotalAmount = ViewBag.SubtotalAmount as decimal? ?? totalAmount;
+    var memberDiscountPct = ViewBag.MembershipDiscountPercent as decimal? ?? 0M;
+    var memberDiscountAmount = ViewBag.MembershipDiscountAmount as decimal? ?? 0M;
+    var voucherDiscountAmount = ViewBag.VoucherDiscountAmount as decimal? ?? 0M;
+    var discountAmount = ViewBag.DiscountAmount as decimal? ?? 0M;
+    var appliedDiscountCode = ViewBag.AppliedDiscountCode as string ?? "";
+}
+
+<div class="container mt-5" style="max-width: 640px;">
+    <h3 class="text-success mb-4 text-center">Hình thức thanh toán</h3>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="border-bottom pb-3 mb-3">
+                <div class="d-flex justify-content-between small text-muted mb-2">
+                    <span>Tạm tính</span>
+                    <span>@subtotalAmount.ToString("N0") VNĐ</span>
+                </div>
+                @if (memberDiscountAmount > 0)
+                {
+                    <div class="d-flex justify-content-between small text-success fw-bold mb-2">
+                        <span>Ưu đãi thành viên (@((memberDiscountPct * 100).ToString("0"))%)</span>
+                        <span>-@memberDiscountAmount.ToString("N0") VNĐ</span>
+                    </div>
+                }
+                @if (voucherDiscountAmount > 0)
+                {
+                    <div class="d-flex justify-content-between small text-success fw-bold mb-2">
+                        <span>Giảm giá (@appliedDiscountCode)</span>
+                        <span>-@voucherDiscountAmount.ToString("N0") VNĐ</span>
+                    </div>
+                }
+                <!-- Shipping Fee row -->
+                <div class="d-flex justify-content-between small text-muted mb-2">
+                    @{
+                        var shipFee = ViewBag.ShippingFee as decimal? ?? 0m;
+                        var shipMethod = ViewBag.ShippingMethod as string ?? "";
+                        var shipMethodFriendly = shipMethod == "Instant" ? "Giao ngay" :
+                                                 shipMethod == "Hourly" ? "Hẹn giờ (60p)" :
+                                                 shipMethod == "4Hours" ? "Hẹn giờ (4h)" :
+                                                 shipMethod == "Economy" ? "Tiết kiệm" : "";
+                    }
+                    <span>Phí vận chuyển @(string.IsNullOrEmpty(shipMethodFriendly) ? "" : $"({shipMethodFriendly})")</span>
+                    <span>@(shipFee == 0 ? "Miễn phí" : $"{shipFee.ToString("N0")} VNĐ")</span>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                <span class="fw-bold">Tổng tiền cần thanh toán</span>
+                <span class="text-danger fw-bold fs-4">@totalAmount.ToString("N0") VNĐ</span>
+            </div>
+
+            <form asp-action="Checkout" method="post" id="paymentForm">
+                <input type="hidden" name="fullName" value="@ViewBag.FullName" />
+                <input type="hidden" name="phone" value="@ViewBag.Phone" />
+                <input type="hidden" name="address" value="@ViewBag.Address" />
+                <input type="hidden" name="shippingMethod" value="@ViewBag.ShippingMethod" />
+                <input type="hidden" name="shippingFee" value="@ViewBag.ShippingFee" />
+                <input type="hidden" name="shippingDistance" value="@ViewBag.ShippingDistance" />
+
+                <label class="form-check border rounded p-3 mb-3 d-flex align-items-center cursor-pointer" for="cod">
+                    <input class="form-check-input ms-2" type="radio" name="paymentMethod" id="cod" value="COD" checked>
+                    <span class="form-check-label ms-3 w-100">
+                        <strong>Thanh toán tiền mặt khi nhận hàng</strong>
+                        <span class="text-muted small d-block">Đơn hàng được gửi sang admin duyệt ngay.</span>
+                    </span>
+                </label>
+
+                <label class="form-check border rounded p-3 mb-4 d-flex align-items-center cursor-pointer" for="qrcode">
+                    <input class="form-check-input ms-2" type="radio" name="paymentMethod" id="qrcode" value="QRCode">
+                    <span class="form-check-label ms-3 w-100">
+                        <strong>Chuyển khoản qua mã QR</strong>
+                        <span class="text-muted small d-block">Bấm vào đây để tạo mã QR theo đúng số tiền đơn hàng.</span>
+                    </span>
+                </label>
+
+                <button type="submit" id="submitPayment" class="btn btn-success btn-lg w-100 fw-bold">
+                    TIẾP TỤC
+                </button>
+                <a asp-action="ConfirmOrder" asp-controller="Cart"
+                   asp-route-fullName="@ViewBag.FullName"
+                   asp-route-phone="@ViewBag.Phone"
+                   asp-route-address="@ViewBag.Address"
+                   asp-route-shippingMethod="@ViewBag.ShippingMethod"
+                   asp-route-shippingFee="@ViewBag.ShippingFee"
+                   asp-route-shippingDistance="@ViewBag.ShippingDistance"
+                   class="btn btn-outline-secondary btn-lg w-100 fw-bold mt-2">
+                    <i class="bi bi-chevron-left me-1"></i> QUAY LẠI CHỈNH SỬA
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const paymentForm = document.getElementById('paymentForm');
+    const qrOption = document.getElementById('qrcode');
+    const codOption = document.getElementById('cod');
+    const submitButton = document.getElementById('submitPayment');
+    let submittedByQr = false;
+
+    qrOption.addEventListener('change', function () {
+        if (!qrOption.checked || submittedByQr) return;
+        submittedByQr = true;
+        submitButton.disabled = true;
+        submitButton.textContent = 'ĐANG TẠO MÃ QR...';
+        paymentForm.submit();
+    });
+
+    codOption.addEventListener('change', function () {
+        submitButton.textContent = 'TIẾP TỤC';
+        submitButton.disabled = false;
+        submittedByQr = false;
+    });
+</script>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .cursor-pointer:hover {
+        background-color: #f8f9fa;
+    }
+
+    .form-check-input {
+        width: 20px;
+        height: 20px;
+    }
+</style>

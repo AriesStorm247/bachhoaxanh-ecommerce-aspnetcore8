@@ -1,0 +1,323 @@
+@model IEnumerable<WebBanHang.Models.Order>
+@{
+    ViewData["Title"] = "Đơn hàng cần giao";
+    Layout = "_Layout";
+    var profilesDict = ViewBag.CustomerProfiles as Dictionary<string, WebBanHang.Models.CustomerProfile>;
+    var cancelCountsDict = ViewBag.CustomerCancelCounts as Dictionary<string, int>;
+}
+
+<div class="container mt-5" style="max-width: 900px; min-height: 70vh;">
+    <h2 class="text-center fw-bold mb-4 text-success"><i class="bi bi-truck"></i> DANH SÁCH ĐƠN HÀNG CẦN GIAO</h2>
+
+    @if (Model != null && Model.Any())
+    {
+        foreach (var order in Model)
+        {
+            <div class="card mb-4 border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+                <div class="card-header bg-success text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                    <span class="fw-bold fs-5"><i class="bi bi-receipt"></i> Đơn hàng #@order.Id</span>
+                    <span class="badge bg-warning text-dark p-2 px-3 rounded-pill fw-bold"><i class="bi bi-clock-history"></i> Đang giao hàng</span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-success"><i class="bi bi-person-fill"></i> Thông tin khách hàng</h6>
+                            <div class="ps-3 border-start border-success border-2">
+                                <div class="mb-1"><strong>Họ tên:</strong> @order.FullName</div>
+                                <div class="mb-1"><strong>Điện thoại:</strong> <span class="text-primary fw-bold">@order.Phone</span></div>
+                                <div class="mb-1"><strong>Địa chỉ:</strong> <small class="text-muted">@order.Address</small></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-success"><i class="bi bi-info-circle-fill"></i> Thông tin vận chuyển</h6>
+                            <div class="ps-3 border-start border-success border-2">
+                                <div class="mb-1"><strong>Hình thức:</strong> @(order.ShippingMethod ?? "Giao hàng nhanh")</div>
+                                <div class="mb-1"><strong>Phí giao hàng:</strong> @order.ShippingFee.ToString("N0")₫</div>
+                                <div class="mb-1"><strong>Khoảng cách:</strong> @order.ShippingDistance.ToString("N1") km</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-success mb-3"><i class="bi bi-box-seam"></i> Chi tiết sản phẩm</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sản phẩm</th>
+                                    <th class="text-center">Số lượng</th>
+                                    <th class="text-end">Đơn giá</th>
+                                    <th class="text-end">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var detail in order.OrderDetails)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @if (!string.IsNullOrEmpty(detail.Product?.Image))
+                                                {
+                                                    <img src="@detail.Product.Image" style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px;" class="me-3 border" />
+                                                }
+                                                <span class="fw-bold">@detail.Product?.Name</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-center fw-bold">@detail.Quantity</td>
+                                        <td class="text-end">@detail.Price.ToString("N0")₫</td>
+                                        <td class="text-end fw-bold text-success">@((detail.Quantity * detail.Price).ToString("N0"))₫</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                        <div>
+                            <span class="text-muted">Tổng cộng thanh toán:</span>
+                            <span class="fs-4 fw-bold text-danger ms-2">@order.TotalAmount.ToString("N0")₫</span>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center">
+                            @{
+                                var profile = profilesDict != null && profilesDict.ContainsKey(order.UserId) ? profilesDict[order.UserId] : null;
+                                var cancelCount = cancelCountsDict != null && cancelCountsDict.ContainsKey(order.UserId) ? cancelCountsDict[order.UserId] : 0;
+                                
+                                bool isEligible = true;
+                                int maxLimit = profile != null ? WebBanHang.Services.LoyaltyService.GetMaxCancelLimit(profile.MembershipLevel) : 2;
+                                int remainingCancels = maxLimit - cancelCount;
+                            }
+                            
+                            @if (isEligible)
+                            {
+                                if (remainingCancels <= 0)
+                                {
+                                    <span class="text-danger small fw-bold me-2"><i class="bi bi-exclamation-octagon-fill"></i> Hết lượt hủy (Bắt buộc nhận hàng)</span>
+                                    <button type="button" class="btn btn-secondary btn-lg px-4 rounded-pill fw-bold" disabled>
+                                        <i class="bi bi-x-circle me-1"></i> HỦY ĐƠN HÀNG
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-outline-danger btn-lg px-4 rounded-pill fw-bold btn-cancel-delivery" 
+                                            data-order-id="@order.Id">
+                                        <i class="bi bi-trash me-1"></i> HỦY ĐƠN HÀNG (@remainingCancels/@maxLimit)
+                                    </button>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted small me-2"><i class="bi bi-info-circle"></i> Khách không đủ quyền hủy đơn</span>
+                            }
+
+                            <button type="button" class="btn btn-success btn-lg px-4 rounded-pill fw-bold btn-complete-delivery" data-order-id="@order.Id">
+                                <i class="bi bi-check2-circle me-1"></i> XÁC NHẬN GIAO HÀNG
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm text-center p-5" style="border-radius: 15px;">
+            <div class="card-body">
+                <i class="bi bi-emoji-smile fs-1 text-success mb-3"></i>
+                <h4 class="fw-bold text-success">Không có đơn hàng nào cần giao!</h4>
+                <p class="text-muted">Tất cả các đơn hàng được phân công cho bạn đã được hoàn thành hoặc chưa có đơn mới.</p>
+                <a href="/" class="btn btn-success rounded-pill px-4 fw-bold mt-3"><i class="bi bi-house-door-fill"></i> VỀ TRANG CHỦ</a>
+            </div>
+        </div>
+    }
+</div>
+
+<!-- Custom Success Banner Overlay -->
+<div id="shipperSuccessBanner" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-5 text-center shadow-lg rounded-4" style="max-width: 450px; width: 95%;">
+        <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center bg-success text-white rounded-circle" style="width: 80px; height: 80px; font-size: 40px; box-shadow: 0 0 15px rgba(40, 167, 69, 0.4);">
+                <i class="bi bi-check-lg"></i>
+            </span>
+        </div>
+        <h3 class="fw-bold text-success mb-2">Thành công!</h3>
+        <p class="text-muted fs-6 mb-4">Đơn hàng đã được xác nhận giao hàng thành công.</p>
+        <button type="button" id="btnShipperBannerOk" class="btn btn-success btn-lg w-100 rounded-pill fw-bold py-2 shadow-sm">OK</button>
+    </div>
+</div>
+
+<!-- Custom Confirm Modal -->
+<div id="shipperConfirmModal" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-4 text-center shadow-lg rounded-4" style="max-width: 400px; width: 90%;">
+        <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center bg-warning text-dark rounded-circle" style="width: 60px; height: 60px; font-size: 30px; box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </span>
+        </div>
+        <h5 class="fw-bold mb-2">Xác nhận giao hàng</h5>
+        <p id="shipperConfirmMessage" class="text-muted small mb-4">Bạn có chắc chắn muốn xác nhận đã giao thành công đơn hàng này?</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <button type="button" id="btnShipperConfirmCancel" class="btn btn-light rounded-pill fw-bold px-4 py-2 flex-grow-1">Hủy bỏ</button>
+            <button type="button" id="btnShipperConfirmOk" class="btn btn-success rounded-pill fw-bold px-4 py-2 flex-grow-1">Xác nhận</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Cancel Confirm Modal for Shipper -->
+<div id="shipperCancelConfirmModal" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-4 text-center shadow-lg rounded-4" style="max-width: 400px; width: 90%;">
+        <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded-circle" style="width: 60px; height: 60px; font-size: 30px; box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </span>
+        </div>
+        <h5 class="fw-bold mb-2 text-danger">Xác nhận hủy đơn hàng</h5>
+        <p id="shipperCancelConfirmMessage" class="text-muted small mb-4">Bạn có chắc chắn muốn hủy đơn hàng này không?</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <button type="button" id="btnShipperCancelConfirmCancel" class="btn btn-light rounded-pill fw-bold px-4 py-2 flex-grow-1">Bỏ qua</button>
+            <button type="button" id="btnShipperCancelConfirmOk" class="btn btn-danger rounded-pill fw-bold px-4 py-2 flex-grow-1">Hủy đơn</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Cancel Success Banner for Shipper -->
+<div id="shipperCancelSuccessBanner" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-5 text-center shadow-lg rounded-4" style="max-width: 450px; width: 95%;">
+        <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded-circle" style="width: 80px; height: 80px; font-size: 40px; box-shadow: 0 0 15px rgba(220, 53, 69, 0.4);">
+                <i class="bi bi-trash-fill"></i>
+            </span>
+        </div>
+        <h3 class="fw-bold text-danger mb-2">Đã hủy đơn hàng!</h3>
+        <p class="text-muted fs-6 mb-4">Hủy đơn hàng thành công. Hàng hóa đã được hoàn lại kho.</p>
+        <button type="button" id="btnShipperCancelBannerOk" class="btn btn-danger btn-lg w-100 rounded-pill fw-bold py-2 shadow-sm">OK</button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Confirm Delivery variables
+            const successBanner = document.getElementById('shipperSuccessBanner');
+            const btnBannerOk = document.getElementById('btnShipperBannerOk');
+            const confirmModal = document.getElementById('shipperConfirmModal');
+            const confirmMessage = document.getElementById('shipperConfirmMessage');
+            const btnConfirmCancel = document.getElementById('btnShipperConfirmCancel');
+            const btnConfirmOk = document.getElementById('btnShipperConfirmOk');
+
+            let pendingOrderId = null;
+
+            // Confirm Cancel variables
+            const shipperCancelConfirmModal = document.getElementById('shipperCancelConfirmModal');
+            const shipperCancelConfirmMessage = document.getElementById('shipperCancelConfirmMessage');
+            const btnShipperCancelConfirmCancel = document.getElementById('btnShipperCancelConfirmCancel');
+            const btnShipperCancelConfirmOk = document.getElementById('btnShipperCancelConfirmOk');
+            const shipperCancelSuccessBanner = document.getElementById('shipperCancelSuccessBanner');
+            const btnShipperCancelBannerOk = document.getElementById('btnShipperCancelBannerOk');
+
+            let pendingCancelOrderId = null;
+
+            // Complete Delivery click handler
+            document.querySelectorAll('.btn-complete-delivery').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const orderId = this.getAttribute('data-order-id');
+                    if (!orderId) return;
+
+                    pendingOrderId = orderId;
+                    confirmMessage.innerHTML = `Bạn có chắc chắn muốn xác nhận đã giao thành công đơn hàng <strong>#${orderId}</strong>?`;
+                    confirmModal.classList.remove('d-none');
+                });
+            });
+
+            if (btnConfirmCancel) {
+                btnConfirmCancel.addEventListener('click', function () {
+                    confirmModal.classList.add('d-none');
+                    pendingOrderId = null;
+                });
+            }
+
+            if (btnConfirmOk) {
+                btnConfirmOk.addEventListener('click', function () {
+                    confirmModal.classList.add('d-none');
+                    if (!pendingOrderId) return;
+
+                    fetch('/Orders/ShipperCompleteOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `id=${pendingOrderId}`
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            successBanner.classList.remove('d-none');
+                        } else {
+                            alert(data.message || 'Có lỗi xảy ra khi xác nhận đơn.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Lỗi kết nối hệ thống.');
+                    });
+                });
+            }
+
+            if (btnBannerOk) {
+                btnBannerOk.addEventListener('click', function () {
+                    window.location.href = '/';
+                });
+            }
+
+            // Cancel Delivery click handler
+            document.querySelectorAll('.btn-cancel-delivery').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const orderId = this.getAttribute('data-order-id');
+                    if (!orderId) return;
+
+                    pendingCancelOrderId = orderId;
+                    shipperCancelConfirmMessage.innerHTML = `Bạn có chắc chắn muốn hủy đơn hàng <strong>#${orderId}</strong> của khách hàng này không?`;
+                    shipperCancelConfirmModal.classList.remove('d-none');
+                });
+            });
+
+            if (btnShipperCancelConfirmCancel) {
+                btnShipperCancelConfirmCancel.addEventListener('click', function () {
+                    shipperCancelConfirmModal.classList.add('d-none');
+                    pendingCancelOrderId = null;
+                });
+            }
+
+            if (btnShipperCancelConfirmOk) {
+                btnShipperCancelConfirmOk.addEventListener('click', function () {
+                    shipperCancelConfirmModal.classList.add('d-none');
+                    if (!pendingCancelOrderId) return;
+
+                    fetch('/Orders/ShipperCancelOrder', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `id=${pendingCancelOrderId}`
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            shipperCancelSuccessBanner.classList.remove('d-none');
+                        } else {
+                            alert(data.message || 'Có lỗi xảy ra khi hủy đơn.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Lỗi kết nối hệ thống.');
+                    });
+                });
+            }
+
+            if (btnShipperCancelBannerOk) {
+                btnShipperCancelBannerOk.addEventListener('click', function () {
+                    window.location.reload();
+                });
+            }
+        });
+    </script>
+}

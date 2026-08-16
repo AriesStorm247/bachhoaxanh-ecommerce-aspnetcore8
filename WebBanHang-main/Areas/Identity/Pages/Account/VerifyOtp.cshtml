@@ -1,0 +1,368 @@
+@page
+@model VerifyOtpModel
+@{
+    ViewData["Title"] = "Nhập mã xác thực";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nhập mã xác thực — Bách Hóa Xanh</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d3320;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .top-bar {
+            padding: 16px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .logo-pill { display: flex; align-items: center; gap: 10px; }
+        .logo-box {
+            background: #fff; color: #1a7c3e; font-weight: 800;
+            font-size: 16px; padding: 5px 12px; border-radius: 8px; letter-spacing: 2px;
+        }
+        .logo-name { color: rgba(255,255,255,0.8); font-size: 13px; }
+
+        .main {
+            flex: 1; display: flex; align-items: center;
+            justify-content: center; padding: 40px 16px;
+        }
+
+        .card-wrap {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 44px 40px;
+            width: 100%; max-width: 460px;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-icon {
+            width: 64px; height: 64px;
+            background: linear-gradient(135deg, #1a7a2e, #38b558);
+            border-radius: 18px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 22px; font-size: 28px; color: #fff;
+            box-shadow: 0 6px 24px rgba(44,158,71,0.35);
+            animation: iconPulse 2s ease-in-out infinite;
+        }
+        @@keyframes iconPulse {
+            0%, 100% { box-shadow: 0 6px 24px rgba(44,158,71,0.35); }
+            50% { box-shadow: 0 6px 32px rgba(56,181,88,0.6); }
+        }
+
+        .card-title { color: #fff; font-size: 22px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+        .card-sub { color: rgba(255,255,255,0.5); font-size: 13px; text-align: center; line-height: 1.6; margin-bottom: 6px; }
+        .email-tag {
+            display: inline-block; background: rgba(56,181,88,0.15);
+            border: 1px solid rgba(56,181,88,0.3); border-radius: 20px;
+            color: #5cd17a; font-size: 13px; padding: 4px 14px;
+            margin: 0 auto 28px; display: block; text-align: center; width: fit-content; margin-left: auto; margin-right: auto;
+        }
+
+        /* OTP input boxes */
+        .otp-row { display: flex; gap: 10px; justify-content: center; margin-bottom: 28px; }
+        .otp-box {
+            width: 54px; height: 62px;
+            background: rgba(255,255,255,0.07);
+            border: 2px solid rgba(255,255,255,0.18);
+            border-radius: 12px;
+            color: #fff !important;
+            -webkit-text-fill-color: #fff !important;
+            font-size: 26px;
+            font-weight: 900;
+            text-align: center;
+            caret-color: #fff;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+            outline: none;
+        }
+        .otp-box:focus {
+            border-color: #38b558;
+            box-shadow: 0 0 0 3px rgba(56,181,88,0.22);
+            background: rgba(255,255,255,0.12);
+        }
+        .otp-box.filled { border-color: rgba(56,181,88,0.6); }
+        .otp-box.error-box { border-color: rgba(220, 53, 69, 0.7); }
+        .otp-box:-webkit-autofill,
+        .otp-box:-webkit-autofill:hover,
+        .otp-box:-webkit-autofill:focus {
+            -webkit-text-fill-color: #fff !important;
+            -webkit-box-shadow: 0 0 0 1000px rgba(13,51,32,0.95) inset !important;
+            box-shadow: 0 0 0 1000px rgba(13,51,32,0.95) inset !important;
+            caret-color: #fff;
+        }
+
+        /* Hidden combined input for form submission */
+        #otpHidden { display: none; }
+
+        .attempts-bar {
+            display: flex; gap: 6px; justify-content: center; margin-bottom: 22px;
+        }
+        .attempt-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            transition: background .3s;
+        }
+        .attempt-dot.used { background: #e05260; }
+        .attempt-dot.available { background: #38b558; }
+
+        .attempts-label {
+            text-align: center;
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 20px;
+            margin-top: -14px;
+        }
+
+        .btn-verify {
+            width: 100%;
+            background: linear-gradient(135deg, #1a7a2e, #38b558);
+            border: none; color: #fff; border-radius: 12px;
+            padding: 14px; font-size: 15px; font-weight: 800;
+            cursor: pointer; transition: transform .15s, box-shadow .15s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-verify:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(44,158,71,.4); }
+        .btn-verify:disabled { opacity: .6; transform: none; }
+
+        .alert-error {
+            background: rgba(220, 53, 69, 0.15);
+            border: 1px solid rgba(220, 53, 69, 0.35);
+            border-radius: 10px; color: #ff8a96;
+            padding: 12px 16px; font-size: 13px; margin-bottom: 18px;
+        }
+
+        .alert-info {
+            background: rgba(56, 181, 88, 0.1);
+            border: 1px solid rgba(56, 181, 88, 0.25);
+            border-radius: 10px; color: rgba(255,255,255,0.6);
+            padding: 11px 16px; font-size: 12.5px; margin-bottom: 20px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .links { text-align: center; margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+        .links a { color: rgba(255,255,255,0.4); font-size: 13px; text-decoration: none; transition: color .2s; }
+        .links a:hover { color: #5cd17a; }
+
+        /* Timer */
+        .timer-wrap { text-align: center; margin-bottom: 18px; }
+        .timer-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 20px; padding: 5px 14px;
+            font-size: 13px; color: rgba(255,255,255,0.55);
+        }
+        .timer-badge.urgent { color: #ff8a96; border-color: rgba(220,53,69,0.3); }
+        #timerVal { font-weight: 800; min-width: 38px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="logo-pill">
+            <div class="logo-box">BHX</div>
+            <span class="logo-name">Bách Hóa XANH</span>
+        </div>
+        <a href="/" style="color:rgba(255,255,255,0.5); font-size:13px; text-decoration:none;">
+            <i class="bi bi-house-door-fill"></i> Trang chủ
+        </a>
+    </div>
+
+    <div class="main">
+        <div class="card-wrap">
+            <div class="card-icon">
+                <i class="bi bi-shield-lock-fill"></i>
+            </div>
+            <div class="card-title">Nhập mã xác thực</div>
+            <div class="card-sub">Chúng tôi đã gửi mã OTP 6 chữ số đến</div>
+            <span class="email-tag"><i class="bi bi-envelope-check me-1"></i>@Model.OtpEmail</span>
+
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert-error">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                    @Model.ErrorMessage
+                </div>
+            }
+
+            <div class="alert-info">
+                <i class="bi bi-info-circle-fill" style="color:#38b558; font-size:15px; flex-shrink:0;"></i>
+                <span>Nhập mã gồm <strong>6 chữ số</strong> bạn nhận được trong email. Mã có hiệu lực trong <strong>10 phút</strong>.</span>
+            </div>
+
+            <!-- Countdown timer -->
+            <div class="timer-wrap">
+                <span class="timer-badge" id="timerBadge">
+                    <i class="bi bi-clock-fill"></i>
+                    Còn lại: <span id="timerVal">10:00</span>
+                </span>
+            </div>
+
+            <!-- Attempt dots -->
+            @{
+                var attempts = 5 - Model.AttemptsLeft;
+            }
+            <div class="attempts-bar" id="attemptDots">
+                @for (int i = 0; i < 5; i++)
+                {
+                    <div class="attempt-dot @(i < attempts ? "used" : "available")" title="Lần @(i+1)"></div>
+                }
+            </div>
+            <div class="attempts-label">
+                @if (Model.AttemptsLeft > 0)
+                {
+                    <span>Còn <strong style="color:#fff;">@Model.AttemptsLeft</strong> lần thử</span>
+                }
+                else
+                {
+                    <span style="color:#ff8a96;">Đã hết lần thử</span>
+                }
+            </div>
+
+            <form method="post" id="otpForm">
+                <!-- Hidden field for model binding -->
+                <input type="hidden" asp-for="Input.OtpCode" id="otpHidden" />
+
+                <!-- 6 individual OTP boxes -->
+                <div class="otp-row" id="otpRow">
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d0" autocomplete="off" />
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d1" autocomplete="off" />
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d2" autocomplete="off" />
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d3" autocomplete="off" />
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d4" autocomplete="off" />
+                    <input class="otp-box" type="text" inputmode="numeric" maxlength="1" id="d5" autocomplete="off" />
+                </div>
+
+                <button type="submit" class="btn-verify" id="verifyBtn" @(Model.AttemptsLeft <= 0 ? "disabled" : "")>
+                    <i class="bi bi-check2-circle"></i>
+                    <span>Xác nhận mã OTP</span>
+                </button>
+            </form>
+
+            <div class="links">
+                <a href="/Identity/Account/ForgotPassword">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Gửi lại mã mới
+                </a>
+                <a href="/Identity/Account/Login">
+                    <i class="bi bi-arrow-left me-1"></i>Quay lại Đăng nhập
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === OTP Input boxes logic ===
+        const boxes = [0,1,2,3,4,5].map(i => document.getElementById('d' + i));
+        const hidden = document.getElementById('otpHidden');
+        const verifyBtn = document.getElementById('verifyBtn');
+
+        function syncHidden() {
+            hidden.value = boxes.map(b => b.value).join('');
+            const full = hidden.value.length === 6;
+            boxes.forEach(b => b.classList.toggle('filled', b.value !== ''));
+        }
+
+        boxes.forEach((box, idx) => {
+            box.addEventListener('input', e => {
+                // Only allow digits
+                box.value = box.value.replace(/\D/g, '').slice(-1);
+                syncHidden();
+                if (box.value && idx < 5) boxes[idx + 1].focus();
+            });
+
+            box.addEventListener('keydown', e => {
+                if (e.key === 'Backspace') {
+                    if (!box.value && idx > 0) {
+                        boxes[idx - 1].value = '';
+                        boxes[idx - 1].focus();
+                        syncHidden();
+                        e.preventDefault();
+                    }
+                } else if (e.key === 'ArrowLeft' && idx > 0) {
+                    boxes[idx - 1].focus();
+                } else if (e.key === 'ArrowRight' && idx < 5) {
+                    boxes[idx + 1].focus();
+                }
+            });
+
+            box.addEventListener('paste', e => {
+                e.preventDefault();
+                const txt = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                txt.split('').slice(0, 6).forEach((ch, i) => {
+                    if (boxes[i]) boxes[i].value = ch;
+                });
+                syncHidden();
+                (boxes[Math.min(txt.length, 5)] || boxes[5]).focus();
+            });
+        });
+
+        // Focus first box on load
+        boxes[0].focus();
+
+        // Auto-submit when all 6 filled
+        function tryAutoSubmit() {
+            if (hidden.value.length === 6 && !verifyBtn.disabled) {
+                setTimeout(() => {
+                    if (hidden.value.length === 6) {
+                        verifyBtn.disabled = true;
+                        verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xác nhận...';
+                        document.getElementById('otpForm').submit();
+                    }
+                }, 300);
+            }
+        }
+        boxes[5].addEventListener('input', tryAutoSubmit);
+
+        // === Countdown timer ===
+        (function() {
+            let remainingSeconds = @Model.RemainingSeconds;
+
+            const timerEl = document.getElementById('timerVal');
+            const timerBadge = document.getElementById('timerBadge');
+
+            function updateTimer() {
+                const mins = Math.floor(remainingSeconds / 60);
+                const secs = remainingSeconds % 60;
+                timerEl.textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+                if (remainingSeconds <= 60) timerBadge.classList.add('urgent');
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.textContent = '00:00';
+                    verifyBtn.disabled = true;
+                    verifyBtn.innerHTML = '<i class="bi bi-clock-history me-1"></i>Mã đã hết hạn';
+                }
+                remainingSeconds--;
+                if (remainingSeconds < 0) remainingSeconds = 0;
+            }
+            updateTimer();
+            const timerInterval = setInterval(updateTimer, 1000);
+        })();
+
+        // On form submit spinner
+        document.getElementById('otpForm').addEventListener('submit', function(e) {
+            if (hidden.value.length !== 6) {
+                e.preventDefault();
+                boxes.forEach(b => b.classList.add('error-box'));
+                return;
+            }
+            if (!verifyBtn.disabled) {
+                verifyBtn.disabled = true;
+                verifyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang xác nhận...';
+            }
+        });
+    </script>
+</body>
+</html>

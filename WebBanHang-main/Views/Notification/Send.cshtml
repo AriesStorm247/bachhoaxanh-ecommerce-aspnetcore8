@@ -1,0 +1,418 @@
+@using WebBanHang.Models
+@{
+    ViewData["Title"] = "Soạn & Phát Thông Báo";
+    Layout = "_Layout";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-success text-white py-3">
+                    <h4 class="m-0 fw-bold"><i class="bi bi-broadcast me-2"></i>PHÁT THÔNG BÁO MỚI</h4>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Hiển thị tin nhắn thông báo -->
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show rounded-3 border-0" role="alert">
+                            <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Send" method="post" id="notificationForm">
+                        @Html.AntiForgeryToken()
+
+                        <!-- Mẫu thông báo sẵn có -->
+                        <div class="mb-3 p-3 rounded-3 bg-light border">
+                            <label for="templateSelect" class="form-label fw-bold text-dark">
+                                <i class="bi bi-journal-bookmark-fill text-success me-1"></i>Chọn mẫu thông báo sẵn có (Không bắt buộc)
+                            </label>
+                            <select class="form-select rounded-3" id="templateSelect" onchange="applyTemplate(this.value)">
+                                <option value="">-- Tùy chỉnh tự soạn (Không sử dụng mẫu sẵn) --</option>
+                                <optgroup label="Ưu đãi / Khuyến mãi (Promotion)">
+                                    <option value="promo_sale">Siêu Sale Cuối Tuần (Giảm 12%)</option>
+                                    <option value="promo_voucher">Tặng Mã Voucher Tri Ân (Giảm 20K)</option>
+                                </optgroup>
+                                <optgroup label="Thông báo hệ thống (System)">
+                                    <option value="sys_maintenance">Bảo Trì Nâng Cấp Hệ Thống</option>
+                                    <option value="sys_loyalty">Cập Nhật Cơ Chế Tích Điểm Mới</option>
+                                </optgroup>
+                                <optgroup label="Quà tặng & Sự kiện (Reward)">
+                                    <option value="reward_top10">Chúc Mừng Lọt Top 10 Đua Top</option>
+                                    <option value="reward_gift">Nhận Quà Hiện Vật Tại Quầy Dịch Vụ</option>
+                                </optgroup>
+                            </select>
+                            <div class="form-text text-muted small mt-1">Chọn mẫu để tự động điền Tiêu đề, Danh mục và Nội dung HTML. Bạn vẫn có thể chỉnh sửa tự do sau khi áp dụng.</div>
+                        </div>
+
+                        <!-- Tiêu đề -->
+                        <div class="mb-3">
+                            <label for="title" class="form-label fw-bold text-dark">Tiêu đề thông báo <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control rounded-3" id="title" name="title" required placeholder="Nhập tiêu đề ngắn gọn (Dưới 200 ký tự)" />
+                        </div>
+
+                        <!-- Loại thông báo -->
+                        <div class="mb-3">
+                            <label for="type" class="form-label fw-bold text-dark">Phân loại danh mục <span class="text-danger">*</span></label>
+                            <select class="form-select rounded-3" id="type" name="type">
+                                <option value="@((int)NotificationType.Promotion)">Ưu đãi / Khuyến mãi (Promotion)</option>
+                                <option value="@((int)NotificationType.System)">Thông báo hệ thống (System)</option>
+                                <option value="@((int)NotificationType.Reward)">Quà tặng & Sự kiện (Reward)</option>
+                            </select>
+                        </div>
+
+                        <!-- Đối tượng nhận -->
+                        <div class="mb-3">
+                            <label for="phoneOrEmail" class="form-label fw-bold text-dark">Khách hàng nhận mục tiêu</label>
+                            <input type="text" class="form-control rounded-3" id="phoneOrEmail" name="phoneOrEmail" placeholder="Nhập Số điện thoại hoặc Email khách hàng" />
+                            
+                            <!-- Dropdown chọn nhanh từ Top khách hàng chi tiêu (Hiển thị khi chọn mẫu Quà tặng & Sự kiện) -->
+                            <div id="topCustomersSelectorContainer" class="mt-2 p-3 bg-light border rounded-3 d-none">
+                                <label class="form-label small fw-bold text-success mb-2">
+                                    <i class="bi bi-award-fill me-1"></i>Chọn các khách hàng nhận quà hàng loạt (Tháng này):
+                                </label>
+                                <div class="row g-2 px-2 border rounded bg-white py-2 mb-2" style="max-height: 200px; overflow-y: auto;">
+                                    @if (ViewBag.TopCustomers != null)
+                                    {
+                                        foreach (var cust in (List<WebBanHang.Services.LeaderboardRowViewModel>)ViewBag.TopCustomers)
+                                        {
+                                            <div class="col-md-6 col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input top-customer-checkbox" type="checkbox" value="@cust.AvatarUrl" id="chk_@cust.UserId" data-fullname="@cust.FullName" onchange="updateSelectedCustomers()" />
+                                                    <label class="form-check-label small text-dark" style="cursor: pointer;" for="chk_@cust.UserId">
+                                                        Hạng #@cust.Rank: <strong>@cust.FullName</strong> (@cust.AvatarUrl)
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                                <div class="form-text text-muted small" style="font-size: 11px;">Hệ thống sẽ tự động ghép các liên hệ bằng dấu phẩy và thực hiện gửi thư riêng lẻ cá nhân hóa cho từng người nhận.</div>
+                            </div>
+                            
+                            <div class="form-text text-secondary"><i class="bi bi-info-circle me-1"></i>Để trống ô này để phát sóng (Global broadcast) gửi cho <strong>toàn bộ tất cả khách hàng</strong>.</div>
+                        </div>
+
+                        <!-- Nội dung (Hỗ trợ HTML) -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label for="content" class="form-label fw-bold text-dark m-0">Nội dung chi tiết (Hỗ trợ định dạng HTML) <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="togglePreview()">
+                                    <i class="bi bi-eye-fill me-1"></i>Bật/Tắt xem trước
+                                </button>
+                            </div>
+                            <textarea class="form-control rounded-3" id="content" name="content" rows="8" required placeholder="Nhập nội dung thông báo. Có thể sử dụng các thẻ HTML như <p>, <strong>, <ul>, <li>, <div style='...'>...</div> để định dạng đẹp mắt."></textarea>
+                        </div>
+
+                        <!-- Panel Xem trước HTML -->
+                        <div class="card border rounded-3 p-3 mb-4 bg-light d-none" id="previewPanel">
+                            <div class="fw-bold text-success border-bottom pb-2 mb-2"><i class="bi bi-file-earmark-code me-2"></i>GIAO DIỆN XEM TRƯỚC:</div>
+                            <div id="previewArea" style="min-height: 100px;"></div>
+                        </div>
+
+                        <!-- Nút gửi -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success rounded-pill px-4 py-2 fw-bold flex-grow-1 shadow-sm">
+                                <i class="bi bi-send-fill me-2"></i>Gửi thông báo ngay
+                            </button>
+                            <a href="@Url.Action("Index", "Home")" class="btn btn-light border rounded-pill px-4 py-2 text-secondary">Hủy bỏ</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const templates = {
+        promo_sale: {
+            title: "[BÁCH HÓA XANH] Siêu Sale Cuối Tuần - Giảm Sốc Đến 50%!",
+            type: "@((int)NotificationType.Promotion)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #27ae60; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-tag-fill me-2" style="color: #27ae60;"></i>CHƯƠNG TRÌNH KHUYẾN MÃI CUỐI TUẦN
+    </h3>
+    <p>Kính gửi quý khách hàng, Siêu thị Bách Hóa Xanh xin gửi tặng chương trình ưu đãi đặc biệt diễn ra duy nhất trong 2 ngày cuối tuần này:</p>
+    <div style="background-color: #f9f9f9; border-left: 4px solid #27ae60; padding: 12px; margin: 15px 0; border-radius: 4px;">
+        <strong>Các mặt hàng giảm sâu cực sốc:</strong>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+            <li>Rau củ quả tươi sạch Đà Lạt: <strong style="color: #c0392b;">Giảm 30%</strong></li>
+            <li>Thịt heo ba rọi tươi mới: <strong style="color: #c0392b;">Đồng giá 99.000đ/kg</strong></li>
+            <li>Hải sản tươi sống (tôm, cá chẽm): <strong style="color: #c0392b;">Giảm 25%</strong></li>
+            <li>Sữa và các chế phẩm từ sữa: <strong style="color: #c0392b;">Mua 2 tặng 1</strong></li>
+        </ul>
+    </div>
+    <p>Hệ thống hỗ trợ giao nhanh 2 giờ miễn phí cho mọi đơn hàng từ 300.000đ đặt trên website. Hãy nhanh tay lấp đầy giỏ hàng của bạn nhé!</p>
+    <p style="text-align: right; font-style: italic; color: #7f8c8d;">Bách Hóa Xanh chúc quý khách mua sắm vui vẻ!</p>
+</div>`
+        },
+        promo_voucher: {
+            title: "[QUÀ TẶNG] Tặng Voucher Giảm Giá 20,000 đ Cho Mọi Đơn Hàng",
+            type: "@((int)NotificationType.Promotion)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #e74c3c; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-ticket-perforated-fill me-2" style="color: #e74c3c;"></i>TẶNG MÃ VOUCHER TRI ÂN KHÁCH HÀNG
+    </h3>
+    <p>Cảm ơn bạn đã luôn tin tưởng và đồng hành cùng Bách Hóa Xanh. Siêu thị gửi tặng bạn mã giảm giá độc quyền áp dụng cho đơn hàng kế tiếp:</p>
+    <div style="text-align: center; background: linear-gradient(135deg, #ff9f43, #ff5252); color: white; padding: 20px; border-radius: 12px; margin: 15px 0; box-shadow: 0 4px 15px rgba(255,82,82,0.2);">
+        <span style="font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Mã giảm giá của bạn:</span>
+        <div style="font-size: 28px; font-weight: 800; margin: 8px 0; font-family: monospace; letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);">BHX20K</div>
+        <span style="font-size: 13px;">Giảm 20.000đ cho đơn hàng từ 250.000đ trở lên (Hạn dùng: 7 ngày kể từ hôm nay)</span>
+    </div>
+    <p>Chỉ cần sao chép mã <strong>BHX20K</strong> và áp dụng tại màn hình thanh toán của bạn để nhận ngay chiết khấu.</p>
+</div>`
+        },
+        sys_maintenance: {
+            title: "[THÔNG BÁO] Bảo Trì Nâng Cấp Hệ Thống Website Siêu Thị",
+            type: "@((int)NotificationType.System)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #7f8c8d; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-cone-striped me-2" style="color: #e67e22;"></i>BẢO TRÌ NÂNG CẤP HỆ THỐNG
+    </h3>
+    <p>Kính gửi quý khách hàng, để cải thiện chất lượng phục vụ và nâng cao tốc độ tải trang, Bách Hóa Xanh sẽ tiến hành nâng cấp hệ thống máy chủ định kỳ:</p>
+    <div style="background-color: #fcf8e3; border-left: 4px solid #f0ad4e; padding: 12px; margin: 15px 0; border-radius: 4px;">
+        <strong>Thời gian bảo trì dự kiến:</strong> từ <span style="color: #c0392b; font-weight: bold;">01:00 AM đến 03:00 AM ngày mai</span>.
+    </div>
+    <p>Trong khoảng thời gian trên, quý khách tạm thời không thể truy cập website để xem sản phẩm hoặc đặt hàng trực tuyến. Các đơn hàng đang trong quá trình vận chuyển vẫn được giao bình thường và không bị ảnh hưởng.</p>
+    <p>Rất mong quý khách thông cảm cho sự gián đoạn này.</p>
+</div>`
+        },
+        sys_loyalty: {
+            title: "[HỆ THỐNG] Cập Nhật Tỷ Lệ Tích Lũy Điểm Thành Viên Mới",
+            type: "@((int)NotificationType.System)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #2980b9; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-info-circle-fill me-2" style="color: #2980b9;"></i>THAY ĐỔI CƠ CHẾ TÍCH LUỸ ĐIỂM
+    </h3>
+    <p>Siêu thị xin thông báo cập nhật công thức tính điểm tích lũy thành viên mới kể từ chu kỳ này để gia tăng lợi ích mua sắm cho bạn:</p>
+    <div style="background-color: #eef7fc; border-left: 4px solid #2980b9; padding: 12px; margin: 15px 0; border-radius: 4px;">
+        <strong>Công thức tích lũy điểm mới:</strong>
+        <div style="font-size: 16px; font-weight: bold; color: #2c3e50; margin: 8px 0; text-align: center;">
+            Điểm tích lũy = Tiền hóa đơn gốc (Trước khi giảm giá) / 200
+        </div>
+    </div>
+    <p>Với cơ chế mới, tổng tiền hóa đơn mua sắm của bạn (kể cả khi áp dụng mã giảm giá) sẽ được quy đổi điểm tích lũy nhiều hơn gấp bội so với cơ chế tính theo hóa đơn thanh toán sau giảm giá trước đây.</p>
+    <p>Hãy xem số dư điểm Loyalty của bạn tại trang Thông tin cá nhân để đổi các Voucher giá trị.</p>
+</div>`
+        },
+        reward_top10: {
+            title: "[CHÚC MỪNG] Bạn Đã Lọt Vào Top 10 Chi Tiêu Siêu Thị - Nhận Ngay Quà VIP!",
+            type: "@((int)NotificationType.Reward)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #f1c40f; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-trophy-fill me-2" style="color: #f1c40f;"></i>CHÚC MỪNG CHIẾN THẦN ĐUA TOP CHI TIÊU
+    </h3>
+    <p>Xin chúc mừng bạn đã xuất sắc lọt vào Bảng xếp hạng <strong>Top 10 khách hàng chi tiêu lớn nhất siêu thị</strong> trong tháng vừa qua!</p>
+    <div style="background-color: #fffdf0; border-left: 4px solid #f1c40f; padding: 12px; margin: 15px 0; border-radius: 4px;">
+        <strong>Phần thưởng VIP của bạn đã được mở khóa tự động:</strong>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+            <li><strong>Khung Avatar cao cấp:</strong> Đang chờ bạn trong Túi Đồ Cá Nhân.</li>
+            <li><strong>Huy hiệu danh giá độc quyền:</strong> Sử dụng ngay tại trang Cá nhân để thể hiện đẳng cấp.</li>
+            <li><strong>Voucher giảm giá đặc quyền:</strong> [VOUCHER_INFO]</li>
+        </ul>
+    </div>
+    <div style="background-color: #e8f7ec; padding: 12px; border-radius: 6px; margin: 15px 0;">
+        <strong>Quà tặng hiện vật tri ân tại quầy:</strong> <strong style="color: #2e7d32;">[QUATANG_INFO]</strong><br/>
+        Vui lòng mang thông báo này đến quầy dịch vụ tại cửa hàng gần nhất để xác thực và nhận quà hiện vật.
+    </div>
+    <p style="font-weight: bold; color: #d35400;">Bách Hóa Xanh vô cùng tự hào và vinh hạnh được đồng hành mua sắm cùng bạn!</p>
+</div>`
+        },
+        reward_gift: {
+            title: "[SỰ KIỆN] Nhận Quà Tặng Tri Ân Hiện Vật Tại Quầy Dịch Vụ",
+            type: "@((int)NotificationType.Reward)",
+            content: `<div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+    <h3 style="color: #2c3e50; border-bottom: 2px solid #8e44ad; padding-bottom: 8px; font-weight: bold;">
+        <i class="bi bi-gift-fill me-2" style="color: #8e44ad;"></i>NHẬN QUÀ TẶNG TRI ÂN KHÁCH HÀNG
+    </h3>
+    <p>Nhằm tri ân sự tin yêu của quý khách, siêu thị tổ chức sự kiện tặng quà hiện vật cho mọi thành viên VIP có điểm tích lũy hoạt động cao:</p>
+    <div style="background-color: #fbf5fc; border-left: 4px solid #8e44ad; padding: 12px; margin: 15px 0; border-radius: 4px;">
+        <strong>Thông tin sự kiện:</strong>
+        <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+            <li>Phần quà: <strong style="color: #8e44ad;">[QUATANG_INFO]</strong></li>
+            <li>Thời gian nhận quà: từ <strong>08:00 đến 21:00 hàng ngày</strong> trong tuần này.</li>
+            <li>Địa điểm: Quầy dịch vụ Khách Hàng tại chi nhánh siêu thị gần nhất.</li>
+        </ul>
+    </div>
+    <div style="background-color: #fffdf0; border-left: 4px solid #f1c40f; padding: 10px; margin: 10px 0; border-radius: 4px;">
+        <strong>Quà tặng đính kèm:</strong> [VOUCHER_INFO]
+    </div>
+    <p>Vui lòng xuất trình màn hình thông báo này và số điện thoại đăng ký tài khoản cho nhân viên quầy dịch vụ để đối soát nhận quà hiện vật. Số lượng quà tặng có hạn, mong bạn sớm ghé qua!</p>
+</div>`
+        }
+    };
+
+    function applyTemplate(key) {
+        const container = document.getElementById("topCustomersSelectorContainer");
+        if (key === "reward_top10" || key === "reward_gift") {
+            container.classList.remove("d-none");
+        } else {
+            container.classList.add("d-none");
+            // Bỏ chọn tất cả checkbox
+            document.querySelectorAll(".top-customer-checkbox").forEach(chk => chk.checked = false);
+            document.getElementById("phoneOrEmail").value = "";
+        }
+
+        if (!key) {
+            document.getElementById("title").value = "";
+            document.getElementById("content").value = "";
+            document.getElementById("type").value = "@((int)NotificationType.Promotion)";
+            const panel = document.getElementById("previewPanel");
+            if (!panel.classList.contains("d-none")) {
+                document.getElementById("previewArea").innerHTML = "<p class='text-muted italic'>Chưa có nội dung soạn thảo để xem trước.</p>";
+            }
+            return;
+        }
+
+        const tpl = templates[key];
+        if (tpl) {
+            document.getElementById("title").value = tpl.title;
+            document.getElementById("content").value = tpl.content;
+            document.getElementById("type").value = tpl.type;
+
+            // Cập nhật preview nếu đang hiển thị
+            const panel = document.getElementById("previewPanel");
+            if (!panel.classList.contains("d-none")) {
+                document.getElementById("previewArea").innerHTML = tpl.content;
+            }
+        }
+    }
+
+    function getRewardInfo(rank) {
+        if (rank === 1) {
+            return {
+                voucher: "Voucher giảm 50% (Tối đa giảm 2,000,000 đ) cho hóa đơn kế tiếp.",
+                gift: "Nồi chiên không dầu Philips HD9252"
+            };
+        } else if (rank === 2 || rank === 3) {
+            return {
+                voucher: "Voucher giảm 30% (Tối đa giảm 1,000,000 đ) cho hóa đơn kế tiếp.",
+                gift: "Bộ nồi inox cao cấp 3 đáy Sunhouse"
+            };
+        } else if (rank >= 4 && rank <= 10) {
+            return {
+                voucher: "Voucher giảm 15% (Tối đa giảm 500,000 đ) cho hóa đơn kế tiếp.",
+                gift: "Giỏ quà Tết sum vầy Bách Hóa Xanh"
+            };
+        } else {
+            return {
+                voucher: "Voucher tri ân khách hàng thân thiết.",
+                gift: "Bộ ly sứ cao cấp vẽ vàng Bách Hóa Xanh"
+            };
+        }
+    }
+
+    function updateSelectedCustomers() {
+        const checkboxes = document.querySelectorAll(".top-customer-checkbox:checked");
+        const values = Array.from(checkboxes).map(chk => chk.value);
+        document.getElementById("phoneOrEmail").value = values.join(", ");
+
+        // Nếu chỉ chọn đúng 1 người thì tự động cá nhân hóa tên và phần quà trong ô xem trước
+        if (checkboxes.length === 1) {
+            const chk = checkboxes[0];
+            const fullName = chk.getAttribute("data-fullname");
+            
+            // Tìm thứ hạng từ nhãn checkbox
+            const labelText = chk.nextElementSibling.innerText;
+            const rankMatch = labelText.match(/Hạng #(\d+)/);
+            const rank = rankMatch ? parseInt(rankMatch[1]) : 0;
+            const rewards = getRewardInfo(rank);
+
+            if (fullName) {
+                let cleanName = fullName.split('(')[0].trim();
+                let contentArea = document.getElementById("content");
+                let currentVal = contentArea.value;
+
+                if (currentVal.includes("<p>Chào bạn,</p>")) {
+                    currentVal = currentVal.replace("<p>Chào bạn,</p>", `<p>Chào bạn <strong>${cleanName}</strong>,</p>`);
+                } else if (currentVal.includes("<p>Chào bạn <strong>")) {
+                    currentVal = currentVal.replace(/<p>Chào bạn <strong>.*?<\/strong>,<\/p>/, `<p>Chào bạn <strong>${cleanName}</strong>,</p>`);
+                }
+
+                // Cập nhật giá trị vào khung soạn thảo (để giữ lời chào cá nhân hóa nếu chỉ chọn 1 người)
+                contentArea.value = currentVal;
+
+                // Thay thế placeholders cho preview
+                let previewHtml = currentVal;
+                previewHtml = previewHtml.replaceAll("[VOUCHER_INFO]", rewards.voucher);
+                previewHtml = previewHtml.replaceAll("[QUATANG_INFO]", rewards.gift);
+
+                // Cập nhật preview
+                const panel = document.getElementById("previewPanel");
+                if (!panel.classList.contains("d-none")) {
+                    document.getElementById("previewArea").innerHTML = previewHtml;
+                }
+            }
+        } else {
+            // Nếu chọn nhiều người hoặc không chọn ai, trả về lời chào chung chung "Chào bạn," và hiển thị thô các placeholder hoặc hiển thị tổng quát
+            let contentArea = document.getElementById("content");
+            let currentVal = contentArea.value;
+            if (currentVal.includes("<p>Chào bạn <strong>")) {
+                currentVal = currentVal.replace(/<p>Chào bạn <strong>.*?<\/strong>,<\/p>/, "<p>Chào bạn,</p>");
+                contentArea.value = currentVal;
+            }
+
+            let previewHtml = currentVal;
+            // Nếu chọn nhiều người, ta hiển thị danh sách tổng hợp phần thưởng trong preview cho sinh động
+            if (checkboxes.length > 1) {
+                let summaryGift = "";
+                let summaryVoucher = "";
+                
+                checkboxes.forEach(chk => {
+                    const labelText = chk.nextElementSibling.innerText;
+                    const rankMatch = labelText.match(/Hạng #(\d+)/);
+                    const rank = rankMatch ? parseInt(rankMatch[1]) : 0;
+                    const name = chk.getAttribute("data-fullname").split('(')[0].trim();
+                    const rewards = getRewardInfo(rank);
+                    
+                    summaryGift += `<li>${name} (Hạng #${rank}): <span class='text-success'>${rewards.gift}</span></li>`;
+                    summaryVoucher += `<li>${name} (Hạng #${rank}): <span class='text-primary'>${rewards.voucher}</span></li>`;
+                });
+
+                previewHtml = previewHtml.replaceAll("[VOUCHER_INFO]", `<ul style='margin:0; padding-left:15px;'>${summaryVoucher}</ul>`);
+                previewHtml = previewHtml.replaceAll("[QUATANG_INFO]", `<ul style='margin:0; padding-left:15px;'>${summaryGift}</ul>`);
+            } else {
+                // Không chọn ai: Hiện mô tả mặc định của placeholders
+                previewHtml = previewHtml.replaceAll("[VOUCHER_INFO]", "<span class='text-muted'>(Tùy biến theo hạng của từng khách hàng)</span>");
+                previewHtml = previewHtml.replaceAll("[QUATANG_INFO]", "<span class='text-muted'>(Tùy biến theo hạng của từng khách hàng)</span>");
+            }
+
+            const panel = document.getElementById("previewPanel");
+            if (!panel.classList.contains("d-none")) {
+                document.getElementById("previewArea").innerHTML = previewHtml;
+            }
+        }
+    }
+
+    function togglePreview() {
+        const panel = document.getElementById("previewPanel");
+        const textarea = document.getElementById("content");
+        const previewArea = document.getElementById("previewArea");
+
+        if (panel.classList.contains("d-none")) {
+            // Render HTML preview
+            previewArea.innerHTML = textarea.value || "<p class='text-muted italic'>Chưa có nội dung soạn thảo để xem trước.</p>";
+            panel.classList.remove("d-none");
+        } else {
+            panel.classList.add("d-none");
+        }
+    }
+
+    // Tự động cập nhật preview nếu đang mở
+    document.getElementById("content").addEventListener("input", function() {
+        const panel = document.getElementById("previewPanel");
+        if (!panel.classList.contains("d-none")) {
+            document.getElementById("previewArea").innerHTML = this.value;
+        }
+    });
+</script>

@@ -1,0 +1,184 @@
+@model IEnumerable<WebBanHang.Models.Order>
+@{
+    ViewData["Title"] = "Danh sách chờ soạn";
+    Layout = "_Layout_Admin";
+}
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<div class="mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2 style="font-weight: 900; color: var(--green-dark);">
+            <i class="bi bi-box-seam-fill me-2"></i> ĐƠN ĐANG SOẠN HÀNG
+        </h2>
+        <p class="text-muted mb-0">Đây là nơi chứa các đơn đã duyệt. Hãy đi lấy hàng thôi!</p>
+    </div>
+    <button type="button" class="btn btn-primary fw-bold px-3 py-2 rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#quickPrepareModal">
+        <i class="bi bi-lightning-charge-fill me-1"></i> Soạn đơn nhanh
+    </button>
+</div>
+
+<!-- Modal Xác nhận Soạn Đơn Nhanh -->
+<div class="modal fade" id="quickPrepareModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header bg-primary text-white py-3">
+                <h5 class="modal-title fw-bold"><i class="bi bi-lightning-charge-fill me-2"></i>Xác nhận soạn đơn nhanh</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <i class="bi bi-question-circle text-primary" style="font-size: 3rem;"></i>
+                <h6 class="fw-bold mt-3 mb-2">Bạn có chắc chắn muốn soạn nhanh tất cả các đơn hàng đang chờ?</h6>
+                <p class="text-muted small mb-0">Toàn bộ các đơn trong danh sách chờ soạn sẽ được chuyển sang trạng thái <strong>Đang giao hàng</strong>.</p>
+            </div>
+            <div class="modal-footer border-0 pb-4 justify-content-center">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Hủy bỏ</button>
+                <form asp-action="QuickPrepareAllOrders" method="post" class="m-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold">Xác nhận soạn nhanh</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="fcard mb-4" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); padding: 20px;">
+    <form method="get" asp-action="PrepareList" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="startDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Từ ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="startDate" name="startDate" class="form-control bg-light border-start-0" value="@ViewBag.StartDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-4">
+            <label for="endDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Đến ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="endDate" name="endDate" class="form-control bg-light border-start-0" value="@ViewBag.EndDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1 fw-bold" style="border-radius: 8px; background-color: var(--green-dark); border-color: var(--green-dark); height: 38px;">
+                <i class="bi bi-funnel-fill"></i> Lọc
+            </button>
+            <a asp-action="PrepareList" class="btn btn-outline-secondary fw-bold" style="border-radius: 8px; height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+                <i class="bi bi-x-circle me-1"></i> Xóa bộ lọc
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="fcard" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); overflow:hidden;">
+    <table class="table align-middle m-0">
+        <thead style="background:#e8f7ec;">
+            <tr>
+                <th style="padding:15px;">Mã đơn</th>
+                <th>Khách hàng</th>
+                <th>Trạng thái</th>
+                <th style="text-align:right; padding:15px;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td style="padding:15px;"><b>#@item.Id</b></td>
+                    <td>
+                        <div style="font-weight:700;">@item.FullName</div>
+                        <div style="font-size:12px; color:#666;">@item.Address</div>
+                    </td>
+                    <td>
+                        @if (item.Status == 1)
+                        {
+                            <span class="badge" style="background:var(--green-light); color:var(--green-dark); border:1px solid var(--green-main); border-radius:10px;">
+                                Đang lấy hàng
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success text-white" style="border-radius:10px;">
+                                Soạn thành công
+                            </span>
+                        }
+                    </td>
+                    <td style="text-align:right; padding:15px;">
+                        @if (item.Status == 1)
+                        {
+                            <a asp-action="Process" asp-route-id="@item.Id" class="btn btn-sm btn-primary fw-bold"
+                               style="border-radius:20px; padding:6px 20px;">
+                                <i class="bi bi-list-check"></i> Soạn Đơn
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary fw-bold"
+                               style="border-radius:20px; padding:6px 20px;">
+                                <i class="bi bi-eye"></i> Xem chi tiết
+                            </a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-center p-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size:40px;"></i>
+                        <p class="mt-2">Không tìm thấy đơn hàng nào.</p>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-white">
+        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+            <span>Trang</span>
+            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                   style="width: 48px; height: 28px; font-size: 13px;"
+                   value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+            <span>/ @ViewBag.TotalPages</span>
+            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                    onclick="window.goToPage(this);">
+                OK
+            </button>
+        </div>
+        <div class="d-flex gap-2">
+            @if (ViewBag.Page > 1)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="PrepareList"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-page="@(ViewBag.Page - 1)">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+            }
+
+            @if (ViewBag.Page < ViewBag.TotalPages)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="PrepareList"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-page="@(ViewBag.Page + 1)">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,2796 @@
+@model WebBanHang.ViewModels.CustomerProfileViewModel
+
+@{
+    var isCustomerOrAdmin = true;
+    ViewData["Title"] = isCustomerOrAdmin ? "Hồ sơ khách hàng" : "Hồ sơ nhân viên";
+}
+
+<link rel="stylesheet" href="~/css/profile.css" asp-append-version="true" />
+<style>
+    @@keyframes opacityPulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
+
+    /* Sparkling border animations and gradients for each tier */
+    .profile-card {
+        border-width: 3px !important;
+        border-style: solid !important;
+        position: relative;
+        transition: all 0.3s ease;
+        background-color: #fff;
+    }
+
+    @@keyframes shimmer-silver {
+        0% { border-color: #cbd5e1; box-shadow: 0 0 10px rgba(203, 213, 225, 0.4); }
+        50% { border-color: #94a3b8; box-shadow: 0 0 20px rgba(148, 163, 184, 0.8); }
+        100% { border-color: #cbd5e1; box-shadow: 0 0 10px rgba(203, 213, 225, 0.4); }
+    }
+    @@keyframes shimmer-gold {
+        0% { border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+        50% { border-color: #ffa500; box-shadow: 0 0 20px rgba(255, 165, 0, 0.8); }
+        100% { border-color: #ffd700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+    }
+    @@keyframes shimmer-platinum {
+        0% { border-color: #e5e4e2; box-shadow: 0 0 10px rgba(229, 228, 226, 0.4); }
+        50% { border-color: #b0c4de; box-shadow: 0 0 20px rgba(176, 196, 222, 0.8); }
+        100% { border-color: #e5e4e2; box-shadow: 0 0 10px rgba(229, 228, 226, 0.4); }
+    }
+    @@keyframes shimmer-emerald {
+        0% { border-color: #50c878; box-shadow: 0 0 10px rgba(80, 200, 120, 0.4); }
+        50% { border-color: #00ff7f; box-shadow: 0 0 20px rgba(0, 255, 127, 0.8); }
+        100% { border-color: #50c878; box-shadow: 0 0 10px rgba(80, 200, 120, 0.4); }
+    }
+    @@keyframes shimmer-diamond {
+        0% { border-color: #b9f2ff; box-shadow: 0 0 10px rgba(185, 242, 255, 0.4); }
+        50% { border-color: #00d2ff; box-shadow: 0 0 20px rgba(0, 210, 255, 0.8); }
+        100% { border-color: #b9f2ff; box-shadow: 0 0 10px rgba(185, 242, 255, 0.4); }
+    }
+    @@keyframes shimmer-ruby {
+        0% { border-color: #e0115f; box-shadow: 0 0 10px rgba(224, 17, 95, 0.4); }
+        50% { border-color: #ff007f; box-shadow: 0 0 20px rgba(255, 0, 127, 0.8); }
+        100% { border-color: #e0115f; box-shadow: 0 0 10px rgba(224, 17, 95, 0.4); }
+    }
+    @@keyframes shimmer-niken {
+        0% { border-color: #3d1515; box-shadow: 0 0 10px rgba(229, 57, 53, 0.4); }
+        50% { border-color: #ff1744; box-shadow: 0 0 20px rgba(255, 23, 68, 0.8); }
+        100% { border-color: #3d1515; box-shadow: 0 0 10px rgba(229, 57, 53, 0.4); }
+    }
+    @@keyframes shimmer-titan {
+        0% { border-color: #667eea; box-shadow: 0 0 10px rgba(102, 126, 234, 0.4); }
+        50% { border-color: #764ba2; box-shadow: 0 0 20px rgba(118, 75, 162, 0.8); }
+        100% { border-color: #667eea; box-shadow: 0 0 10px rgba(102, 126, 234, 0.4); }
+    }
+    @@keyframes shimmer-uranium {
+        0% { border-color: #39FF14; box-shadow: 0 0 10px rgba(57, 255, 20, 0.4); }
+        50% { border-color: #00FF00; box-shadow: 0 0 20px rgba(0, 255, 0, 0.8); }
+        100% { border-color: #39FF14; box-shadow: 0 0 10px rgba(57, 255, 20, 0.4); }
+    }
+    @@keyframes shimmer-iridium {
+        0% { border-color: #C77DFF; box-shadow: 0 0 10px rgba(199, 125, 255, 0.4); }
+        50% { border-color: #E040FB; box-shadow: 0 0 20px rgba(224, 64, 251, 0.8); }
+        100% { border-color: #C77DFF; box-shadow: 0 0 10px rgba(199, 125, 255, 0.4); }
+    }
+
+    /* Unified layout alignment for profile-grid */
+    .profile-grid {
+        display: grid;
+        grid-template-columns: 330px 1fr;
+        gap: 18px;
+        align-items: start !important;
+    }
+
+    .profile-main-column > div > .profile-card {
+        margin-top: 0 !important;
+    }
+
+    /* Assign shimmering to tier card borders */
+    .tier-card-0 { border-color: #cccccc; }
+    .tier-card-1 { border-color: #cd7f32; }
+    .tier-card-2 { animation: shimmer-silver 2s infinite; }
+    .tier-card-3 { animation: shimmer-gold 2s infinite; }
+    .tier-card-4 { animation: shimmer-platinum 2s infinite; }
+    .tier-card-5 { animation: shimmer-emerald 2s infinite; }
+    .tier-card-6 { animation: shimmer-diamond 2s infinite; }
+    .tier-card-7 { animation: shimmer-ruby 2s infinite; }
+    .tier-card-8 { animation: shimmer-niken 2s infinite; }
+    .tier-card-9 { animation: shimmer-titan 2s infinite; }
+    .tier-card-10 { animation: shimmer-uranium 2s infinite; }
+    .tier-card-11 { animation: shimmer-iridium 2s infinite; }
+
+    /* Restore tier card background gradients corresponding to user tier level */
+    aside.profile-card {
+        margin-top: 0 !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    aside.profile-card.tier-card-0 { background-color: #ffffff !important; color: #333333 !important; }
+    aside.profile-card.tier-card-1 { background-color: #fcf8f5 !important; color: #5a2e17 !important; }
+    aside.profile-card.tier-card-2 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important; color: #334155 !important; }
+    aside.profile-card.tier-card-3 { background: linear-gradient(135deg, #fffde6, #fff0b3) !important; color: #5c3d00 !important; }
+    aside.profile-card.tier-card-4 { background: linear-gradient(135deg, #e5e4e2, #b0c4de) !important; color: #1c2833 !important; }
+    aside.profile-card.tier-card-5 { background: linear-gradient(135deg, #a3e4d7, #2ecc71) !important; color: #0b5345 !important; }
+    aside.profile-card.tier-card-6 { background: linear-gradient(135deg, #d6eaf8, #5dabfc) !important; color: #0b3c5d !important; }
+    aside.profile-card.tier-card-7 { background: linear-gradient(135deg, #fadbd8, #ec7063) !important; color: #78281f !important; }
+    aside.profile-card.tier-card-8 { background: linear-gradient(135deg, #b83f4d, #5c1820) !important; color: #ffffff !important; }
+    aside.profile-card.tier-card-9 { background: linear-gradient(135deg, #a5c3f7, #667eea) !important; color: #ffffff !important; }
+    aside.profile-card.tier-card-10 { background: linear-gradient(135deg, #d5f5e3, #39FF14) !important; color: #1e3f00 !important; }
+    aside.profile-card.tier-card-11 { background: linear-gradient(135deg, #f3e5f5, #ab47bc) !important; color: #ffffff !important; }
+
+    aside.profile-card .text-muted {
+        color: inherit !important;
+        opacity: 0.85;
+    }
+    aside.profile-card .point-num {
+        color: inherit !important;
+        font-weight: 900 !important;
+    }
+
+    aside.profile-card.tier-card-8 .point-num,
+    aside.profile-card.tier-card-9 .point-num,
+    aside.profile-card.tier-card-11 .point-num {
+        color: #ffffff !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Enforce high contrast and custom border for upgrade-box across all tiers */
+    aside.profile-card .upgrade-box {
+        background-color: #ffffff !important;
+        border: 2px dashed #198754 !important; /* Stand-out green dashed border */
+        color: #111111 !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+        text-shadow: none !important;
+    }
+    aside.profile-card .upgrade-box div, 
+    aside.profile-card .upgrade-box span, 
+    aside.profile-card .upgrade-box p, 
+    aside.profile-card .upgrade-box .small,
+    aside.profile-card .upgrade-box .text-muted {
+        color: #111111 !important;
+        text-shadow: none !important;
+        opacity: 1 !important;
+    }
+
+    /* Make avatar preview background slightly semi-transparent white so avatar pops out */
+    .avatar-preview {
+        background: rgba(255, 255, 255, 0.35) !important;
+        border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    }
+
+    /* Style for buttons inside aside.profile-card to make them highly visible and pop out */
+    aside.profile-card .btn {
+        border-width: 2px !important;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08) !important;
+        font-weight: 800 !important;
+        opacity: 1 !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+
+    /* Hover effect */
+    aside.profile-card .btn:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12) !important;
+    }
+
+    /* Active state styling for buttons inside sidebar */
+    aside.profile-card .btn.btn-secondary {
+        background-color: #6c757d !important;
+        color: #ffffff !important;
+        border-color: #6c757d !important;
+    }
+    aside.profile-card .btn.btn-primary {
+        background-color: #0d6efd !important;
+        color: #ffffff !important;
+        border-color: #0d6efd !important;
+    }
+    aside.profile-card .btn.btn-danger {
+        background-color: #dc3545 !important;
+        color: #ffffff !important;
+        border-color: #dc3545 !important;
+    }
+    aside.profile-card .btn.btn-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+        border-color: #ffc107 !important;
+    }
+    aside.profile-card .btn.btn-success {
+        background-color: #198754 !important;
+        color: #ffffff !important;
+        border-color: #198754 !important;
+    }
+    aside.profile-card .btn.btn-info {
+        background-color: #0dcaf0 !important;
+        color: #ffffff !important;
+        border-color: #0dcaf0 !important;
+    }
+
+    /* Inactive outline states - enforce crisp text and borders */
+    aside.profile-card .btn.btn-outline-secondary {
+        background-color: #ffffff !important;
+        color: #495057 !important;
+        border-color: #6c757d !important;
+    }
+    aside.profile-card .btn.btn-outline-primary {
+        background-color: #ffffff !important;
+        color: #0d6efd !important;
+        border-color: #0d6efd !important;
+    }
+    aside.profile-card .btn.btn-outline-danger {
+        background-color: #ffffff !important;
+        color: #dc3545 !important;
+        border-color: #dc3545 !important;
+    }
+    aside.profile-card .btn.btn-outline-warning {
+        background-color: #ffffff !important;
+        color: #b25e00 !important;
+        border-color: #ffc107 !important;
+    }
+    aside.profile-card .btn.btn-outline-success {
+        background-color: #ffffff !important;
+        color: #198754 !important;
+        border-color: #198754 !important;
+    }
+    aside.profile-card .btn.btn-outline-info {
+        background-color: #ffffff !important;
+        color: #0c8fa8 !important;
+        border-color: #0dcaf0 !important;
+    }
+</style>
+
+<div class="profile-wrap">
+    <div class="profile-header-wrap d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h2 class="fw-black mb-1" style="font-weight:900;color:#1a7a2e;">@(isCustomerOrAdmin ? "Hồ sơ khách hàng" : "Hồ sơ nhân viên")</h2>
+            <div class="text-muted small">@(isCustomerOrAdmin ? "Khách đã đăng nhập được tính là khách hàng thân thiết." : "Thông tin hồ sơ nhân viên trong hệ thống.")</div>
+        </div>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-outline-success rounded-pill">
+            <i class="bi bi-house-door me-1"></i> Trang chủ
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Success"]?.ToString() ?? ""))', 'success');
+            });
+        </script>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["Error"]?.ToString() ?? ""))', 'error');
+            });
+        </script>
+    }
+
+    <div class="profile-grid">
+        @{
+            int displayLvl = Model.DisplayMembershipLevel ?? Model.MembershipLevel;
+        }
+        <aside class="profile-card text-center tier-card-@displayLvl">
+            @{
+                var isFramed = !string.IsNullOrEmpty(Model.EquippedAvatarFrame) && Model.EquippedAvatarFrame != "none";
+                var previewStyle = isFramed 
+                    ? "margin: 0; position: relative; z-index: 1; width: 135px; height: 135px; border: none; box-shadow: none;"
+                    : "margin: 0 auto 14px; position: relative; z-index: 1;";
+            }
+            <div class="avatar-preview-container" style="position: relative; width: 140px; height: 140px; margin: 50px auto 30px; display: flex; align-items: center; justify-content: center;">
+                <div class="avatar-preview avatar-bg-@displayLvl" id="avatarPreview" style="@previewStyle">
+                    @if (!string.IsNullOrWhiteSpace(Model.AvatarUrl))
+                    {
+                        <img src="@Model.AvatarUrl" alt="Avatar" onerror="this.remove();" />
+                    }
+                    else
+                    {
+                        <i class="bi bi-person-fill" style="font-size: 58px;"></i>
+                    }
+                </div>
+                <div id="avatarFramePreviewContainer" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 2;">
+                    @if (!string.IsNullOrEmpty(Model.EquippedAvatarFrame) && Model.EquippedAvatarFrame != "none")
+                    {
+                        string? frameFile = null;
+                        string folder = "khung-avatar";
+                        string frameFilter = "";
+                        string frameSize = "width: 158px; height: 158px;";
+
+                        if (Model.EquippedAvatarFrame.StartsWith("daily-normal-"))
+                        {
+                            frameFile = Model.EquippedAvatarFrame.Substring("daily-normal-".Length);
+                            folder = "khung-theo-ngay/khung-thuong";
+                        }
+                        else if (Model.EquippedAvatarFrame.StartsWith("daily-limited-"))
+                        {
+                            frameFile = Model.EquippedAvatarFrame.Substring("daily-limited-".Length);
+                            folder = "khung-theo-ngay/khung-gioi-han";
+                            frameFilter = "filter: drop-shadow(0 0 5px #ff5722);";
+                            frameSize = "width: 180px; height: 180px;";
+                        }
+                        else
+                        {
+                            frameFile = Model.EquippedAvatarFrame switch
+                            {
+                                "tier-0" => "khung-sat.webp",
+                                "tier-1" => "khung-dong.webp",
+                                "tier-2" => "khung-sat.webp",
+                                "tier-3" => "khung-vang.webp",
+                                "tier-4" => "khung-bach-kim.webp",
+                                "tier-5" => "khung-luc-bao.png",
+                                "tier-6" => "khung-kim-cuong.webp",
+                                "tier-7" => "khung-ruby.png",
+                                "tier-8" => "khung-niken.png",
+                                "tier-9" => "khung-titan.png",
+                                "tier-10" => "khung-uranium.png",
+                                "tier-11" => "khung-iridium.png",
+                                "vip-moc-1" => "khung-vip-moc-1.png",
+                                "vip-moc-2" => "khung-vip-moc-2.webp",
+                                "vip-moc-3" => "khung-vip-moc-3.webp",
+                                "vip-moc-4" => "khung-vip-moc-4.webp",
+                                _ => null
+                            };
+                            frameFilter = Model.EquippedAvatarFrame switch
+                            {
+                                "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 4px rgba(255,255,255,0.75));",
+                                "tier-5" => "filter: drop-shadow(0 0 4px #00ffd0);",
+                                "tier-6" => "filter: drop-shadow(0 0 4px #a1c4fd);",
+                                "tier-7" => "filter: drop-shadow(0 0 4px #ff0844);",
+                                "tier-10" => "filter: drop-shadow(0 0 5px #39FF14);",
+                                "tier-11" => "filter: drop-shadow(0 0 6px #C77DFF) drop-shadow(0 0 8px #E040FB);",
+                                "vip-moc-1" => "filter: drop-shadow(0 0 5px #ffc107);",
+                                "vip-moc-2" => "filter: drop-shadow(0 0 6px #ffc107);",
+                                "vip-moc-3" => "filter: drop-shadow(0 0 7px #ffc107);",
+                                "vip-moc-4" => "filter: drop-shadow(0 0 8px #ffc107) drop-shadow(0 0 10px #ff0000);",
+                                _ => ""
+                            };
+                            var isVipFrame = Model.EquippedAvatarFrame.StartsWith("vip-moc-");
+                            folder = isVipFrame ? "khung-vip" : "khung-avatar";
+                            frameSize = (Model.EquippedAvatarFrame == "tier-9" || isVipFrame) ? "width: 180px; height: 180px;" : "width: 158px; height: 158px;";
+                        }
+
+                        if (frameFile != null)
+                        {
+                            <img class="avatar-frame-large" src="/image/@folder/@frameFile" asp-append-version="true" style="@(frameSize) max-width: none !important; max-height: none !important; flex-shrink: 0 !important; @frameFilter" />
+                        }
+                    }
+                </div>
+
+                <!-- Equipped Badge at the bottom of Avatar -->
+                @if (!string.IsNullOrEmpty(Model.EquippedBadge) && Model.EquippedBadge != "none")
+                {
+                    var badgeFile = Model.EquippedBadge switch
+                    {
+                        "vip-badge-1" => "thich-thi-nap.png",
+                        "vip-badge-2" => "giau-nut-vach.png",
+                        "vip-badge-3" => "vung-tien-nhu-nuoc.png",
+                        "vip-badge-4" => "nha-co-mo.png",
+                        _ => null
+                    };
+                    if (badgeFile != null)
+                    {
+                        <div style="position: absolute; bottom: -110px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; width: 200px; height: 200px; display: flex; align-items: center; justify-content: center;">
+                            <img src="/image/huy-hieu/@badgeFile" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));" />
+                        </div>
+                    }
+                }
+            </div>
+            @if (Model.RoleName != "Customer" && Model.RoleName != "Admin" && !string.IsNullOrEmpty(Model.RoleName))
+            {
+                <div style="font-size: 15px; font-weight: 800; color: #1a7a2e; background: #e8f7ec; padding: 6px 16px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; margin: 15px 0; border: 1.5px solid #cde9d5; box-shadow: 0 2px 8px rgba(26,122,46,0.08);">
+                    <i class="bi bi-person-badge-fill"></i> @Model.RoleName
+                </div>
+            }
+            @{
+                string[] tierIcons = { "bi-circle-fill", "bi-hexagon-fill", "bi-shield-fill", "bi-star-fill", "bi-diamond-fill", "bi-gem", "bi-gem", "bi-trophy-fill", "bi-award-fill", "bi-brightness-high-fill", "bi-radioactive", "bi-stars" };
+                string tierIcon = tierIcons[Math.Clamp(displayLvl, 0, tierIcons.Length - 1)];
+                string displayTierName = WebBanHang.Services.LoyaltyService.GetTierName(displayLvl);
+            }
+            @if (true)
+            {
+                <div class="tier-badge tier-@displayLvl mb-3" id="profileTierBadge">
+                    <i class="bi @tierIcon" id="profileTierIcon"></i> <span id="profileTierName">@displayTierName</span>
+                </div>
+                <div class="mb-1 text-muted small fw-bold text-uppercase">Điểm tích lũy</div>
+                <div class="point-num">@Model.LoyaltyPoints.ToString("N0")</div>
+                <div class="text-muted small mt-2">Điểm cộng theo công thức: giá trị đơn hàng (trước khi giảm giá) / 200.</div>
+
+                <div class="upgrade-box text-start mt-4">
+                    @if (Model.UpgradeCost.HasValue && Model.NextTierName != null)
+                    {
+                        <div class="fw-bold mb-1">Nâng lên @Model.NextTierName</div>
+                        <div class="small text-muted mb-3">Cần @Model.UpgradeCost.Value.ToString("N0") điểm. Khi nâng cấp, điểm sẽ bị trừ.</div>
+                        <form asp-action="UpgradeTier" method="post">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-success w-100 rounded-pill fw-bold" @(Model.CanUpgrade ? "" : "disabled")>
+                                <i class="bi bi-arrow-up-circle me-1"></i> Nâng hạng
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="fw-bold text-success"><i class="bi bi-trophy-fill me-1"></i> Bạn đã đạt cấp cao nhất.</div>
+                    }
+                </div>
+
+                <div class="mt-3">
+                    <button type="button" id="btnToggleProfile" class="btn btn-outline-secondary w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-person-lines-fill me-1"></i> Thông tin cá nhân
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button type="button" id="btnToggleStore" class="btn btn-outline-danger w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-shop me-1"></i> Cửa hàng
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button type="button" id="btnToggleAchievement" class="btn btn-outline-warning w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-trophy-fill me-1"></i> Thành tích
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button type="button" id="btnToggleInventory" class="btn btn-outline-success w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-briefcase me-1"></i> Túi đồ cá nhân
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button type="button" id="btnToggleOrderHistory" class="btn btn-outline-info w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-clock-history me-1"></i> Lịch sử mua hàng
+                    </button>
+                </div>
+                <div class="mt-2">
+                    <button type="button" id="btnToggleAiChatHistory" class="btn btn-outline-primary w-100 rounded-pill fw-bold btn-sm">
+                        <i class="bi bi-robot me-1"></i> Lịch sử chat AI
+                    </button>
+                </div>
+            }
+        </aside>
+
+        <div id="profileMainColumn" class="profile-main-column">
+            <div id="profileEditSection">
+            <section class="profile-card">
+                <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="FullName" class="field-label"><i class="bi bi-person-badge me-1"></i>@(isCustomerOrAdmin ? "Tên khách hàng" : "Tên nhân viên")</label>
+                        <input asp-for="FullName" class="form-control" placeholder="@(isCustomerOrAdmin ? "Nhập tên hiển thị của bạn..." : "Nhập tên nhân viên...")" />
+                        <div class="text-muted small mt-1">@(isCustomerOrAdmin ? "Tên này sẽ hiển thị trên trang chủ thay cho email." : "Tên hiển thị của nhân viên trên hệ thống.")</div>
+                        <span asp-validation-for="FullName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        @if (Model.MembershipLevel > 0)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="DisplayMembershipLevel" class="field-label"><i class="bi bi-award-fill me-1"></i>Cấp bậc hiển thị</label>
+                                <select asp-for="DisplayMembershipLevel" asp-items="Model.AvailableDisplayLevels" class="form-select"></select>
+                                <div class="text-muted small mt-1">Chọn cấp hiển thị thấp hơn nếu muốn bảo mật thông tin.</div>
+                                <span asp-validation-for="DisplayMembershipLevel" class="text-danger small"></span>
+                            </div>
+                        }
+                        <input type="hidden" asp-for="EquippedAvatarFrame" id="equippedAvatarFrameSelect" />
+                        <input type="hidden" asp-for="EquippedBadge" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Email" class="field-label">Email</label>
+                            <input asp-for="Email" class="form-control" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="PhoneNumber" class="field-label">Số điện thoại</label>
+                            <input asp-for="PhoneNumber" class="form-control" />
+                            <span asp-validation-for="PhoneNumber" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="AvatarUrl" class="field-label">Ảnh đại diện</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <input asp-for="AvatarUrl" class="form-control" id="avatarInput" placeholder="Dán URL ảnh đại diện..." />
+                            <span class="text-muted small">hoặc</span>
+                            <label for="avatarFile" class="btn btn-outline-secondary btn-sm mb-0 px-3 py-2 fw-bold text-nowrap" style="cursor: pointer; border-radius: 8px;">
+                                <i class="bi bi-upload me-1"></i> Chọn file
+                            </label>
+                            <input type="file" name="avatarFile" id="avatarFile" class="d-none" accept="image/*" />
+                        </div>
+                        <div id="fileSelectedName" class="text-success small mt-1 fw-bold" style="display: none;"></div>
+                    </div>
+
+                    @if (true)
+                    {
+                        <div class="mb-3">
+                            <label asp-for="ShippingAddress" class="field-label">Địa chỉ giao hàng</label>
+                            <textarea asp-for="ShippingAddress" class="form-control" rows="4" placeholder="Nhập địa chỉ giao hàng mặc định..."></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="BankAccountLink" class="field-label">Liên kết tài khoản ngân hàng</label>
+                            <input asp-for="BankAccountLink" class="form-control" placeholder="Ví dụ: ngân hàng, số tài khoản, tên chủ tài khoản hoặc liên kết ví..." />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="field-label"><i class="bi bi-share-fill me-1"></i>Liên kết tài khoản mạng xã hội</label>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-6">
+                                    <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-between" style="border: 1px solid #dee2e6 !important;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-google text-danger fs-4"></i>
+                                            <div>
+                                                <div class="fw-bold small text-dark">Tài khoản Google</div>
+                                                <div class="text-muted small" style="font-size: 11px;">
+                                                    @(!string.IsNullOrEmpty(Model.GoogleEmail) ? Model.GoogleEmail : "Chưa liên kết")
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @if (string.IsNullOrEmpty(Model.GoogleEmail))
+                                        {
+                                            <a href="javascript:void(0);" onclick="openOAuthPopup('/MockAuth/GoogleLink')" class="btn btn-outline-danger btn-sm fw-bold rounded-pill px-3">
+                                                <i class="bi bi-plus-circle me-1"></i>Liên kết
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle me-1"></i>Đã liên kết</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="p-3 border rounded bg-light d-flex align-items-center justify-content-between" style="border: 1px solid #dee2e6 !important;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <i class="bi bi-facebook text-primary fs-4"></i>
+                                            <div>
+                                                <div class="fw-bold small text-dark">Tài khoản Facebook</div>
+                                                <div class="text-muted small" style="font-size: 11px;">
+                                                    @(!string.IsNullOrEmpty(Model.FacebookName) ? Model.FacebookName : "Chưa liên kết")
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @if (string.IsNullOrEmpty(Model.FacebookName))
+                                        {
+                                            <a href="javascript:void(0);" onclick="openOAuthPopup('/MockAuth/FacebookLink')" class="btn btn-outline-primary btn-sm fw-bold rounded-pill px-3">
+                                                <i class="bi bi-plus-circle me-1"></i>Liên kết
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle me-1"></i>Đã liên kết</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <button type="submit" class="btn-save-profile">
+                        <i class="bi bi-check2-circle me-1"></i> Lưu thông tin
+                    </button>
+                </form>
+            </section>
+        </div>
+
+
+    <!-- ALERT: Frame exchange / equip success -->
+    @if (TempData["FrameSuccess"] != null)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["FrameSuccess"]?.ToString() ?? ""))', 'success');
+            });
+        </script>
+    }
+    @if (TempData["FrameEquipSuccess"] != null)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                showToast('@Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(TempData["FrameEquipSuccess"]?.ToString() ?? ""))', 'success');
+            });
+        </script>
+    }
+
+    @if (true)
+    {
+    <!-- CỬA HÀNG ĐỔI MÃ GIẢM GIÁ -->
+    <div id="voucherStoreSection" class="d-none">
+        <div class="profile-card">
+            <h4 class="fw-bold mb-3 text-success" style="font-weight:900;">
+                <i class="bi bi-shop me-2"></i>Cửa hàng
+            </h4>
+
+            <!-- Sub-category tab buttons -->
+            <div class="d-flex gap-2 flex-wrap mb-4">
+                <button type="button" id="btnSubTierVoucher"
+                        class="store-sub-btn btn btn-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchStoreSub('tier')">
+                    <i class="bi bi-award me-1"></i>Mã Độc Quyền Theo Cấp Bậc
+                </button>
+                <button type="button" id="btnSubDailyVoucher"
+                        class="store-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchStoreSub('daily')">
+                    <i class="bi bi-lightning-charge-fill me-1"></i>Mã Giảm Giá Hàng Ngày
+                </button>
+                <button type="button" id="btnSubAvatarFrame"
+                        class="store-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchStoreSub('frame')">
+                    <i class="bi bi-person-bounding-box me-1"></i>Khung Avatar
+                </button>
+
+            </div>
+
+            <!-- Sub: Mã Độc Quyền Theo Cấp Bậc -->
+            <div id="storeSub-tier" class="store-sub-panel">
+                <p class="text-muted small mb-3">
+                    Đổi điểm tích lũy lấy mã giảm giá độc quyền theo cấp bậc của bạn. Cấp cao có thể đổi mã của cấp thấp hơn. Mỗi mã chỉ được đổi 1 lần.
+                </p>
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var item in Model.VoucherStoreItems)
+                    {
+                        var isLocked = Model.MembershipLevel < item.Level;
+                        <div class="voucher-store-card p-3 @(item.IsExchanged ? "exchanged" : "")">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                        @item.Title
+                                        <span class="badge bg-secondary-subtle text-secondary small">@item.TierName</span>
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        @if (item.IsExchanged)
+                                        {
+                                            <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Đã đổi: </span>
+                                            <code class="bg-dark text-white px-2 py-1 rounded">@item.GeneratedCode</code>
+                                        }
+                                        else
+                                        {
+                                            <span>Yêu cầu: <strong>@item.RequiredPoints điểm</strong> &amp; @item.TierName</span>
+                                        }
+                                    </div>
+                                </div>
+                                <div style="flex-shrink: 0; margin-left: 15px;">
+                                    @if (item.IsExchanged)
+                                    {
+                                        <button class="btn btn-secondary btn-sm rounded-pill fw-bold" style="white-space: nowrap; font-weight: 800;" disabled>Đã sở hữu</button>
+                                    }
+                                    else if (isLocked)
+                                    {
+                                        <button class="btn btn-outline-secondary btn-sm rounded-pill fw-bold" style="white-space: nowrap; font-weight: 800;" disabled title="Chưa đạt cấp bậc yêu cầu">
+                                            <i class="bi bi-lock-fill"></i> Khóa
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="ExchangeVoucher" method="post" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="level" value="@item.Level" />
+                                            <input type="hidden" name="suffix" value="@item.Suffix" />
+                                            <button type="submit" class="btn btn-success btn-sm rounded-pill fw-bold" style="white-space: nowrap; font-weight: 800;" @(item.CanExchange ? "" : "disabled")>
+                                                Đổi mã
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Sub: Mã Giảm Giá Hàng Ngày -->
+            <div id="storeSub-daily" class="store-sub-panel d-none">
+                <p class="text-muted small mb-3">
+                    Làm mới mỗi ngày vào lúc 12:00 SA. Mọi cấp độ thành viên đều có thể đổi.
+                </p>
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var item in Model.DailyVouchers)
+                    {
+                        <div class="voucher-store-card p-3 @(item.IsExchanged ? "exchanged" : "")" style="@(item.IsFreeShip ? "border: 2px dashed #ff5722; background: #fffcfb;" : "")">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-bold text-dark d-flex align-items-center flex-wrap gap-2">
+                                        @if (item.IsFreeShip)
+                                        {
+                                            <span class="text-danger"><i class="bi bi-truck me-1"></i><strong>@item.Title</strong></span>
+                                            <span class="badge bg-danger text-white">FREE SHIP GIỚI HẠN</span>
+                                            @if (!item.IsExchanged)
+                                            {
+                                                if (item.IsActiveNow)
+                                                {
+                                                    <span class="badge bg-success" style="animation: opacityPulse 1.5s infinite;">@item.FreeShipStatusText</span>
+                                                }
+                                                else if (item.FreeShipStatusText != null && (item.FreeShipStatusText.Contains("SẮP MỞ BÁN") || item.FreeShipStatusText.Contains("Mở bán vào")))
+                                                {
+                                                    <span class="badge bg-warning text-dark">@item.FreeShipStatusText</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary text-white">@item.FreeShipStatusText</span>
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            @item.Title
+                                            <span class="badge bg-success-subtle text-success small">Hàng ngày</span>
+                                        }
+                                    </div>
+                                    <div class="small text-muted mt-1">
+                                        @if (item.IsExchanged)
+                                        {
+                                            <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Đã đổi: </span>
+                                            <code class="bg-dark text-white px-2 py-1 rounded">@item.GeneratedCode</code>
+                                        }
+                                        else
+                                        {
+                                            <span>Yêu cầu: <strong>@item.RequiredPoints điểm</strong></span>
+                                        }
+                                    </div>
+                                </div>
+                                <div style="flex-shrink: 0; margin-left: 15px;">
+                                    @if (item.IsExchanged)
+                                    {
+                                        <button class="btn btn-secondary btn-sm rounded-pill fw-bold" style="white-space: nowrap; font-weight: 800;" disabled>Đã sở hữu</button>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="ExchangeDailyVoucher" method="post" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="index" value="@item.Index" />
+                                            <button type="submit" class="btn btn-success btn-sm rounded-pill fw-bold" style="white-space: nowrap; font-weight: 800;" @(item.CanExchange ? "" : "disabled")>
+                                                Đổi mã
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Sub: Khung Avatar Store -->
+            <div id="storeSub-frame" class="store-sub-panel d-none">
+                <p class="text-muted small mb-3">
+                    Đổi điểm tích lũy lấy khung avatar độc đáo. Sau khi đổi, vào <strong>Túi đồ cá nhân → Khung avatar</strong> để trang bị.
+                </p>
+
+                <!-- Sub-tabs within Avatar Frame Store -->
+                <div class="d-flex gap-2 flex-wrap mb-4 border-bottom pb-3">
+                    <button type="button" id="btnFrameSubTier"
+                            class="frame-sub-btn btn btn-success btn-sm rounded-pill fw-bold px-4"
+                            onclick="switchFrameSub('tier')">
+                        <i class="bi bi-award me-1"></i>Khung cấp bậc
+                    </button>
+                    <button type="button" id="btnFrameSubDaily"
+                            class="frame-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                            onclick="switchFrameSub('daily')">
+                        <i class="bi bi-calendar-event me-1"></i>Khung theo ngày
+                    </button>
+                </div>
+
+                <!-- Frame Panel: Khung Cấp Bậc -->
+                <div id="framePanel-tier" class="frame-sub-panel">
+                    <div class="row g-3">
+                        @foreach (var frame in Model.FrameStoreItems)
+                        {
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="frame-store-card @(frame.IsOwned ? "owned" : frame.CanBuy ? "available" : "locked")"
+                                     style="border-radius: 14px; border: 2px solid @(frame.IsOwned ? "#4caf50" : frame.CanBuy ? "#2196f3" : "#ddd"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(frame.IsOwned ? "#f1fff4" : frame.CanBuy ? "#f0f7ff" : "#fafafa");">
+                                    @if (frame.IsOwned)
+                                    {
+                                        <div style="position: absolute; top: 7px; right: 7px;">
+                                            <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Sở hữu</span>
+                                        </div>
+                                    }
+                                    else if (frame.RequiresTier)
+                                    {
+                                        <div style="position: absolute; top: 7px; right: 7px;">
+                                            <span class="badge bg-secondary" style="font-size: 10px;"><i class="bi bi-lock-fill"></i></span>
+                                        </div>
+                                    }
+                                    <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                            <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                        </div>
+                                        <img src="/image/khung-avatar/@frame.FileName"
+                                             style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; @frame.FilterStyle" />
+                                    </div>
+                                    <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 4px;">@frame.Name</div>
+                                    <div class="text-muted" style="font-size: 11px; margin-bottom: 8px;">
+                                        @if (frame.Cost == 0) { <span class="text-success fw-bold">Miễn phí</span> }
+                                        else { <span>@frame.Cost.ToString("N0") điểm</span> }
+                                    </div>
+                                    @if (frame.IsOwned)
+                                    {
+                                        <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đã sở hữu</button>
+                                    }
+                                    else if (frame.RequiresTier)
+                                    {
+                                        <button class="btn btn-secondary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled title="Cần đạt @frame.TierName">
+                                            <i class="bi bi-lock-fill"></i> @frame.TierName
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <form asp-action="ExchangeAvatarFrame" method="post" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="level" value="@frame.Level" />
+                                            <button type="submit" class="btn @(frame.CanBuy ? "btn-primary" : "btn-outline-secondary") btn-sm rounded-pill fw-bold w-100"
+                                                    style="font-size: 11px; font-weight: 800;" @(frame.CanBuy ? "" : "disabled")
+                                                    title="@(frame.CanBuy ? "Đổi khung này" : "Không đủ điểm")">
+                                                Đổi
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Frame Panel: Khung Theo Ngày -->
+                <div id="framePanel-daily" class="frame-sub-panel d-none">
+                    <!-- Reset & Refresh Section -->
+                    <div class="card border-0 shadow-sm p-4 mb-4" style="border-radius: 16px; background: linear-gradient(135deg, #fff7f3 0%, #fff 100%); border-left: 5px solid #ff5722 !important;">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <div>
+                                <h5 class="fw-bold text-dark mb-1"><i class="bi bi-clock-history me-2 text-warning"></i>Khung Xoay Tua Theo Ngày</h5>
+                                <p class="text-muted small mb-0">
+                                    Hệ thống tự động làm mới lúc <strong>00:00 SA</strong> hàng ngày. Bạn có <strong>3 lượt miễn phí</strong> và <strong>3 lượt tính phí</strong> bằng điểm mỗi ngày.
+                                </p>
+                            </div>
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <div class="bg-white px-3 py-2 rounded-pill border text-center shadow-sm">
+                                    <span class="text-muted small d-block">Đã dùng hôm nay</span>
+                                    <strong class="text-danger">@Model.DailyFrameResetsUsed / 6</strong> <span class="text-muted small">lượt</span>
+                                </div>
+                                @if (Model.DailyFrameResetsUsed < 6)
+                                {
+                                    <form asp-action="RefreshDailyFrames" method="post" id="refreshFramesForm" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="button" class="btn btn-warning rounded-pill fw-bold text-white px-4 shadow-sm" style="transition: all 0.2s;" onclick="showCustomRefreshModal(@Model.NextResetCost);">
+                                            <i class="bi bi-arrow-clockwise me-1"></i> Làm mới 
+                                            @if (Model.NextResetCost == 0)
+                                            {
+                                                <span>(Miễn phí)</span>
+                                            }
+                                            else
+                                            {
+                                                <span>(@Model.NextResetCost điểm)</span>
+                                            }
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-secondary rounded-pill fw-bold px-4" disabled>
+                                        <i class="bi bi-slash-circle me-1"></i> Hết lượt đổi hôm nay
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Frames Grid -->
+                    <div class="row g-3">
+                        @foreach (var frame in Model.DailyFrames)
+                        {
+                            var cardBorderColor = frame.IsLimited ? "#ff5722" : frame.IsOwned ? "#4caf50" : "#2196f3";
+                            var cardBg = frame.IsLimited ? "linear-gradient(135deg, #fff5f0 0%, #fff 100%)" : frame.IsOwned ? "#f1fff4" : "#f0f7ff";
+                            var folder = frame.IsLimited ? "khung-theo-ngay/khung-gioi-han" : "khung-theo-ngay/khung-thuong";
+                            var pulseClass = frame.IsLimited ? "limited-pulse-glow" : "";
+
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="frame-store-card @(frame.IsOwned ? "owned" : frame.CanBuy ? "available" : "locked") @pulseClass"
+                                     style="border-radius: 16px; border: 2px solid @cardBorderColor; padding: 16px; text-align: center; transition: all 0.25s; position: relative; background: @cardBg; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                                    
+                                    <!-- Badges & Countdown on Card -->
+                                    <div style="position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 5;">
+                                        @if (frame.IsLimited)
+                                        {
+                                            <!-- Countdown -->
+                                            <span class="badge bg-dark text-white fw-bold px-2 py-1 shadow-sm daily-countdown" style="font-size: 10px; font-family: monospace; border-left: 3px solid #ff5722;">00:00:00</span>
+                                            <!-- Limited Tag -->
+                                            <span class="badge bg-danger text-white fw-bold px-2 py-1 shadow-sm" style="font-size: 9px; letter-spacing: 0.5px; animation: pulse 1.5s infinite;">LIMITED</span>
+                                        }
+                                        else
+                                        {
+                                            <span></span> <!-- placeholder -->
+                                            @if (frame.IsOwned)
+                                            {
+                                                <span class="badge bg-success shadow-sm" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Sở hữu</span>
+                                            }
+                                        }
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <div style="position: relative; width: 96px; height: 96px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center;">
+                                            <div style="width: 74px; height: 74px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                                <i class="bi bi-person-fill" style="font-size: 38px; color: #1a7a2e;"></i>
+                                            </div>
+                                            <img src="/image/@folder/@frame.FileName" asp-append-version="true"
+                                                 style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; @(frame.IsLimited ? "filter: drop-shadow(0 0 4px #ff5722);" : "")" />
+                                        </div>
+                                        <div class="fw-bold text-dark mb-1" style="font-size: 13px; min-height: 20px;">@frame.Name</div>
+                                        <div class="text-muted fw-bold mb-3" style="font-size: 12px;">
+                                            @if (frame.IsLimited)
+                                            {
+                                                <span class="text-danger"><i class="bi bi-gem me-1"></i>400 điểm</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-primary"><i class="bi bi-award me-1"></i>300 điểm</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        @if (frame.IsOwned)
+                                        {
+                                            <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đã sở hữu</button>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="ExchangeDailyFrame" method="post" class="m-0">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="key" value="@frame.Key" />
+                                                <button type="submit" class="btn @(frame.CanBuy ? "btn-primary shadow-sm" : "btn-outline-secondary") btn-sm rounded-pill fw-bold w-100"
+                                                        style="font-size: 11px; font-weight: 800;" @(frame.CanBuy ? "" : "disabled")
+                                                        title="@(frame.CanBuy ? "Đổi khung này" : "Không đủ điểm")">
+                                                    Đổi ngay
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+
+    <!-- THÀNH TÍCH ĐỘC QUYỀN -->
+    <div id="achievementSection" class="d-none">
+        <div class="profile-card">
+            <h4 class="fw-bold mb-3 text-warning" style="font-weight:900;">
+                <i class="bi bi-trophy-fill me-2 text-warning"></i>Thành Tích Độc Quyền
+            </h4>
+            <p class="text-muted small mb-4">
+                Nhận mã giảm giá khi đạt cột mốc cấp bậc lần đầu tiên.
+            </p>
+            <div class="d-flex flex-column gap-3">
+                @foreach (var item in Model.AchievementItems)
+                {
+                    <div class="card border-light p-3 @(item.IsUnlocked ? "border-success-subtle bg-success-subtle bg-opacity-10" : "opacity-75")" style="border-radius:10px; border: 1.5px solid @(item.IsUnlocked ? "#c3e6cb" : "#eee");">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    @item.Title
+                                    @if (item.IsUnlocked)
+                                    {
+                                        <span class="badge bg-success text-white small">Đã Đạt</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary text-white small">Chưa Đạt</span>
+                                    }
+                                </div>
+                                <div class="small text-muted mt-1">@item.Requirement</div>
+                                <div class="small text-muted mt-1">
+                                    Phần thưởng: <strong>Voucher @item.DiscountValue%</strong> cho đơn hàng
+                                </div>
+                            </div>
+                            <div>
+                                @if (item.IsUnlocked)
+                                {
+                                    <div class="text-end">
+                                        <span class="small text-muted d-block mb-1">Mã của bạn:</span>
+                                        <code class="bg-dark text-white px-2 py-1 rounded">@item.GeneratedCode</code>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-lock fs-4 text-muted"></i>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- TÚI ĐỒ CÁ NHÂN -->
+    <div id="personalInventorySection" class="d-none">
+        <div class="profile-card">
+            <h4 class="fw-bold mb-3 text-success" style="font-weight:900;">
+                <i class="bi bi-briefcase-fill me-2 text-primary"></i>Túi Đồ Cá Nhân
+            </h4>
+
+            <!-- Inventory sub-tab buttons -->
+            <div class="inv-tabs-wrapper d-flex gap-2 mb-4">
+                <button type="button" id="btnInvVoucher"
+                        class="inv-sub-btn btn btn-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchInvSub('voucher')">
+                    <i class="bi bi-ticket-perforated me-1"></i>Mã giảm giá
+                </button>
+                <button type="button" id="btnInvFrame"
+                        class="inv-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchInvSub('frame')">
+                    <i class="bi bi-person-bounding-box me-1"></i>Khung avatar
+                </button>
+                <button type="button" id="btnInvBadge"
+                        class="inv-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                        onclick="switchInvSub('badge')">
+                    <i class="bi bi-award me-1"></i>Huy hiệu
+                </button>
+            </div>
+
+            <!-- Inventory sub: Vouchers -->
+            <div id="invSub-voucher" class="inv-sub-panel">
+                <p class="text-muted small mb-4">Xem toàn bộ các mã giảm giá bạn đang sở hữu từ việc đổi điểm hoặc hoàn thành thành tích.</p>
+                @if (!Model.OwnedVouchers.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-3 text-secondary"></i>
+                        <span>Bạn chưa sở hữu mã giảm giá nào. Hãy tích lũy điểm và đổi mã!</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var item in Model.OwnedVouchers)
+                        {
+                            var isUsed = item.Quantity <= 0;
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card p-3 h-100 @(isUsed ? "opacity-50 bg-light" : "border-success-subtle bg-success bg-opacity-10")"
+                                     style="border-radius: 12px; border: 1.5px solid @(isUsed ? "#eee" : "#c3e6cb"); position: relative; transition: all 0.2s;">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <span class="badge @(isUsed ? "bg-secondary" : "bg-success") text-white">
+                                            @(isUsed ? "Đã sử dụng" : "Chưa sử dụng")
+                                        </span>
+                                        <span class="badge bg-light text-dark border small">@item.SourceType</span>
+                                    </div>
+                                    <div class="fw-bold text-dark fs-5 mb-1">Giảm @item.DiscountValue%</div>
+                                    <div class="small text-muted mb-2">@item.Title</div>
+                                    <div class="small mb-3 text-muted">
+                                        @if (item.MinOrderValue > 0)
+                                        {
+                                            <span>Đơn tối thiểu: <strong>@item.MinOrderValue.ToString("N0")đ</strong></span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-success fw-bold">Không giới hạn đơn hàng</span>
+                                        }
+                                    </div>
+                                    <div class="bg-dark text-white p-2 rounded d-flex justify-content-between align-items-center mb-2" style="gap: 8px;">
+                                        <code class="text-white font-monospace" style="font-size: 13px; word-break: break-all;">@item.Code</code>
+                                        @if (!isUsed)
+                                        {
+                                            <button type="button" class="btn btn-light btn-sm fw-bold text-success border-0 rounded"
+                                                    style="white-space: nowrap; flex-shrink: 0; font-size: 11px; padding: 4px 10px; font-weight: 800;"
+                                                    onclick="copyVoucherCode('@item.Code', this)">
+                                                <i class="bi bi-clipboard"></i> Sao chép
+                                            </button>
+                                        }
+                                    </div>
+                                    <div class="text-muted" style="font-size: 11px;">
+                                        Hạn dùng: @item.StartDate.ToString("dd/MM/yyyy") - @item.EndDate.ToString("dd/MM/yyyy")
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (Model.VoucherTotalPages > 1)
+                    {
+                        <div class="d-flex justify-content-between align-items-center p-3 bg-white border rounded-4 shadow-sm mt-4">
+                            <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                                <span>Trang</span>
+                                <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                                       style="width: 48px; height: 28px; font-size: 13px;"
+                                       value="@Model.VoucherPage" min="1" max="@Model.VoucherTotalPages"
+                                       data-param="voucherPage" data-section="inventory" data-sub="voucher"
+                                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                                <span>/ @Model.VoucherTotalPages</span>
+                                <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                                        style="height: 28px; font-size: 12px; border-radius: 6px;"
+                                        onclick="window.goToPage(this);">
+                                    OK
+                                </button>
+                            </div>
+                            <div class="d-flex gap-2">
+                                @if (Model.VoucherPage > 1)
+                                {
+                                    <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                       href="@Url.Action("Edit", "CustomerProfile", new { voucherPage = Model.VoucherPage - 1, activeSection = "inventory", activeSubInventory = "voucher" })">
+                                        <i class="bi bi-chevron-left"></i> Trước
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                                }
+
+                                @if (Model.VoucherPage < Model.VoucherTotalPages)
+                                {
+                                    <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                       href="@Url.Action("Edit", "CustomerProfile", new { voucherPage = Model.VoucherPage + 1, activeSection = "inventory", activeSubInventory = "voucher" })">
+                                        Sau <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            <!-- Inventory sub: Avatar Frames -->
+            <div id="invSub-frame" class="inv-sub-panel d-none">
+                <p class="text-muted small mb-4">Trang bị khung avatar cho ảnh đại diện của bạn. Click <strong>Sử dụng</strong> để trang bị khung.</p>
+                @if (!Model.OwnedAvatarFrames.Any())
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-person-bounding-box fs-1 d-block mb-3 text-secondary"></i>
+                        <span>Bạn chưa sở hữu khung avatar nào ngoài khung mặc định. Vào <strong>Cửa hàng → Khung Avatar</strong> để đổi!</span>
+                    </div>
+                }
+                else
+                {
+                    var tierFrames = Model.OwnedAvatarFrames.Where(f => f.Key.StartsWith("tier-")).ToList();
+                    var normalFrames = Model.OwnedAvatarFrames.Where(f => f.Key.StartsWith("daily-normal-")).ToList();
+                    var limitedFrames = Model.OwnedAvatarFrames.Where(f => f.Key.StartsWith("daily-limited-")).ToList();
+                    var vipFrames = new List<WebBanHang.ViewModels.OwnedAvatarFrameViewModel>();
+
+                    <!-- Sub-tabs within Owned Avatar Frames -->
+                    <div class="d-flex gap-2 flex-wrap mb-4 border-bottom pb-3">
+                        <button type="button" id="btnOwnedFrameTier"
+                                class="owned-frame-sub-btn btn btn-success btn-sm rounded-pill fw-bold px-4"
+                                onclick="switchOwnedFrameCategory('tier')">
+                            <i class="bi bi-award me-1"></i>Khung cấp bậc
+                        </button>
+                        <button type="button" id="btnOwnedFrameNormal"
+                                class="owned-frame-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                                onclick="switchOwnedFrameCategory('normal')">
+                            <i class="bi bi-person me-1"></i>Khung thường
+                        </button>
+                        <button type="button" id="btnOwnedFrameLimited"
+                                class="owned-frame-sub-btn btn btn-outline-success btn-sm rounded-pill fw-bold px-4"
+                                onclick="switchOwnedFrameCategory('limited')">
+                            <i class="bi bi-gem me-1"></i>Khung giới hạn
+                        </button>
+                    </div>
+
+                    <!-- 1. Panel: Khung Cấp Bậc -->
+                    <div id="ownedFramePanel-tier" class="owned-frame-sub-panel">
+                        <div class="row g-3">
+                            <!-- No frame option -->
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="frame-store-card @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "owned" : "available")"
+                                     style="border-radius: 14px; border: 2px solid @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#4caf50" : "#ddd"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#f1fff4" : "#fafafa");">
+                                    @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                    {
+                                        <div style="position: absolute; top: 7px; right: 7px;">
+                                            <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                        </div>
+                                    }
+                                    <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 3px solid #c8e6c9;">
+                                            <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">Không khung</div>
+                                    <div class="mt-2">
+                                        @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                        {
+                                            <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="frameId" value="none" />
+                                                <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            @foreach (var frame in tierFrames)
+                            {
+                                <div class="col-6 col-sm-4 col-md-3">
+                                    <div class="frame-store-card @(frame.IsEquipped ? "owned" : "available")"
+                                         style="border-radius: 14px; border: 2px solid @(frame.IsEquipped ? "#4caf50" : "#2196f3"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(frame.IsEquipped ? "#f1fff4" : "#f0f7ff");">
+                                        @if (frame.IsEquipped)
+                                        {
+                                            <div style="position: absolute; top: 7px; right: 7px;">
+                                                <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                            </div>
+                                        }
+                                        <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                            <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                                <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                            </div>
+                                            <img src="/image/khung-avatar/@frame.FileName" asp-append-version="true"
+                                                 style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; @frame.FilterStyle" />
+                                        </div>
+                                        <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">@frame.Name</div>
+                                        <div class="mt-2">
+                                            @if (frame.IsEquipped)
+                                            {
+                                                <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="frameId" value="@frame.Key" />
+                                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- 2. Panel: Khung Thường -->
+                    <div id="ownedFramePanel-normal" class="owned-frame-sub-panel d-none">
+                        <div class="row g-3">
+                            <!-- No frame option -->
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="frame-store-card @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "owned" : "available")"
+                                     style="border-radius: 14px; border: 2px solid @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#4caf50" : "#ddd"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#f1fff4" : "#fafafa");">
+                                    @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                    {
+                                        <div style="position: absolute; top: 7px; right: 7px;">
+                                            <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                        </div>
+                                    }
+                                    <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 3px solid #c8e6c9;">
+                                            <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">Không khung</div>
+                                    <div class="mt-2">
+                                        @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                        {
+                                            <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="frameId" value="none" />
+                                                <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            @if (!normalFrames.Any())
+                            {
+                                <div class="col-12 text-center py-4 text-muted w-100">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2 text-secondary"></i>
+                                    <span>Bạn chưa sở hữu khung thường hàng ngày nào.</span>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var frame in normalFrames)
+                                {
+                                    <div class="col-6 col-sm-4 col-md-3">
+                                        <div class="frame-store-card @(frame.IsEquipped ? "owned" : "available")"
+                                             style="border-radius: 14px; border: 2px solid @(frame.IsEquipped ? "#4caf50" : "#2196f3"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(frame.IsEquipped ? "#f1fff4" : "#f0f7ff");">
+                                            @if (frame.IsEquipped)
+                                            {
+                                                <div style="position: absolute; top: 7px; right: 7px;">
+                                                    <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                                </div>
+                                            }
+                                            <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                                <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                                    <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                                </div>
+                                                <img src="/image/khung-theo-ngay/khung-thuong/@frame.FileName" asp-append-version="true"
+                                                     style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; @frame.FilterStyle" />
+                                            </div>
+                                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">@frame.Name</div>
+                                            <div class="mt-2">
+                                                @if (frame.IsEquipped)
+                                                {
+                                                    <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                                }
+                                                else
+                                                {
+                                                    <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="frameId" value="@frame.Key" />
+                                                        <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <!-- 3. Panel: Khung Giới Hạn -->
+                    <div id="ownedFramePanel-limited" class="owned-frame-sub-panel d-none">
+                        <div class="row g-3">
+                            <!-- No frame option -->
+                            <div class="col-6 col-sm-4 col-md-3">
+                                <div class="frame-store-card @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "owned" : "available")"
+                                     style="border-radius: 14px; border: 2px solid @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#4caf50" : "#ddd"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame) ? "#f1fff4" : "#fafafa");">
+                                    @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                    {
+                                        <div style="position: absolute; top: 7px; right: 7px;">
+                                            <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                        </div>
+                                    }
+                                    <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                        <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 3px solid #c8e6c9;">
+                                            <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                        </div>
+                                    </div>
+                                    <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">Không khung</div>
+                                    <div class="mt-2">
+                                        @if (Model.EquippedAvatarFrame == "none" || string.IsNullOrEmpty(Model.EquippedAvatarFrame))
+                                        {
+                                            <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="frameId" value="none" />
+                                                <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            @if (!limitedFrames.Any())
+                            {
+                                <div class="col-12 text-center py-4 text-muted w-100">
+                                    <i class="bi bi-emoji-neutral fs-2 d-block mb-2 text-secondary"></i>
+                                    <span>Bạn chưa sở hữu khung giới hạn nào.</span>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var frame in limitedFrames)
+                                {
+                                    <div class="col-6 col-sm-4 col-md-3">
+                                        <div class="frame-store-card @(frame.IsEquipped ? "owned" : "available")"
+                                             style="border-radius: 14px; border: 2px solid @(frame.IsEquipped ? "#4caf50" : "#2196f3"); padding: 14px; text-align: center; transition: all 0.25s; position: relative; background: @(frame.IsEquipped ? "#f1fff4" : "#f0f7ff");">
+                                            @if (frame.IsEquipped)
+                                            {
+                                                <div style="position: absolute; top: 7px; right: 7px;">
+                                                    <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang dùng</span>
+                                                </div>
+                                            }
+                                            <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center;">
+                                                <div style="width: 70px; height: 70px; border-radius: 50%; background: #e8f7ec; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                                    <i class="bi bi-person-fill" style="font-size: 36px; color: #1a7a2e;"></i>
+                                                </div>
+                                                <img src="/image/khung-theo-ngay/khung-gioi-han/@frame.FileName" asp-append-version="true"
+                                                     style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; @frame.FilterStyle" />
+                                            </div>
+                                            <div class="fw-bold text-dark" style="font-size: 12px; margin-bottom: 8px;">@frame.Name</div>
+                                            <div class="mt-2">
+                                                @if (frame.IsEquipped)
+                                                {
+                                                    <button class="btn btn-success btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;" disabled>Đang trang bị</button>
+                                                }
+                                                else
+                                                {
+                                                    <form asp-action="EquipAvatarFrameDirect" method="post" class="m-0">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="frameId" value="@frame.Key" />
+                                                        <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                                    </form>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+
+                }
+            </div>
+
+            <!-- Inventory sub: Badges -->
+            <div id="invSub-badge" class="inv-sub-panel d-none">
+                <p class="text-muted small mb-4">Chọn huy hiệu hiển thị bên dưới ảnh đại diện của bạn.</p>
+                <div class="row g-3">
+                    <!-- Option: No badge -->
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <div class="frame-store-card p-3 text-center @(Model.EquippedBadge == "none" || string.IsNullOrEmpty(Model.EquippedBadge) ? "owned" : "available")"
+                             style="border-radius: 14px; border: 2px solid @(Model.EquippedBadge == "none" || string.IsNullOrEmpty(Model.EquippedBadge) ? "#4caf50" : "#ddd"); background: @(Model.EquippedBadge == "none" || string.IsNullOrEmpty(Model.EquippedBadge) ? "#f1fff4" : "#fafafa"); position: relative; height: 100%;">
+                            @if (Model.EquippedBadge == "none" || string.IsNullOrEmpty(Model.EquippedBadge))
+                            {
+                                <div style="position: absolute; top: 7px; right: 7px;">
+                                    <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang đeo</span>
+                                </div>
+                            }
+                            <div class="mb-3 mt-4" style="height: 60px; display: flex; align-items: center; justify-content: center;">
+                                <i class="bi bi-slash-circle fs-1 text-muted"></i>
+                            </div>
+                            <div class="fw-bold text-dark mb-3" style="font-size: 12px;">Không dùng huy hiệu</div>
+                            @if (Model.EquippedBadge == "none" || string.IsNullOrEmpty(Model.EquippedBadge))
+                            {
+                                <button class="btn btn-success btn-sm rounded-pill fw-bold w-100 mt-auto" style="font-size: 11px; font-weight: 800;" disabled>Đang đeo</button>
+                            }
+                            else
+                            {
+                                <form asp-action="EquipBadgeDirect" method="post" class="m-0 mt-auto">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="badgeId" value="none" />
+                                    <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+
+                    @foreach (var badge in Model.OwnedBadges)
+                    {
+                        <div class="col-6 col-sm-4 col-md-3">
+                            <div class="frame-store-card p-3 text-center @(badge.IsEquipped ? "owned" : "available")"
+                                 style="border-radius: 14px; border: 2px solid @(badge.IsEquipped ? "#4caf50" : "#2196f3"); background: @(badge.IsEquipped ? "#f1fff4" : "#f0f7ff"); position: relative; height: 100%;">
+                                @if (badge.IsEquipped)
+                                {
+                                    <div style="position: absolute; top: 7px; right: 7px;">
+                                        <span class="badge bg-success" style="font-size: 10px;"><i class="bi bi-check-circle-fill"></i> Đang đeo</span>
+                                    </div>
+                                }
+                                <div class="mb-3 mt-4" style="height: 60px; display: flex; align-items: center; justify-content: center;">
+                                    <img src="/image/huy-hieu/@badge.FileName" style="max-height: 50px; max-width: 100%; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));" />
+                                </div>
+                                <div class="fw-bold text-dark mb-3" style="font-size: 12px;">@badge.Name</div>
+                                @if (badge.IsEquipped)
+                                {
+                                    <button class="btn btn-success btn-sm rounded-pill fw-bold w-100 mt-auto" style="font-size: 11px; font-weight: 800;" disabled>Đang đeo</button>
+                                }
+                                else
+                                {
+                                    <form asp-action="EquipBadgeDirect" method="post" class="m-0 mt-auto">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="badgeId" value="@badge.Key" />
+                                        <button type="submit" class="btn btn-primary btn-sm rounded-pill fw-bold w-100" style="font-size: 11px; font-weight: 800;">Sử dụng</button>
+                                    </form>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- LỊCH SỬ MUA HÀNG -->
+    <div id="orderHistorySection" class="d-none">
+        <div class="profile-card">
+            <h4 class="fw-bold mb-3 text-info" style="font-weight:900;">
+                <i class="bi bi-clock-history me-2"></i>Lịch Sử Mua Hàng
+            </h4>
+            <p class="text-muted small mb-4">Danh sách các đơn hàng bạn đã mua trên hệ thống.</p>
+
+            <!-- BỘ LỌC TÌM KIẾM THEO MÃ ĐƠN HÀNG -->
+            <form method="get" asp-action="Edit" class="mb-4" id="orderSearchForm">
+                <input type="hidden" name="activeSection" value="history" />
+                <div class="input-group" style="max-width: 400px;">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" name="orderSearch" class="form-control border-start-0 ps-0 fw-bold" 
+                           placeholder="Nhập mã đơn hàng (VD: 1078)..." value="@Model.OrderSearch" />
+                    <button type="submit" class="btn btn-info text-white fw-bold px-3">
+                        <i class="bi bi-search me-1"></i> Tìm
+                    </button>
+                    @if (!string.IsNullOrWhiteSpace(Model.OrderSearch))
+                    {
+                        <a asp-action="Edit" asp-route-activeSection="history" class="btn btn-outline-secondary" title="Xóa bộ lọc tìm kiếm">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    }
+                </div>
+            </form>
+
+            @if (!Model.OrderHistory.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-cart-x fs-1 d-block mb-3 text-secondary"></i>
+                    @if (!string.IsNullOrWhiteSpace(Model.OrderSearch))
+                    {
+                        <span>Không tìm thấy đơn hàng nào khớp với mã "<strong>@Model.OrderSearch</strong>".</span>
+                    }
+                    else
+                    {
+                        <span>Bạn chưa có đơn hàng nào. Hãy mua sắm ngay!</span>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    @foreach (var o in Model.OrderHistory)
+                    {
+                        var statusText = o.Status switch
+                        {
+                            0 => "Chờ duyệt",
+                            1 => "Đang soạn hàng",
+                            2 => "Đang giao",
+                            3 => "Thành công",
+                            4 => "Chờ thanh toán",
+                            5 => "Đã hủy",
+                            _ => "Không xác định"
+                        };
+
+                        var statusClass = o.Status switch
+                        {
+                            0 => "bg-warning text-dark",
+                            1 => "bg-info text-white",
+                            2 => "bg-primary text-white",
+                            3 => "bg-success text-white",
+                            4 => "bg-secondary text-white",
+                            5 => "bg-danger text-white",
+                            _ => "bg-dark text-white"
+                        };
+
+                        <div class="card mb-2 order-card" style="border-radius: 12px; border: 1px solid #e0e0e0; overflow: hidden; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3" style="cursor: pointer;" onclick="toggleOrderDetail(@o.Id)">
+                                <div>
+                                    <span class="fw-bold text-dark">Đơn hàng #@o.Id</span>
+                                    <span class="text-muted ms-2 small">@o.OrderDate.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge @statusClass rounded-pill" style="font-size: 11px; font-weight: 700;">@statusText</span>
+                                    <span class="fw-bold text-success" style="font-size: 15px;">@o.TotalAmount.ToString("N0")đ</span>
+                                    <i class="bi bi-chevron-down ms-2 text-muted" id="chevron-@o.Id"></i>
+                                </div>
+                            </div>
+                            <div id="detail-@o.Id" class="order-detail-content d-none p-3 bg-light border-top">
+                                <div class="table-responsive">
+                                    <table class="table table-borderless table-sm m-0">
+                                        <thead>
+                                            <tr class="text-muted small border-bottom">
+                                                <th style="font-weight: 700;">Sản phẩm</th>
+                                                <th class="text-center" style="font-weight: 700;">Số lượng</th>
+                                                <th class="text-end" style="font-weight: 700;">Đơn giá</th>
+                                                <th class="text-end" style="font-weight: 700;">Thành tiền</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var det in o.OrderDetails)
+                                            {
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center justify-content-between py-1">
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                @if (!string.IsNullOrEmpty(det.Product.Image))
+                                                                {
+                                                                    <img src="@det.Product.Image" style="width: 36px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid #eee;" />
+                                                                }
+                                                                <span class="text-dark small fw-bold">@det.Product.Name</span>
+                                                            </div>
+                                                            <button type="button" class="btn btn-sm btn-outline-success fw-bold rounded-pill px-2 py-0"
+                                                                    style="font-size: 11px;"
+                                                                    onclick="openOrderProductReviewModal(@det.ProductId, '@System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(det.Product.Name)')">
+                                                                <i class="bi bi-star-fill me-1"></i> Đánh giá
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td class="text-center align-middle small text-secondary">@det.Quantity.ToString("0.##")</td>
+                                                    <td class="text-end align-middle small text-secondary">@det.Price.ToString("N0")đ</td>
+                                                    <td class="text-end align-middle fw-bold text-dark small">@((det.Quantity * det.Price).ToString("N0"))đ</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="row mt-3 pt-3 border-top g-2 small text-muted">
+                                    <div class="col-sm-6">
+                                        <div><strong>Người nhận:</strong> @o.FullName</div>
+                                        <div><strong>SĐT:</strong> @o.Phone</div>
+                                        <div><strong>Địa chỉ:</strong> @o.Address</div>
+                                    </div>
+                                    <div class="col-sm-6 text-sm-end">
+                                        <div><strong>Hình thức thanh toán:</strong> @o.PaymentMethod</div>
+                                        <div><strong>Trạng thái thanh toán:</strong> @(o.IsPaid ? "Đã thanh toán" : "Chưa thanh toán")</div>
+                                        @if (o.DiscountAmount > 0)
+                                        {
+                                            <div><strong>Giảm giá:</strong> -@o.DiscountAmount.ToString("N0")đ</div>
+                                        }
+                                        @if (o.ShippingFee > 0)
+                                        {
+                                            <div><strong>Phí vận chuyển:</strong> +@o.ShippingFee.ToString("N0")đ</div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.OrderTotalPages > 1)
+                {
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-white border rounded-4 shadow-sm mt-3">
+                        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                            <span>Trang</span>
+                            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                                   style="width: 48px; height: 28px; font-size: 13px;"
+                                   value="@Model.OrderPage" min="1" max="@Model.OrderTotalPages"
+                                   data-param="orderPage" data-section="history"
+                                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                            <span>/ @Model.OrderTotalPages</span>
+                            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                                    onclick="window.goToPage(this);">
+                                OK
+                            </button>
+                        </div>
+                        <div class="d-flex gap-2">
+                            @if (Model.OrderPage > 1)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   href="@Url.Action("Edit", "CustomerProfile", new { orderSearch = Model.OrderSearch, orderPage = Model.OrderPage - 1, chatPage = Model.ChatPage, activeSection = "history" })">
+                                    <i class="bi bi-chevron-left"></i> Trước
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                            }
+
+                            @if (Model.OrderPage < Model.OrderTotalPages)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   href="@Url.Action("Edit", "CustomerProfile", new { orderSearch = Model.OrderSearch, orderPage = Model.OrderPage + 1, chatPage = Model.ChatPage, activeSection = "history" })">
+                                    Sau <i class="bi bi-chevron-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <!-- LỊCH SỬ CHAT AI -->
+    <div id="aiChatHistorySection" class="d-none">
+        <div class="profile-card">
+            <h4 class="fw-bold mb-3 text-primary" style="font-weight:900;">
+                <i class="bi bi-robot me-2"></i>Lịch Sử Chat AI Assistant
+            </h4>
+            <p class="text-muted small mb-4">Các cuộc trò chuyện của bạn với Trợ lý AI Bách Hóa Xanh.</p>
+
+            @if (Model.ChatHistories == null || !Model.ChatHistories.Any())
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-chat-square-text fs-1 d-block mb-3 text-secondary"></i>
+                    <span>Bạn chưa có lịch sử trò chuyện AI nào. Hãy chat với AI Assistant ở góc màn hình!</span>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3 mb-4">
+                    @foreach (var chat in Model.ChatHistories)
+                    {
+                        <div class="card border-0 shadow-sm rounded-3 p-3 bg-light">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-primary rounded-pill px-3 py-1.5"><i class="bi bi-clock me-1"></i>@chat.CreatedAt.ToString("HH:mm - dd/MM/yyyy")</span>
+                                <span class="small text-muted font-monospace">Mã #@chat.Id</span>
+                            </div>
+                            <div class="mb-2 p-2 bg-white rounded border">
+                                <div class="fw-bold text-success small mb-1"><i class="bi bi-person-fill me-1"></i>Bạn hỏi:</div>
+                                <div class="text-dark small">@chat.Question</div>
+                            </div>
+                            <div class="p-2 bg-white rounded border border-primary-subtle">
+                                <div class="fw-bold text-primary small mb-1"><i class="bi bi-robot me-1"></i>AI Phản hồi:</div>
+                                <div class="text-dark small" style="white-space: pre-line;">@chat.Answer</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (Model.ChatTotalPages > 1)
+                {
+                    <div class="d-flex justify-content-between align-items-center p-3 bg-white border rounded-4 shadow-sm">
+                        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                            <span>Trang</span>
+                            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-primary"
+                                   style="width: 48px; height: 28px; font-size: 13px;"
+                                   value="@Model.ChatPage" min="1" max="@Model.ChatTotalPages"
+                                   data-param="chatPage" data-section="aichat"
+                                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                            <span>/ @Model.ChatTotalPages</span>
+                            <button type="button" class="btn btn-sm btn-primary py-0 px-2 fw-bold ms-1"
+                                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                                    onclick="window.goToPage(this);">
+                                OK
+                            </button>
+                        </div>
+                        <div class="d-flex gap-2">
+                            @if (Model.ChatPage > 1)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   asp-action="Edit"
+                                   asp-route-chatPage="@(Model.ChatPage - 1)"
+                                   asp-route-activeSection="aichat">
+                                    <i class="bi bi-chevron-left"></i> Trước
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                            }
+
+                            @if (Model.ChatPage < Model.ChatTotalPages)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   asp-action="Edit"
+                                   asp-route-chatPage="@(Model.ChatPage + 1)"
+                                   asp-route-activeSection="aichat">
+                                    Sau <i class="bi bi-chevron-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+    }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Đánh giá sản phẩm từ Lịch sử mua hàng -->
+<div class="modal fade" id="orderProductReviewModal" tabindex="-1" aria-labelledby="orderProductReviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 shadow border-0">
+            <div class="modal-header bg-success text-white rounded-top-4">
+                <h5 class="modal-title fw-bold" id="orderProductReviewModalLabel">
+                    <i class="bi bi-star-fill text-warning me-2"></i>Đánh giá sản phẩm
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <input type="hidden" id="reviewProductId" value="" />
+                
+                <div class="text-center mb-3">
+                    <span class="text-muted small">Bạn đang đánh giá sản phẩm:</span>
+                    <h6 class="fw-bold text-success mt-1" id="reviewProductNameDisplay">...</h6>
+                </div>
+
+                <!-- Bộ chọn số sao tương tác -->
+                <div class="mb-3 text-center">
+                    <label class="form-label d-block fw-bold mb-2">Chọn mức độ hài lòng:</label>
+                    <div class="d-inline-flex gap-2 justify-content-center align-items-center bg-light px-3 py-2 rounded-pill border" id="starRatingContainer">
+                        <i class="bi bi-star-fill fs-3 text-warning review-star" data-value="1" style="cursor: pointer; transition: color 0.15s;"></i>
+                        <i class="bi bi-star-fill fs-3 text-warning review-star" data-value="2" style="cursor: pointer; transition: color 0.15s;"></i>
+                        <i class="bi bi-star-fill fs-3 text-warning review-star" data-value="3" style="cursor: pointer; transition: color 0.15s;"></i>
+                        <i class="bi bi-star-fill fs-3 text-warning review-star" data-value="4" style="cursor: pointer; transition: color 0.15s;"></i>
+                        <i class="bi bi-star-fill fs-3 text-warning review-star" data-value="5" style="cursor: pointer; transition: color 0.15s;"></i>
+                    </div>
+                    <div class="small fw-bold text-success mt-2" id="starRatingLabel">Rất hài lòng (5 sao)</div>
+                </div>
+
+                <!-- Ô nhận xét -->
+                <div class="mb-3">
+                    <label for="reviewCommentText" class="form-label fw-bold small">Nhận xét của bạn:</label>
+                    <textarea class="form-control rounded-3" id="reviewCommentText" rows="4" placeholder="Hãy chia sẻ trải nghiệm sử dụng sản phẩm này với những khách hàng khác..."></textarea>
+                </div>
+
+                <div id="reviewAlertMsg" class="alert d-none small mb-0 rounded-3"></div>
+            </div>
+            <div class="modal-footer bg-light rounded-bottom-4 border-0">
+                <button type="button" class="btn btn-secondary rounded-pill fw-bold px-4" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-success rounded-pill fw-bold px-4" id="btnSubmitOrderReview" onclick="submitOrderProductReview()">
+                    <i class="bi bi-send-fill me-1"></i>Gửi đánh giá
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (TempData["ShowLevelUp"] != null)
+{
+    var newLvl = int.Parse(TempData["ShowLevelUp"]?.ToString() ?? "0");
+    var tierName = WebBanHang.Services.LoyaltyService.GetTierName(newLvl);
+    
+    <div id="levelUpOverlay" class="lvl-overlay">
+        <div class="lvl-blur-bg"></div>
+        <canvas id="fireworksCanvas"></canvas>
+        <div class="lvl-card lvl-card-tier-@newLvl">
+            <button class="lvl-close-btn" onclick="closeLevelUpModal()">&times;</button>
+            
+            <div class="lvl-banner-graphic">
+                <!-- Golden Wings Image (Second Image from User) -->
+                <div class="lvl-wings-image-wrap">
+                    <img src="/image/gold-wings.png" class="lvl-wings-img" alt="Wings" />
+                </div>
+                
+                <svg class="lvl-banner-svg" viewBox="0 0 400 240" width="100%" height="240" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Gradients -->
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fffde7" />
+                            <stop offset="30%" stop-color="#ffd54f" />
+                            <stop offset="70%" stop-color="#ffb300" />
+                            <stop offset="100%" stop-color="#ff6f00" />
+                        </linearGradient>
+                        <linearGradient id="redGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#e53935" />
+                            <stop offset="100%" stop-color="#b71c1c" />
+                        </linearGradient>
+                        <linearGradient id="darkRedGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#b71c1c" />
+                            <stop offset="100%" stop-color="#7f0000" />
+                        </linearGradient>
+                        
+                        <!-- Glow and Shadows -->
+                        <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                        <filter id="ribbonShadow" x="-10%" y="-10%" width="120%" height="120%">
+                            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.5"/>
+                        </filter>
+                        <filter id="ribbonTextShadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#000" flood-opacity="0.8"/>
+                        </filter>
+                        
+                        <!-- Curved Path for TextPath inside the ribbon -->
+                        <path id="textPathCurve" d="M95 175 Q200 202 305 175" fill="none" />
+                    </defs>
+
+                    <!-- GOLD CROWN SHIELD IN THE CENTER -->
+                    <path class="crown-shield" d="M150 110 L130 70 L165 80 L200 40 L235 80 L270 70 L250 110 L200 140 Z" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+
+                    <!-- STARS ON TOP -->
+                    <!-- Left Star -->
+                    <polygon points="125 39 128 47 137 47 130 52 133 60 125 55 117 60 120 52 113 47 122 47" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+                    <!-- Center Star (Larger) -->
+                    <polygon class="svg-main-star" points="200 0 204 12 217 12 206 19 210 31 200 23 190 31 194 19 183 12 196 12" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+                    <!-- Right Star -->
+                    <polygon points="275 39 278 47 287 47 280 52 283 60 275 55 267 60 270 52 263 47 272 47" fill="url(#goldGrad)" filter="url(#goldGlow)" />
+
+                    <!-- RED RIBBON LAYER -->
+                    <!-- Ribbon Left Fold -->
+                    <path d="M95 160 L65 150 L73 180 L105 187 Z" fill="url(#darkRedGrad)"/>
+                    <path d="M95 160 L105 187 L98 169 Z" fill="#600000"/>
+
+                    <!-- Ribbon Right Fold -->
+                    <path d="M305 160 L335 150 L327 180 L295 187 Z" fill="url(#darkRedGrad)"/>
+                    <path d="M305 160 L295 187 L302 169 Z" fill="#600000"/>
+
+                    <!-- Ribbon Middle Body (Curved) -->
+                    <path d="M90 160 Q200 187 310 160 L315 190 Q200 217 85 190 Z" fill="url(#redGrad)" filter="url(#ribbonShadow)" stroke="#ffcdd2" stroke-width="1.5" />
+
+                    <!-- Curved Congratulation Text inside the Ribbon -->
+                    <text filter="url(#ribbonTextShadow)" dominant-baseline="middle">
+                        <textPath href="#textPathCurve" startOffset="50%" text-anchor="middle" fill="#ffffff" font-family="'Montserrat', 'Outfit', sans-serif" font-size="12.5" font-weight="900" letter-spacing="3.5">
+                            CONGRATULATION
+                        </textPath>
+                    </text>
+                </svg>
+                
+                <div class="lvl-text-container">
+                    <div class="lvl-text-wrap">
+                        <div class="lvl-text-level">LEVEL</div>
+                        <div class="lvl-text-up">UP</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="lvl-content">
+                <h3 class="lvl-title">BẠN ĐẠT CẤP ĐỘ MỚI!</h3>
+                <div class="lvl-desc">Chúc mừng bạn đã thăng hạng lên thành công</div>
+                <div class="lvl-tier-box lvl-tier-box-@newLvl">
+                    <span class="lvl-tier-text">@tierName</span>
+                </div>
+                <div>
+                    <button class="lvl-btn" onclick="closeLevelUpModal()">Tuyệt vời</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function openOAuthPopup(url) {
+            const width = 500;
+            const height = 650;
+            const left = (window.innerWidth - width) / 2 + window.screenX;
+            const top = (window.innerHeight - height) / 2 + window.screenY;
+            
+            window.isRedirecting = false;
+            const popup = window.open(
+                url,
+                'OAuthPopup',
+                `width=${width},height=${height},top=${top},left=${left},resizable=yes,scrollbars=yes,status=yes`
+            );
+            
+            const timer = setInterval(() => {
+                if (!popup || popup.closed) {
+                    clearInterval(timer);
+                    if (!window.isRedirecting) {
+                        window.location.reload();
+                    }
+                }
+            }, 1000);
+        }
+
+        const avatarInput = document.getElementById('avatarInput');
+        const avatarPreview = document.getElementById('avatarPreview');
+        avatarInput?.addEventListener('input', () => {
+            const url = avatarInput.value.trim();
+            avatarPreview.innerHTML = url
+                ? `<img src="${url}" alt="Avatar" onerror="this.parentElement.innerHTML='<i class=&quot;bi bi-person-fill&quot;></i>'" />`
+                : '<i class="bi bi-person-fill"></i>';
+        });
+
+        // Toggle sections
+        const btnToggleProfile = document.getElementById('btnToggleProfile');
+        const btnToggleStore = document.getElementById('btnToggleStore');
+        const btnToggleAchievement = document.getElementById('btnToggleAchievement');
+        const btnToggleInventory = document.getElementById('btnToggleInventory');
+        const btnToggleOrderHistory = document.getElementById('btnToggleOrderHistory');
+        const btnToggleAiChatHistory = document.getElementById('btnToggleAiChatHistory');
+        
+        const profileEditSection = document.getElementById('profileEditSection');
+        const voucherStoreSection = document.getElementById('voucherStoreSection');
+        const achievementSection = document.getElementById('achievementSection');
+        const personalInventorySection = document.getElementById('personalInventorySection');
+        const orderHistorySection = document.getElementById('orderHistorySection');
+        const aiChatHistorySection = document.getElementById('aiChatHistorySection');
+
+        function setButtonActive(btn, isActive, activeClass, inactiveClass, textClass = 'text-white') {
+            if (!btn) return;
+            if (isActive) {
+                btn.classList.remove(inactiveClass);
+                btn.classList.add(activeClass);
+                if (textClass) {
+                    btn.classList.add(textClass);
+                }
+            } else {
+                btn.classList.remove(activeClass);
+                if (textClass) {
+                    btn.classList.remove(textClass);
+                }
+                btn.classList.add(inactiveClass);
+            }
+        }
+
+        function showMainSection(sectionName, scroll = false) {
+            // Hide all first
+            profileEditSection?.classList.add('d-none');
+            voucherStoreSection?.classList.add('d-none');
+            achievementSection?.classList.add('d-none');
+            personalInventorySection?.classList.add('d-none');
+            orderHistorySection?.classList.add('d-none');
+            aiChatHistorySection?.classList.add('d-none');
+
+            // Set all buttons to inactive first
+            setButtonActive(btnToggleProfile, false, 'btn-secondary', 'btn-outline-secondary', 'text-white');
+            setButtonActive(btnToggleStore, false, 'btn-danger', 'btn-outline-danger', 'text-white');
+            setButtonActive(btnToggleAchievement, false, 'btn-warning', 'btn-outline-warning', 'text-dark');
+            setButtonActive(btnToggleInventory, false, 'btn-success', 'btn-outline-success', 'text-white');
+            setButtonActive(btnToggleOrderHistory, false, 'btn-info', 'btn-outline-info', 'text-white');
+            setButtonActive(btnToggleAiChatHistory, false, 'btn-primary', 'btn-outline-primary', 'text-white');
+
+            if (sectionName === 'store') {
+                voucherStoreSection?.classList.remove('d-none');
+                setButtonActive(btnToggleStore, true, 'btn-danger', 'btn-outline-danger', 'text-white');
+                sessionStorage.setItem('activeSection', 'store');
+            } else if (sectionName === 'achievement') {
+                achievementSection?.classList.remove('d-none');
+                setButtonActive(btnToggleAchievement, true, 'btn-warning', 'btn-outline-warning', 'text-dark');
+                sessionStorage.setItem('activeSection', 'achievement');
+            } else if (sectionName === 'inventory') {
+                personalInventorySection?.classList.remove('d-none');
+                setButtonActive(btnToggleInventory, true, 'btn-success', 'btn-outline-success', 'text-white');
+                sessionStorage.setItem('activeSection', 'inventory');
+            } else if (sectionName === 'history' || sectionName === 'orders') {
+                orderHistorySection?.classList.remove('d-none');
+                setButtonActive(btnToggleOrderHistory, true, 'btn-info', 'btn-outline-info', 'text-white');
+                sessionStorage.setItem('activeSection', 'history');
+            } else if (sectionName === 'aichat') {
+                aiChatHistorySection?.classList.remove('d-none');
+                setButtonActive(btnToggleAiChatHistory, true, 'btn-primary', 'btn-outline-primary', 'text-white');
+                sessionStorage.setItem('activeSection', 'aichat');
+            } else {
+                profileEditSection?.classList.remove('d-none');
+                setButtonActive(btnToggleProfile, true, 'btn-secondary', 'btn-outline-secondary', 'text-white');
+                sessionStorage.setItem('activeSection', 'profile');
+            }
+        }
+
+        btnToggleProfile?.addEventListener('click', () => showMainSection('profile'));
+        btnToggleStore?.addEventListener('click', () => showMainSection('store'));
+        btnToggleAchievement?.addEventListener('click', () => showMainSection('achievement'));
+        btnToggleInventory?.addEventListener('click', () => showMainSection('inventory'));
+        btnToggleOrderHistory?.addEventListener('click', () => showMainSection('history'));
+        btnToggleAiChatHistory?.addEventListener('click', () => showMainSection('aichat'));
+
+
+
+        window.toggleOrderDetail = function (orderId) {
+            const detailBlock = document.getElementById(`detail-${orderId}`);
+            const chevron = document.getElementById(`chevron-${orderId}`);
+            if (detailBlock) {
+                if (detailBlock.classList.contains('d-none')) {
+                    detailBlock.classList.remove('d-none');
+                    chevron?.classList.remove('bi-chevron-down');
+                    chevron?.classList.add('bi-chevron-up');
+                } else {
+                    detailBlock.classList.add('d-none');
+                    chevron?.classList.remove('bi-chevron-up');
+                    chevron?.classList.add('bi-chevron-down');
+                }
+            }
+        };
+
+        // Switch store sub-panels
+        window.switchStoreSub = function (tab) {
+            // Hide all sub-panels
+            document.querySelectorAll('.store-sub-panel').forEach(panel => {
+                panel.classList.add('d-none');
+            });
+            // Show target sub-panel
+            const targetPanel = document.getElementById(`storeSub-${tab}`);
+            if (targetPanel) {
+                targetPanel.classList.remove('d-none');
+            }
+
+            // Update sub-tab buttons active state
+            document.querySelectorAll('.store-sub-btn').forEach(btn => {
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            });
+
+            let btnId = '';
+            if (tab === 'tier') btnId = 'btnSubTierVoucher';
+            else if (tab === 'daily') btnId = 'btnSubDailyVoucher';
+            else if (tab === 'frame') btnId = 'btnSubAvatarFrame';
+
+
+            const activeBtn = document.getElementById(btnId);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-success');
+                activeBtn.classList.add('btn-success');
+            }
+
+            sessionStorage.setItem('activeSubStore', tab);
+        };
+
+        // Switch inventory sub-panels
+        window.switchInvSub = function (tab) {
+            // Hide all sub-panels
+            document.querySelectorAll('.inv-sub-panel').forEach(panel => {
+                panel.classList.add('d-none');
+            });
+            // Show target sub-panel
+            const targetPanel = document.getElementById(`invSub-${tab}`);
+            if (targetPanel) {
+                targetPanel.classList.remove('d-none');
+            }
+
+            // Update sub-tab buttons active state
+            document.querySelectorAll('.inv-sub-btn').forEach(btn => {
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            });
+
+            let btnId = '';
+            if (tab === 'voucher') btnId = 'btnInvVoucher';
+            else if (tab === 'frame') btnId = 'btnInvFrame';
+            else if (tab === 'badge') btnId = 'btnInvBadge';
+
+
+            const activeBtn = document.getElementById(btnId);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-success');
+                activeBtn.classList.add('btn-success');
+            }
+
+            sessionStorage.setItem('activeSubInventory', tab);
+        };
+
+        // Switch frame sub-panels in store
+        window.switchFrameSub = function (tab) {
+            // Hide all frame panels inside storeSub-frame
+            document.querySelectorAll('#storeSub-frame .frame-sub-panel').forEach(panel => {
+                panel.classList.add('d-none');
+            });
+            // Show target panel
+            const targetPanel = document.getElementById(`framePanel-${tab}`);
+            if (targetPanel) {
+                targetPanel.classList.remove('d-none');
+            }
+
+            // Update sub-tab buttons active state
+            document.querySelectorAll('.frame-sub-btn').forEach(btn => {
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            });
+
+            let btnId = '';
+            if (tab === 'tier') btnId = 'btnFrameSubTier';
+            else if (tab === 'daily') btnId = 'btnFrameSubDaily';
+
+            const activeBtn = document.getElementById(btnId);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-success');
+                activeBtn.classList.add('btn-success');
+            }
+
+            sessionStorage.setItem('activeSubFrameStore', tab);
+        };
+
+        // Switch owned frame category panels in inventory
+        window.switchOwnedFrameCategory = function (category) {
+            // Hide all owned frame category panels
+            document.querySelectorAll('#invSub-frame .owned-frame-sub-panel').forEach(panel => {
+                panel.classList.add('d-none');
+            });
+            // Show target panel
+            const targetPanel = document.getElementById(`ownedFramePanel-${category}`);
+            if (targetPanel) {
+                targetPanel.classList.remove('d-none');
+            }
+
+            // Update sub-tab buttons active state
+            document.querySelectorAll('.owned-frame-sub-btn').forEach(btn => {
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+            });
+
+            let btnId = '';
+            if (category === 'tier') btnId = 'btnOwnedFrameTier';
+            else if (category === 'normal') btnId = 'btnOwnedFrameNormal';
+            else if (category === 'limited') btnId = 'btnOwnedFrameLimited';
+
+
+            const activeBtn = document.getElementById(btnId);
+            if (activeBtn) {
+                activeBtn.classList.remove('btn-outline-success');
+                activeBtn.classList.add('btn-success');
+            }
+
+            sessionStorage.setItem('activeOwnedFrameCategory', category);
+        };
+
+        // Restore active states on DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Priority: URL Query String > TempData (from backend redirects) > SessionStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const querySection = urlParams.get('activeSection');
+            const querySubStore = urlParams.get('activeSubStore');
+            const querySubInventory = urlParams.get('activeSubInventory');
+
+            const tempDataSection = '@(TempData["ActiveSection"] ?? "")';
+            const tempDataSubStore = '@(TempData["ActiveSubStore"] ?? "")';
+            const tempDataSubInventory = '@(TempData["ActiveSubInventory"] ?? "")';
+            const tempDataSubFrameStore = '@(TempData["ActiveSubFrameStore"] ?? "")';
+
+            let activeSection = querySection || tempDataSection || sessionStorage.getItem('activeSection') || 'store';
+            let activeSubStore = querySubStore || tempDataSubStore || sessionStorage.getItem('activeSubStore') || 'tier';
+            let activeSubInventory = querySubInventory || tempDataSubInventory || sessionStorage.getItem('activeSubInventory') || 'voucher';
+            let activeSubFrameStore = tempDataSubFrameStore || sessionStorage.getItem('activeSubFrameStore') || 'tier';
+            let activeOwnedFrameCategory = sessionStorage.getItem('activeOwnedFrameCategory') || 'tier';
+
+            showMainSection(activeSection, false);
+
+            switchStoreSub(activeSubStore);
+            switchInvSub(activeSubInventory);
+            switchFrameSub(activeSubFrameStore);
+            switchOwnedFrameCategory(activeOwnedFrameCategory);
+        });
+
+        function copyVoucherCode(code, btn) {
+            navigator.clipboard.writeText(code).then(() => {
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Đã chép!';
+                btn.classList.remove('btn-light', 'text-success');
+                btn.classList.add('btn-success', 'text-white');
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('btn-success', 'text-white');
+                    btn.classList.add('btn-light', 'text-success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Không thể sao chép: ', err);
+            });
+        }
+
+        // Real-time synchronization of display tier badge
+        const displayLevelSelect = document.getElementById('DisplayMembershipLevel');
+        const profileTierBadge = document.getElementById('profileTierBadge');
+        const profileTierIcon = document.getElementById('profileTierIcon');
+        const profileTierName = document.getElementById('profileTierName');
+        const jsTierIcons = ["bi-circle-fill", "bi-hexagon-fill", "bi-shield-fill", "bi-star-fill", "bi-diamond-fill", "bi-gem", "bi-gem", "bi-trophy-fill", "bi-award-fill", "bi-brightness-high-fill", "bi-radioactive", "bi-stars"];
+
+         displayLevelSelect?.addEventListener('change', () => {
+            const selectedVal = parseInt(displayLevelSelect.value);
+            if (!isNaN(selectedVal)) {
+                // Remove all tier classes
+                profileTierBadge.className = 'tier-badge mb-3';
+                profileTierBadge.classList.add(`tier-${selectedVal}`);
+
+                // Update icon class
+                const newIcon = jsTierIcons[Math.min(selectedVal, jsTierIcons.length - 1)] || "bi-circle-fill";
+                profileTierIcon.className = `bi ${newIcon}`;
+
+                // Update text
+                const selectedText = displayLevelSelect.options[displayLevelSelect.selectedIndex].text;
+                profileTierName.textContent = selectedText;
+
+                // Update profile-card border class
+                const profileCardAside = document.querySelector('aside.profile-card');
+                if (profileCardAside) {
+                    profileCardAside.className = profileCardAside.className.replace(/\btier-card-\d+\b/g, '');
+                    profileCardAside.classList.add(`tier-card-${selectedVal}`);
+                }
+            }
+        });
+
+        // Real-time synchronization of avatar frame preview
+        const equippedAvatarFrameSelect = document.getElementById('equippedAvatarFrameSelect');
+        const avatarFramePreviewContainer = document.getElementById('avatarFramePreviewContainer');
+
+        equippedAvatarFrameSelect?.addEventListener('change', () => {
+            const selectedVal = equippedAvatarFrameSelect.value;
+            avatarFramePreviewContainer.innerHTML = '';
+            
+            if (selectedVal !== 'none') {
+                // Image frames: make avatar 135px, no border, no shadow
+                avatarPreview.style.width = '135px';
+                avatarPreview.style.height = '135px';
+                avatarPreview.style.border = 'none';
+                avatarPreview.style.boxShadow = 'none';
+                avatarPreview.style.margin = '0';
+                
+                const defaultIcon = avatarPreview.querySelector('i');
+                if (defaultIcon) {
+                    defaultIcon.style.fontSize = '58px';
+                }
+                
+                let frameFile = '';
+                let frameFilter = '';
+                
+                let isVipFrame = false;
+                let isDailyNormal = selectedVal.startsWith('daily-normal-');
+                let isDailyLimited = selectedVal.startsWith('daily-limited-');
+                let folder = isVipFrame ? 'khung-vip' : isDailyNormal ? 'khung-theo-ngay/khung-thuong' : isDailyLimited ? 'khung-theo-ngay/khung-gioi-han' : 'khung-avatar';
+
+                if (isDailyNormal) {
+                    frameFile = selectedVal.substring(13);
+                    frameFilter = '';
+                } else if (isDailyLimited) {
+                    frameFile = selectedVal.substring(14);
+                    frameFilter = 'filter: drop-shadow(0 0 5px #ff5722);';
+                } else {
+                    switch (selectedVal) {
+                        case 'tier-0': frameFile = 'khung-sat.webp'; break;
+                        case 'tier-1': frameFile = 'khung-dong.webp'; break;
+                        case 'tier-2': 
+                            frameFile = 'khung-sat.webp'; 
+                            frameFilter = 'filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 4px rgba(255,255,255,0.75));'; 
+                            break;
+                        case 'tier-3': frameFile = 'khung-vang.webp'; break;
+                        case 'tier-4': frameFile = 'khung-bach-kim.webp'; break;
+                        case 'tier-5': 
+                            frameFile = 'khung-luc-bao.png'; 
+                            frameFilter = 'filter: drop-shadow(0 0 4px #00ffd0);'; 
+                            break;
+                        case 'tier-6': 
+                            frameFile = 'khung-kim-cuong.webp'; 
+                            frameFilter = 'filter: drop-shadow(0 0 4px #a1c4fd);'; 
+                            break;
+                        case 'tier-7': 
+                            frameFile = 'khung-ruby.png'; 
+                            frameFilter = 'filter: drop-shadow(0 0 4px #ff0844);'; 
+                            break;
+                        case 'tier-8': frameFile = 'khung-niken.png'; break;
+                        case 'tier-9': frameFile = 'khung-titan.png'; break;
+                        case 'tier-10': 
+                            frameFile = 'khung-uranium.png'; 
+                            frameFilter = 'filter: drop-shadow(0 0 5px #39FF14);'; 
+                            break;
+                        case 'tier-11': 
+                            frameFile = 'khung-iridium.png'; 
+                            frameFilter = 'filter: drop-shadow(0 0 6px #C77DFF) drop-shadow(0 0 8px #E040FB);'; 
+                            break;
+
+                    }
+                }
+                
+                if (frameFile) {
+                    const fSize = (selectedVal === 'tier-9' || isVipFrame || isDailyLimited) ? '180px' : '158px';
+                    avatarFramePreviewContainer.innerHTML = `<img class="avatar-frame-large" src="/image/${folder}/${frameFile}?t=${new Date().getTime()}" style="width: ${fSize}; height: ${fSize}; max-width: none !important; max-height: none !important; flex-shrink: 0 !important; pointer-events: none; ${frameFilter}" />`;
+                }
+            } else {
+                // No frame: restore default class styles
+                avatarPreview.style.width = '135px';
+                avatarPreview.style.height = '135px';
+                avatarPreview.style.border = '4px solid #fff';
+                avatarPreview.style.boxShadow = '0 4px 18px rgba(0,0,0,.12)';
+                avatarPreview.style.margin = '0 auto 14px';
+                
+                const defaultIcon = avatarPreview.querySelector('i');
+                if (defaultIcon) {
+                    defaultIcon.style.fontSize = '52px';
+                }
+            }
+        });
+
+        // ==========================================
+        // LEVEL UP CELEBRATION & FIREWORKS ANIMATION
+        // ==========================================
+        (function () {
+            const levelUpOverlay = document.getElementById('levelUpOverlay');
+            if (!levelUpOverlay) return;
+
+            const canvas = document.getElementById('fireworksCanvas');
+            const ctx = canvas.getContext('2d');
+            let rockets = [];
+            let particles = [];
+            let animationFrameId = null;
+            let lastTime = 0;
+            let lastSpawnTime = 0;
+
+            let cardRect = null;
+            function updateCardRect() {
+                const card = document.querySelector('.lvl-card');
+                if (card) {
+                    const rect = card.getBoundingClientRect();
+                    cardRect = {
+                        left: rect.left,
+                        right: rect.right,
+                        top: rect.top,
+                        width: rect.width,
+                        height: rect.height
+                    };
+                }
+            }
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                updateCardRect();
+            }
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Re-cache card size once the popIn scale animation settles
+            setTimeout(updateCardRect, 650);
+
+            class Rocket {
+                constructor(startX, startY, targetX, targetY, speed) {
+                    this.x = startX;
+                    this.y = startY;
+                    this.targetX = targetX;
+                    this.targetY = targetY;
+                    this.speed = speed;
+
+                    const dx = targetX - startX;
+                    const dy = targetY - startY;
+                    const dist = Math.hypot(dx, dy);
+                    this.vx = (dx / dist) * speed;
+                    this.vy = (dy / dist) * speed;
+
+                    this.trail = [];
+                    this.trailLength = 12;
+                    this.dead = false;
+
+                    const colors = ['#ff2a5f', '#ffcb00', '#00ffd0', '#00b4d8', '#7b2ff7', '#ffe082'];
+                    this.color = colors[Math.floor(Math.random() * colors.length)];
+                }
+
+                update() {
+                    this.trail.push({ x: this.x, y: this.y });
+                    if (this.trail.length > this.trailLength) {
+                        this.trail.shift();
+                    }
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    // Trigger explosion when rocket reaches target Y or passes it
+                    if (this.vy < 0 && this.y <= this.targetY) {
+                        this.dead = true;
+                        this.explode();
+                    }
+                }
+
+                draw(c) {
+                    c.beginPath();
+                    c.strokeStyle = this.color;
+                    c.lineWidth = 3.0;
+                    c.lineCap = 'round';
+                    for (let i = 0; i < this.trail.length - 1; i++) {
+                        c.moveTo(this.trail[i].x, this.trail[i].y);
+                        c.lineTo(this.trail[i+1].x, this.trail[i+1].y);
+                    }
+                    c.stroke();
+
+                    c.beginPath();
+                    c.arc(this.x, this.y, 4.0, 0, Math.PI * 2);
+                    c.fillStyle = '#ffffff';
+                    c.fill();
+                }
+
+                explode() {
+                    const count = 55 + Math.floor(Math.random() * 15);
+                    for (let i = 0; i < count; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const speed = Math.random() * 5.0 + 2.0;
+                        particles.push(new Particle(this.x, this.y, angle, speed, this.color));
+                    }
+                }
+            }
+
+            class Particle {
+                constructor(x, y, angle, speed, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.color = color;
+                    this.alpha = 1;
+                    this.decay = Math.random() * 0.015 + 0.008;
+                    this.gravity = 0.08;
+                    this.friction = 0.98;
+                    this.radius = Math.random() * 1.5 + 1.2;
+                }
+
+                update() {
+                    this.vx *= this.friction;
+                    this.vy *= this.friction;
+                    this.vy += this.gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.alpha -= this.decay;
+                }
+
+                draw(c) {
+                    // Fast outer glow shell using additive color blending
+                    c.globalAlpha = this.alpha * 0.22;
+                    c.beginPath();
+                    c.arc(this.x, this.y, this.radius * 2.5, 0, Math.PI * 2);
+                    c.fillStyle = this.color;
+                    c.fill();
+                    
+                    // Solid bright core spark
+                    c.globalAlpha = this.alpha;
+                    c.beginPath();
+                    c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                    c.fillStyle = '#ffffff';
+                    c.fill();
+                }
+            }
+
+            function spawnFireworks() {
+                if (!cardRect) updateCardRect();
+                if (!cardRect) return;
+
+                const startX = canvas.width / 2;
+                const startY = canvas.height;
+
+                // Left side target (beside the banner card)
+                const targetYLeft = cardRect.top + cardRect.height * 0.2 + (Math.random() * 80 - 40);
+                const targetXLeft = cardRect.left - 50 - Math.random() * 80;
+                rockets.push(new Rocket(startX, startY, targetXLeft, targetYLeft, Math.random() * 2 + 9.5));
+
+                // Right side target (beside the banner card)
+                const targetYRight = cardRect.top + cardRect.height * 0.2 + (Math.random() * 80 - 40);
+                const targetXRight = cardRect.right + 50 + Math.random() * 80;
+                rockets.push(new Rocket(startX, startY, targetXRight, targetYRight, Math.random() * 2 + 9.5));
+            }
+
+            function animate(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                if (!lastSpawnTime) lastSpawnTime = timestamp;
+
+                const delta = timestamp - lastTime;
+                lastTime = timestamp;
+
+                // Only spawn and animate if document is active / tab is visible
+                if (!document.hidden) {
+                    if (timestamp - lastSpawnTime > 800) {
+                        spawnFireworks();
+                        lastSpawnTime = timestamp;
+                    }
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.globalCompositeOperation = 'lighter';
+                    ctx.globalAlpha = 1.0;
+
+                    for (let i = rockets.length - 1; i >= 0; i--) {
+                        rockets[i].update();
+                        if (rockets[i].dead) {
+                            rockets.splice(i, 1);
+                        } else {
+                            rockets[i].draw(ctx);
+                        }
+                    }
+
+                    for (let i = particles.length - 1; i >= 0; i--) {
+                        particles[i].update();
+                        if (particles[i].alpha <= 0) {
+                            particles.splice(i, 1);
+                        } else {
+                            particles[i].draw(ctx);
+                        }
+                    }
+                    ctx.globalAlpha = 1.0;
+                } else {
+                    // Reset spawn timer so it doesn't trigger immediately when coming back
+                    lastSpawnTime = timestamp;
+                }
+
+                animationFrameId = requestAnimationFrame(animate);
+            }
+
+            // Start animation loop (first frame automatically invokes with timestamp)
+            animationFrameId = requestAnimationFrame(animate);
+
+            // Clean-up handler globalized to window
+            window.closeLevelUpModal = function () {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                window.removeEventListener('resize', resizeCanvas);
+
+                levelUpOverlay.style.transition = 'opacity 0.35s ease';
+                levelUpOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    levelUpOverlay.remove();
+                }, 350);
+            };
+        })();
+
+        // Refresh Daily Frames Custom Modal Dialog
+        window.showCustomRefreshModal = function (cost) {
+            const existingModal = document.querySelector('.custom-modal-overlay');
+            if (existingModal) existingModal.remove();
+
+            const title = "Xác nhận làm mới";
+            const desc = cost === 0 
+                ? "Bạn có chắc chắn muốn làm mới danh sách khung hàng ngày? Lượt đổi này là hoàn toàn MIỄN PHÍ."
+                : `Lượt đổi này sẽ tốn ${cost} điểm tích lũy của bạn. Bạn có chắc chắn muốn tiếp tục?`;
+
+            const modalHtml = `
+                <div class="custom-modal-overlay">
+                    <div class="custom-modal-card">
+                        <div class="custom-modal-icon">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </div>
+                        <div class="custom-modal-title">${title}</div>
+                        <div class="custom-modal-desc">${desc}</div>
+                        <div class="custom-modal-actions">
+                            <button type="button" class="custom-modal-btn custom-modal-btn-cancel" id="btnCancelCustomModal">Hủy bỏ</button>
+                            <button type="button" class="custom-modal-btn custom-modal-btn-confirm" id="btnConfirmCustomModal">Đồng ý</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = modalHtml.trim();
+            const modalEl = tempDiv.firstChild;
+            document.body.appendChild(modalEl);
+
+            requestAnimationFrame(() => {
+                modalEl.classList.add('active');
+            });
+
+            const closeModal = function () {
+                modalEl.classList.remove('active');
+                setTimeout(() => {
+                    modalEl.remove();
+                }, 300);
+            };
+
+            modalEl.querySelector('#btnCancelCustomModal').addEventListener('click', closeModal);
+            modalEl.querySelector('#btnConfirmCustomModal').addEventListener('click', function () {
+                closeModal();
+                document.getElementById('refreshFramesForm')?.submit();
+            });
+
+            modalEl.addEventListener('click', function (e) {
+                if (e.target === modalEl) {
+                    closeModal();
+                }
+            });
+        };
+
+        // Countdown to Midnight Timer
+        (function () {
+            function updateCountdowns() {
+                const now = new Date();
+                const midnight = new Date();
+                midnight.setHours(24, 0, 0, 0); // 00:00:00 of tomorrow
+                
+                const diffMs = midnight - now;
+                if (diffMs <= 0) {
+                    document.querySelectorAll('.daily-countdown').forEach(el => {
+                        el.textContent = "00:00:00";
+                    });
+                    return;
+                }
+
+                const hours = Math.floor(diffMs / 3600000);
+                const minutes = Math.floor((diffMs % 3600000) / 60000);
+                const seconds = Math.floor((diffMs % 60000) / 1000);
+
+                const formattedTime = [
+                    hours.toString().padStart(2, '0'),
+                    minutes.toString().padStart(2, '0'),
+                    seconds.toString().padStart(2, '0')
+                ].join(':');
+
+                document.querySelectorAll('.daily-countdown').forEach(el => {
+                    el.textContent = formattedTime;
+                });
+            }
+            setInterval(updateCountdowns, 1000);
+            updateCountdowns();
+        })();
+
+        // Avatar file upload preview
+        document.getElementById('avatarFile')?.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const fileSelectedName = document.getElementById('fileSelectedName');
+            const avatarPreview = document.getElementById('avatarPreview');
+
+            if (file) {
+                if (fileSelectedName) {
+                    fileSelectedName.textContent = "Đã chọn file: " + file.name;
+                    fileSelectedName.style.display = "block";
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    if (avatarPreview) {
+                        avatarPreview.innerHTML = `<img src="${event.target.result}" alt="Avatar" />`;
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else {
+                if (fileSelectedName) {
+                    fileSelectedName.textContent = "";
+                    fileSelectedName.style.display = "none";
+                }
+            }
+        });
+
+        // ==========================================
+        // KHÁCH HÀNG ĐÁNH GIÁ SẢN PHẨM TỪ LỊCH SỬ MUA HÀNG
+        // ==========================================
+        let currentSelectedRating = 5;
+
+        window.openOrderProductReviewModal = function(productId, productName) {
+            document.getElementById('reviewProductId').value = productId;
+            document.getElementById('reviewProductNameDisplay').textContent = productName;
+            document.getElementById('reviewCommentText').value = '';
+            
+            const alertMsg = document.getElementById('reviewAlertMsg');
+            alertMsg.className = 'alert d-none small mb-0 rounded-3';
+            alertMsg.textContent = '';
+
+            setOrderReviewRating(5);
+
+            const modalEl = document.getElementById('orderProductReviewModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        };
+
+        function setOrderReviewRating(rating) {
+            currentSelectedRating = rating;
+            const stars = document.querySelectorAll('#starRatingContainer .review-star');
+            stars.forEach((star, idx) => {
+                if (idx < rating) {
+                    star.classList.remove('text-secondary');
+                    star.classList.add('text-warning');
+                } else {
+                    star.classList.remove('text-warning');
+                    star.classList.add('text-secondary');
+                }
+            });
+
+            const ratingLabels = {
+                1: "Rất không hài lòng (1 sao)",
+                2: "Không hài lòng (2 sao)",
+                3: "Bình thường (3 sao)",
+                4: "Hài lòng (4 sao)",
+                5: "Rất hài lòng (5 sao)"
+            };
+            document.getElementById('starRatingLabel').textContent = ratingLabels[rating] || "";
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const stars = document.querySelectorAll('#starRatingContainer .review-star');
+            stars.forEach(star => {
+                star.addEventListener('click', function() {
+                    const val = parseInt(this.getAttribute('data-value'));
+                    setOrderReviewRating(val);
+                });
+            });
+        });
+
+        window.submitOrderProductReview = async function() {
+            const productId = document.getElementById('reviewProductId').value;
+            const comment = document.getElementById('reviewCommentText').value.trim();
+            const alertMsg = document.getElementById('reviewAlertMsg');
+            const submitBtn = document.getElementById('btnSubmitOrderReview');
+
+            if (!comment) {
+                alertMsg.className = 'alert alert-danger small mb-0 rounded-3 d-block';
+                alertMsg.textContent = 'Vui lòng nhập nội dung nhận xét sản phẩm.';
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang gửi...';
+
+            try {
+                const formData = new FormData();
+                formData.append('productId', productId);
+                formData.append('rating', currentSelectedRating);
+                formData.append('comment', comment);
+
+                const response = await fetch('/Home/AddReview', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alertMsg.className = 'alert alert-success small mb-0 rounded-3 d-block';
+                    alertMsg.textContent = data.message || 'Gửi đánh giá thành công!';
+                    setTimeout(() => {
+                        const modalEl = document.getElementById('orderProductReviewModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }, 1200);
+                } else {
+                    alertMsg.className = 'alert alert-danger small mb-0 rounded-3 d-block';
+                    alertMsg.textContent = data.message || 'Đã có lỗi xảy ra khi gửi đánh giá.';
+                }
+            } catch (err) {
+                alertMsg.className = 'alert alert-danger small mb-0 rounded-3 d-block';
+                alertMsg.textContent = 'Lỗi kết nối máy chủ. Vui lòng thử lại sau.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="bi bi-send-fill me-1"></i>Gửi đánh giá';
+            }
+        };
+    </script>
+}

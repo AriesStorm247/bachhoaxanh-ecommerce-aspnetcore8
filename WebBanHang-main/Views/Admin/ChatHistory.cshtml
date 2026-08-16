@@ -1,0 +1,39 @@
+@model List<WebBanHang.ViewModels.ChatHistoryViewModel>
+
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+<h2>Lịch sử AI Chat</h2>
+<table class="table">
+    <tr>
+        <th>Thời gian</th>
+        <th>Tên người hỏi</th>
+        <th>Email</th>
+        <th>Câu hỏi</th>
+        <th>Trả lời</th>
+    </tr>
+    @foreach (var x in Model)
+    {
+        <tr>
+            <td>
+                @x.CreatedAt
+            </td>
+            <td>
+                @(string.IsNullOrWhiteSpace(x.FullName) ? "Khách vãng lai" : x.FullName)
+            </td>
+            <td>
+                @(string.IsNullOrWhiteSpace(x.Email) ? "-" : x.Email)
+            </td>
+            <td>
+                @x.Question
+            </td>
+            <td>
+                @x.Answer
+            </td>
+        </tr>
+    }
+</table>

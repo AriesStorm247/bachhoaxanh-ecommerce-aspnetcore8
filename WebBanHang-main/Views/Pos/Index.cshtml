@@ -1,0 +1,1862 @@
+@inject WebBanHang.Data.ApplicationDbContext Db
+@{
+    ViewData["Title"] = "Quầy Thanh Toán POS";
+    Layout = "_Layout";
+}
+
+    <style>
+        /* === POS THEME CUSTOMIZATIONS === */
+        .pos-container {
+            margin-top: 10px;
+            font-family: 'Be Vietnam Pro', sans-serif;
+        }
+        
+        .card-premium {
+            background: var(--white);
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0,0,0,0.06);
+            overflow: hidden;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        html.dark-theme .card-premium {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border-color: #333;
+        }
+
+        .pos-header {
+            background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-main) 100%);
+            color: #white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(44,158,71,0.2);
+        }
+
+        .search-results-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--white);
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            display: none;
+        }
+
+        html.dark-theme .search-results-box {
+            border-color: #444;
+        }
+
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        html.dark-theme .search-result-item {
+            border-color: #333;
+        }
+
+        .search-result-item:hover {
+            background: var(--green-light);
+            color: var(--green-dark);
+        }
+
+        .search-result-item img {
+            width: 35px;
+            height: 35px;
+            border-radius: 4px;
+            object-fit: cover;
+        }
+
+        .pos-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            font-weight: 700;
+        }
+
+        .pos-table td {
+            vertical-align: middle;
+        }
+
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            border: 1.5px solid #ececec;
+            border-radius: 20px;
+            width: fit-content;
+            overflow: hidden;
+            background: #fafafa;
+        }
+        
+        html.dark-theme .quantity-control {
+            border-color: #444;
+            background: #242424;
+        }
+
+        .quantity-control button {
+            border: none;
+            background: none;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--gray-text);
+            transition: background 0.2s;
+        }
+
+        .quantity-control button:hover {
+            background: #e8f7ec;
+            color: var(--green-dark);
+        }
+
+        .quantity-control input {
+            border: none;
+            width: 35px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            background: transparent;
+            color: var(--gray-text);
+            outline: none;
+        }
+
+        .payment-method-btn {
+            border: 2px solid #ececec;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--white);
+            color: var(--gray-text);
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        html.dark-theme .payment-method-btn {
+            border-color: #333;
+        }
+
+        .payment-method-btn i {
+            font-size: 24px;
+            color: #888;
+        }
+
+        .payment-method-btn.active {
+            border-color: var(--green-main);
+            background: var(--green-light);
+            color: var(--green-dark);
+        }
+
+        .payment-method-btn.active i {
+            color: var(--green-main);
+        }
+
+        /* === PRINTER STYLE (THERMAL RECEIPT FORMAT) === */
+        #receiptPrintArea {
+            display: none;
+            width: 76mm;
+            padding: 2mm;
+            background: #fff;
+            color: #000;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 4mm;
+        }
+
+        .receipt-header h4 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 900;
+        }
+
+        .receipt-divider {
+            border-top: 1px dashed #000;
+            margin: 2mm 0;
+        }
+
+        .receipt-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .receipt-table th {
+            text-align: left;
+            border-bottom: 1px dashed #000;
+            font-size: 11px;
+        }
+
+        .receipt-table td {
+            padding: 1mm 0;
+            font-size: 11px;
+        }
+
+        .receipt-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 1mm 0;
+        }
+
+        @@media print {
+            body * {
+                visibility: hidden;
+            }
+            #receiptPrintArea, #receiptPrintArea * {
+                visibility: visible;
+            }
+            #receiptPrintArea {
+                display: block !important;
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                top: 0;
+                margin: 0;
+                padding: 0;
+                width: 76mm;
+            }
+            /* Hướng giấy in nhiệt tự động */
+            @@page {
+                size: auto;
+                margin: 0mm;
+            }
+        }
+
+        /* Camera reader styling */
+        #reader {
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            border: 2px solid #ccc;
+            transition: all 0.15s ease;
+        }
+
+        /* Hiệu ứng nháy quét thành công */
+        .scanner-flash {
+            border-color: #2c9e47 !important;
+            box-shadow: 0 0 20px rgba(44, 158, 71, 0.5) !important;
+        }
+
+        /* Bo viền ô nhập mã vạch khi bình thường và hover */
+        #barcodeInput {
+            border: 2px solid #ced4da !important;
+            border-radius: 25px !important;
+            transition: all 0.2s ease-in-out;
+        }
+
+        #barcodeInput:hover {
+            border-color: #a0a0a0 !important;
+        }
+
+        #barcodeInput:focus {
+            border-color: var(--yellow-sale) !important;
+            box-shadow: 0 0 0 0.25rem rgba(255, 214, 0, 0.2) !important;
+        }
+    </style>
+
+<div class="container-fluid pos-container">
+    <!-- Header -->
+    <div class="pos-header text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h3 class="mb-0 fw-black"><i class="bi bi-qr-code-scan me-2"></i>Hệ Thống Thanh Toán POS</h3>
+            <small class="opacity-75">Bách Hóa XANH - Giao dịch trực tiếp tại quầy</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-success fw-bold py-2 px-3" style="font-size: 13px; height: 38px; display: flex; align-items: center; border-radius: 8px;">
+                <i class="bi bi-person-fill-check me-1"></i>Thu ngân: @ViewBag.CashierName
+            </span>
+            <div class="d-flex align-items-center bg-white text-dark p-1 rounded gap-1" style="border-radius: 8px !important; height: auto; min-height: 38px; padding: 4px 8px !important; flex-wrap: wrap;">
+                <span class="text-secondary small fw-bold me-1">Chọn chi nhánh:</span>
+                <select id="posProvinceSelect" class="form-select form-select-sm border-0 bg-light fw-bold" style="width: auto; outline: none; box-shadow: none; border-radius: 6px; white-space: nowrap; flex-shrink: 0;">
+                    <option value="">-- Tỉnh/TP --</option>
+                </select>
+                <select id="posDistrictSelect" class="form-select form-select-sm border-0 bg-light fw-bold" style="width: auto; outline: none; box-shadow: none; border-radius: 6px; white-space: nowrap; flex-shrink: 0;" disabled>
+                    <option value="">-- Phường/Xã --</option>
+                </select>
+                <select id="posBranchSelect" class="form-select form-select-sm border-0 bg-light fw-bold" style="width: auto; outline: none; box-shadow: none; border-radius: 6px; white-space: nowrap; flex-shrink: 0;" disabled>
+                    <option value="">-- Chi nhánh --</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- CỘT TRÁI: QUÉT MÃ & DANH SÁCH SẢN PHẨM -->
+        <div class="col-lg-7">
+            <div class="card card-premium">
+                <div class="card-body p-4">
+                    <!-- Tìm kiếm / Quét mã vạch -->
+                    <div class="row g-2 mb-4 position-relative">
+                        <div class="col">
+                            <div class="search-bar" style="position: relative;">
+                                <input type="text" id="barcodeInput" class="form-control py-3 ps-4 pe-4" 
+                                       placeholder="Nhập mã vạch sản phẩm" autocomplete="off" autofocus />
+                            </div>
+                            <!-- Autocomplete Search Results -->
+                            <div class="search-results-box" id="searchResults"></div>
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" id="btnToggleCamera" class="btn btn-success py-3 px-4 fw-bold" onclick="toggleCameraScan()">
+                                <i class="bi bi-camera-fill me-2"></i>Quét Camera
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Camera Scanner Container (Inline) -->
+                    <div id="cameraScannerContainer" class="card mb-4 border-success-subtle" style="display: none; border: 1.5px solid var(--green-main); border-radius: 12px; overflow: hidden; background: var(--bs-body-bg);">
+                        <div class="card-header bg-success-subtle d-flex justify-content-between align-items-center py-2 px-3">
+                            <span class="fw-bold text-success" style="font-size: 14px;"><i class="bi bi-camera-fill me-1"></i>Máy Quét Camera Tự Động</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <select id="cameraSourceSelect" class="form-select form-select-sm" style="width: auto; max-width: 200px;" onchange="switchCamera(this.value)">
+                                    <option value="">Đang tìm camera...</option>
+                                </select>
+                                <button type="button" class="btn btn-sm btn-success text-white py-0 px-2" onclick="refreshCurrentCamera()" title="Tải lại camera">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                <button type="button" class="btn-close text-success" onclick="toggleCameraScan(false)" aria-label="Close" style="font-size: 10px;"></button>
+                            </div>
+                        </div>
+                        <div class="card-body text-center p-3">
+                            <div id="reader" style="width: 100%; max-width: 320px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #000; border: 2px solid #ccc;"></div>
+                            <p class="text-muted small mb-0 mt-2"><i class="bi bi-info-circle me-1"></i>Máy quét đang hoạt động liên tục. Đưa mã vạch sản phẩm lại gần camera.</p>
+                        </div>
+                    </div>
+
+                    <!-- Bảng giỏ hàng POS -->
+                    <div class="table-responsive" style="max-height: 520px; overflow-y: auto;">
+                        <table class="table table-hover pos-table">
+                            <thead>
+                                <tr class="text-secondary border-bottom">
+                                    <th style="width: 50px;">Ảnh</th>
+                                    <th>Tên sản phẩm</th>
+                                    <th class="text-end" style="width: 110px;">Đơn giá</th>
+                                    <th class="text-center" style="width: 120px;">Số lượng</th>
+                                    <th class="text-end" style="width: 120px;">Thành tiền</th>
+                                    <th class="text-center" style="width: 50px;">Xóa</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartTableBody">
+                                <!-- Trống mặc định -->
+                                <tr id="emptyCartRow">
+                                    <td colspan="6" class="text-center text-muted py-5">
+                                        <i class="bi bi-upc-scan d-block fs-1 mb-2"></i>
+                                        Chưa có sản phẩm nào được quét.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CỘT PHẢI: THÔNG TIN KHÁCH HÀNG & THANH TOÁN -->
+        <div class="col-lg-5">
+            <!-- 1. Tra cứu hội viên -->
+            <div class="card card-premium mb-3">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-person-circle text-success me-2"></i>Tra Cứu Khách Hàng (Tích điểm)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="input-group">
+                        <input type="text" id="customerPhoneInput" class="form-control" placeholder="Số điện thoại hoặc Email khách hàng..." />
+                        <button class="btn btn-success fw-bold" type="button" onclick="searchCustomer()">
+                            <i class="bi bi-search me-1"></i>Tìm
+                        </button>
+                    </div>
+
+                    <!-- Thông tin khách hàng nếu tìm thấy -->
+                    <div id="customerInfoCard" class="mt-3 p-3 rounded bg-light border" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-2" style="min-width: 0;">
+                            <span class="fw-bold fs-5 text-success text-truncate me-2" id="custName" style="max-width: 70%;">Nguyễn Văn A</span>
+                            <span class="badge bg-warning text-dark fw-black px-2 py-1 fs-6 flex-shrink-0" id="custTier">Hạng Bạc</span>
+                        </div>
+                        <div class="row text-muted" style="font-size: 13px;">
+                            <div class="col-6">
+                                <i class="bi bi-telephone-fill me-1"></i><span id="custPhone">0987654321</span>
+                            </div>
+                            <div class="col-6 text-end">
+                                <i class="bi bi-gem me-1"></i>Điểm: <strong class="text-dark" id="custPoints">350</strong>
+                            </div>
+                        </div>
+
+                        <!-- Danh sách Voucher của khách hàng -->
+                        <div class="mt-3 pt-2 border-top">
+                            <label class="form-label small fw-bold text-secondary">CHỌN VOUCHER CỦA KHÁCH HÀNG</label>
+                            <select id="voucherSelect" class="form-select" onchange="applyVoucher()">
+                                <option value="">-- Không sử dụng voucher --</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Chi tiết thanh toán -->
+            <div class="card card-premium">
+                <div class="card-header bg-transparent border-bottom py-3">
+                    <h5 class="mb-0 fw-bold"><i class="bi bi-wallet2 text-success me-2"></i>Thông Tin Thanh Toán</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Chi tiết hóa đơn -->
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Tổng tiền hàng:</span>
+                        <span class="fw-bold" id="lblSubtotal">0đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2 text-danger" id="rowMemberDiscount" style="display: none !important;">
+                        <span class="text-muted">Chiết khấu thành viên (<span id="lblMemberPct">0%</span>):</span>
+                        <span class="fw-bold" id="lblMemberDiscount">-0đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 text-danger" id="rowVoucherDiscount" style="display: none !important;">
+                        <span class="text-muted">Voucher giảm giá (<span id="lblVoucherCode">WELCOME</span>):</span>
+                        <span class="fw-bold" id="lblVoucherDiscount">-0đ</span>
+                    </div>
+                    <div class="receipt-divider my-2"></div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <span class="fs-5 fw-bold text-success">Khách cần thanh toán:</span>
+                        <span class="fs-3 fw-black text-danger" id="lblTotal">0đ</span>
+                    </div>
+
+                    <!-- Phương thức thanh toán -->
+                    <label class="form-label small fw-bold text-secondary mb-2">HÌNH THỨC THANH TOÁN</label>
+                    <div class="row g-2 mb-4">
+                        <div class="col-6">
+                            <div class="payment-method-btn active" data-method="Tiền mặt" onclick="setPaymentMethod('Tiền mặt')">
+                                <i class="bi bi-cash-stack"></i>
+                                <span>Tiền mặt</span>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="payment-method-btn" data-method="Chuyển khoản" onclick="setPaymentMethod('Chuyển khoản')">
+                                <i class="bi bi-qr-code"></i>
+                                <span>Chuyển khoản</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Khu vực tiền mặt -->
+                    <div id="cashPaymentArea">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary">TIỀN KHÁCH ĐƯA (VNĐ)</label>
+                            <input type="text" id="cashReceivedInput" class="form-control py-2 fs-5 fw-bold text-success" placeholder="Nhập số tiền..." oninput="calculateCashChange()" />
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded border mb-4">
+                            <span class="fw-bold text-muted">Tiền thừa trả khách:</span>
+                            <span class="fs-4 fw-black text-success" id="lblCashChange">0đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Khu vực chuyển khoản (VietQR) -->
+                    <div id="qrPaymentArea" style="display: none;" class="text-center p-3 bg-light rounded border mb-4">
+                        <p class="small text-muted mb-2"><i class="bi bi-info-circle-fill text-info me-1"></i>Mã QR chính thức sẽ hiển thị sau khi tạo đơn chuyển khoản</p>
+                        <div id="qrCodeContainer" class="d-inline-block p-2 bg-white rounded border mb-2">
+                            <!-- VietQR Image -->
+                            <img id="vietQrImg" src="" alt="VietQR Code" style="width: 320px; height: 320px; object-fit: contain; display: none;" />
+                            <div id="vietQrPlaceholder" class="d-flex align-items-center justify-content-center text-muted small text-center px-3" style="width: 320px; height: 320px;">
+                                Chờ tạo đơn chuyển khoản
+                            </div>
+                        </div>
+                        <h6 class="mb-1 fw-bold text-success">Số tài khoản: 34675617 (ACB)</h6>
+                        <small class="text-muted">Chủ TK: VO VAN PHU | Nội dung: <span class="fw-bold text-dark" id="lblQrMessage">Chờ tạo đơn</span></small>
+                    </div>
+
+
+
+                    <!-- Nút thanh toán -->
+                    <button type="button" class="btn btn-danger btn-submit py-3 fw-bold fs-5" id="btnCheckout" onclick="processCheckout()">
+                        <i class="bi bi-printer-fill me-2"></i>THANH TOÁN & IN HÓA ĐƠN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CAMERA SCANNER REMOVED (INLINE SCANNER USED INSTEAD) -->
+
+<!-- MODAL: BARCODE PREVIEW FOR TEST SCANNING -->
+<div class="modal fade" id="barcodePreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-success text-white py-2 border-0">
+                <h6 class="modal-title fw-bold" id="barcodePreviewTitle">Mã Vạch Sản Phẩm</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <svg id="previewBarcodeSvg" style="max-width: 100%;"></svg>
+                <p class="small text-muted mt-2 mb-0" id="previewBarcodeName"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POS Branch Required Modal -->
+<div class="modal fade" id="posBranchRequiredModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="posBranchRequiredModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content stock-modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-body p-4 text-center">
+                <div class="stock-icon-badge mb-3 bg-warning-subtle text-warning" style="width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 28px;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                
+                <h5 class="fw-bold mb-3 text-warning" id="posBranchRequiredModalLabel">THÔNG BÁO!</h5>
+                
+                <div class="stock-message-body text-center mb-4">
+                    <p class="mb-0 fw-bold text-dark dark-text-light" style="font-size: 14px;">Cần chọn chi nhánh trước khi thanh toán!</p>
+                </div>
+                
+                <div class="d-flex justify-content-center">
+                    <button type="button" class="btn btn-warning text-white px-4 py-2 rounded-pill fw-bold" data-bs-dismiss="modal" style="box-shadow: 0 4px 10px rgba(255, 193, 7, 0.2);">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- POS Bank Transfer Countdown Modal -->
+<div class="modal fade" id="posBankTransferModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="posBankTransferModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+            <div class="modal-header bg-success text-white py-3 border-0">
+                <h5 class="modal-title fw-bold" id="posBankTransferModalLabel"><i class="bi bi-qr-code-scan me-2"></i>Chờ xác nhận chuyển khoản</h5>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <!-- Countdown timer display -->
+                <div class="mb-3">
+                    <span class="badge bg-danger-subtle text-danger fw-black px-3 py-2 fs-5 rounded-pill" id="posCountdownTimer">
+                        <i class="bi bi-clock-history me-1"></i>10:00
+                    </span>
+                </div>
+                
+                <p class="small text-muted mb-3"><i class="bi bi-info-circle-fill text-info me-1"></i>Yêu cầu khách hàng quét mã QR bên dưới để thanh toán đơn hàng</p>
+                
+                <!-- QR Code image -->
+                <div class="d-inline-block p-2 bg-white rounded border mb-3">
+                    <img id="posModalQrImg" src="" alt="VietQR Code" style="width: 280px; height: 280px; object-fit: contain;" />
+                </div>
+                
+                <!-- Payment info -->
+                <div class="text-start bg-light p-3 rounded mb-3" style="font-size: 14px;">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-secondary">Ngân hàng:</span>
+                        <strong class="text-dark">ACB</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-secondary">Số tài khoản:</span>
+                        <strong class="text-dark">34675617</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-secondary">Chủ tài khoản:</span>
+                        <strong class="text-dark">VO VAN PHU</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-secondary">Số tiền:</span>
+                        <strong class="text-danger fw-black" id="posModalAmount">0đ</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-secondary">Nội dung CK:</span>
+                        <strong class="text-success fw-black" id="posModalTransferCode">BHX_xxxx</strong>
+                    </div>
+                </div>
+                
+                <div id="posModalStatusBox" class="alert alert-info py-2 mb-3" style="font-size: 13px;">
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Đang tự động kiểm tra giao dịch...
+                </div>
+                
+                <!-- Action buttons -->
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-danger fw-bold flex-fill py-2" id="btnPosModalCancel" onclick="cancelPosPayment()">
+                        <i class="bi bi-x-circle me-1"></i>Hủy giao dịch
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KHU VỰC IN HÓA ĐƠN NHIỆT (ẨN TRÊN MÀN HÌNH CHỈ HIỂN THỊ KHI IN) -->
+<div id="receiptPrintArea">
+    <div class="receipt-header">
+        <h4>BÁCH HÓA XANH</h4>
+        <p style="margin: 1px 0; font-size: 11px;">Siêu thị gần nhà, giá tiết kiệm</p>
+        <p style="margin: 1px 0; font-size: 10px;">Hotline: 1800 6936</p>
+    </div>
+    
+    <div style="font-size: 11px; margin-bottom: 2mm;">
+        <div>Số hóa đơn: <strong id="recId">#00000</strong></div>
+        <div>Ngày in: <span id="recDate">01/01/2026 12:00:00</span></div>
+        <div>Thu ngân: <span>@ViewBag.CashierName</span></div>
+        <div>Khách hàng: <span id="recCustomer">Khách mua trực tiếp</span></div>
+        <div>Phương thức: <span id="recMethod">Tiền mặt</span></div>
+    </div>
+
+    <div class="receipt-divider"></div>
+
+    <table class="receipt-table">
+        <thead>
+            <tr>
+                <th>Tên sản phẩm</th>
+                <th style="text-align: center; width: 30px;">SL</th>
+                <th style="text-align: right; width: 60px;">Đơn giá</th>
+                <th style="text-align: right; width: 70px;">T.Tiền</th>
+            </tr>
+        </thead>
+        <tbody id="receiptTableBody">
+            <!-- Populated via JS -->
+        </tbody>
+    </table>
+
+    <div class="receipt-divider"></div>
+
+    <div class="receipt-summary-row">
+        <span>Cộng tiền hàng:</span>
+        <strong id="recSubtotal">0đ</strong>
+    </div>
+    <div class="receipt-summary-row text-danger" id="recRowMemberDiscount" style="display: none;">
+        <span>Chiết khấu thành viên (<span id="recMemberPct">0%</span>):</span>
+        <strong id="recMemberDiscount">-0đ</strong>
+    </div>
+    <div class="receipt-summary-row text-danger" id="recRowVoucherDiscount" style="display: none;">
+        <span>Voucher giảm giá (<span id="recVoucherCode">CODE</span>):</span>
+        <strong id="recVoucherDiscount">-0đ</strong>
+    </div>
+    
+    <div class="receipt-divider"></div>
+
+    <div class="receipt-summary-row" style="font-size: 14px; font-weight: bold;">
+        <span>TỔNG CỘNG:</span>
+        <strong id="recTotal">0đ</strong>
+    </div>
+
+    <div class="receipt-summary-row" id="recRowCashDetails" style="font-size: 11px;">
+        <span>Khách đưa / Tiền thừa:</span>
+        <span><span id="recCashReceived">0</span>đ / <span id="recCashChange">0</span>đ</span>
+    </div>
+
+    <div class="receipt-divider"></div>
+    
+    <div style="text-align: center; font-size: 10px; margin-top: 3mm;">
+        CẢM ƠN QUÝ KHÁCH VÀ HẸN GẶP LẠI!<br />
+        Hóa đơn điện tử đã gửi qua email (nếu có đăng ký).
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Tải jQuery trước để tránh lỗi $ is not defined -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Thư viện Html5-QRCode để quét camera -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Thư viện JsBarcode để tạo mã vạch demo -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <script>
+        // Danh sách giỏ hàng POS
+        let cartItems = [];
+        let identifiedCustomer = null;
+        let selectedVoucher = null;
+        let paymentMethod = "Tiền mặt";
+        let posBranchesData = [];
+        let activePosBranchId = '';
+        const cashierWorkingBranchId = @Html.Raw(Json.Serialize(ViewBag.WorkingBranchId));
+
+        // Cấu hình ngân hàng cho VietQR lấy từ appsettings
+        const bankConfig = {
+            bankCode: "ACB",
+            accountNumber: "34675617",
+            accountName: "VO VAN PHU"
+        };
+
+        $(document).ready(function () {
+            // Nạp danh sách chi nhánh
+            $.ajax({
+                url: '/Home/GetBranches',
+                type: 'GET',
+                success: function(branches) {
+                    posBranchesData = branches;
+                    initBranchDropdowns();
+                },
+                error: function() {
+                    showToast("Không thể tải danh sách chi nhánh!", "error");
+                }
+            });
+
+            // Autofocus ô nhập mã vạch
+            $("#barcodeInput").focus();
+
+            // Nhấn Enter ở ô nhập mã vạch
+            $("#barcodeInput").keypress(function (e) {
+                if (e.which === 13) {
+                    e.preventDefault();
+                    addProductByInput();
+                }
+            });
+
+
+            // Lắng nghe sự kiện bàn phím toàn cục cho máy quét mã vạch USB chuyên dụng
+            // (Máy quét vạch hoạt động như bàn phím gõ nhanh và kết thúc bằng Enter)
+            let barcodeBuffer = "";
+            let lastKeyTime = Date.now();
+            
+            $(document).keypress(function(e) {
+                // Chỉ theo dõi nếu tiêu điểm không nằm trong input văn bản khác (ngoại trừ barcodeInput)
+                if (document.activeElement.tagName === "INPUT" && document.activeElement.id !== "barcodeInput" && document.activeElement.id !== "customerPhoneInput") {
+                    return;
+                }
+
+                const currentTime = Date.now();
+                if (currentTime - lastKeyTime > 150) {
+                    barcodeBuffer = ""; // Quá lâu giữa các phím gõ -> xóa bộ đệm (đây là gõ tay)
+                }
+                lastKeyTime = currentTime;
+
+                if (e.which === 13) { // Phím Enter kết thúc mã vạch
+                    if (barcodeBuffer.length >= 4) { // Mã vạch thường dài hơn 4 ký tự
+                        e.preventDefault();
+                        addProductByBarcode(barcodeBuffer);
+                        barcodeBuffer = "";
+                    }
+                } else if (e.which >= 48 && e.which <= 57) { // Chỉ lấy các ký tự số
+                    barcodeBuffer += String.fromCharCode(e.which);
+                }
+            });
+
+            // Tìm kiếm tự động khi gõ tên
+            $("#barcodeInput").on("input", function() {
+                const term = $(this).val();
+                if (term.length >= 2) {
+                    if (!activePosBranchId) {
+                        showBranchRequiredModal();
+                        $(this).val("");
+                        return;
+                    }
+                    $.ajax({
+                        url: '/Pos/SearchProducts',
+                        type: 'GET',
+                        data: { term: term, branchId: activePosBranchId },
+                        success: function(data) {
+                            let html = '';
+                            if (data && data.length > 0) {
+                                data.forEach(p => {
+                                    html += `
+                                        <div class="search-result-item" onclick="addProductFromSearch(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                                            <img src="${p.image || 'https://placehold.co/50x50'}" onerror="this.src='https://placehold.co/50x50'" />
+                                            <div>
+                                                <div class="fw-bold" style="font-size: 13px;">${p.name}</div>
+                                                <small class="text-muted">Mã vạch: ${formatBarcodeText(p.barcode)} | Tồn kho: ${p.amount}</small>
+                                            </div>
+                                            <div class="ms-auto fw-black text-danger" style="font-size: 14px;">${formatMoney(p.discountedPrice)}</div>
+                                        </div>
+                                    `;
+                                });
+                                $("#searchResults").html(html).show();
+                            } else {
+                                $("#searchResults").hide();
+                            }
+                        }
+                    });
+                } else {
+                    $("#searchResults").hide();
+                }
+            });
+
+            // Đóng danh sách kết quả khi click ra ngoài
+            $(document).on("click", function(e) {
+                if (!$(e.target).closest('.search-bar, #searchResults').length) {
+                    $("#searchResults").hide();
+                }
+            });
+
+            // Định dạng số tiền khi mất focus và khôi phục khi focus vào ô tiền khách đưa
+            $("#cashReceivedInput").on("focus", function() {
+                const val = $(this).val().replace(/\D/g, "");
+                $(this).val(val);
+            }).on("blur", function() {
+                const val = $(this).val().replace(/\D/g, "");
+                if (val) {
+                    $(this).val(parseInt(val).toLocaleString('vi-VN'));
+                }
+            });
+        });
+
+        // Xử lý nạp dropdown chi nhánh 3 bước và hết hạn 1 ngày
+        function checkPosBranchExpiry() {
+            if (cashierWorkingBranchId) {
+                activePosBranchId = cashierWorkingBranchId.toString();
+                localStorage.setItem("posActiveBranchId", activePosBranchId);
+                localStorage.setItem("posBranchSelectedTime", Date.now().toString());
+                return;
+            }
+
+            let savedTime = localStorage.getItem('posBranchSelectedTime');
+            let savedBranchId = localStorage.getItem('posActiveBranchId');
+            
+            if (savedTime && savedBranchId) {
+                let timeDiff = Date.now() - parseInt(savedTime);
+                let oneDayMs = 24 * 60 * 60 * 1000;
+                
+                if (timeDiff >= oneDayMs) {
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                    activePosBranchId = '';
+                    showToast("Đã quá 1 ngày kể từ lần chọn chi nhánh cuối. Vui lòng chọn lại chi nhánh!", "warning");
+                } else {
+                    activePosBranchId = savedBranchId;
+                }
+            } else {
+                activePosBranchId = '';
+            }
+        }
+
+        function initBranchDropdowns() {
+            checkPosBranchExpiry();
+            
+            let provinces = [...new Set(posBranchesData.map(b => {
+                let p = b.province;
+                if (p === "Huế") p = "Thừa Thiên Huế";
+                return p;
+            }))].sort();
+            
+            const provSelect = $("#posProvinceSelect");
+            provSelect.empty().append('<option value="">-- Tỉnh/TP --</option>');
+            provinces.forEach(p => {
+                const displayName = p === "Thừa Thiên Huế" ? "Huế" : p;
+                provSelect.append(`<option value="${p}">${displayName}</option>`);
+            });
+            
+            if (activePosBranchId) {
+                let currentBranch = posBranchesData.find(b => b.id == activePosBranchId);
+                if (currentBranch) {
+                    provSelect.val(currentBranch.province);
+                    populateDistricts(currentBranch.province, currentBranch.district, currentBranch.id);
+                } else {
+                    activePosBranchId = '';
+                }
+            }
+            
+            if (cashierWorkingBranchId) {
+                provSelect.prop("disabled", true);
+                $("#posDistrictSelect").prop("disabled", true);
+                $("#posBranchSelect").prop("disabled", true);
+            }
+            
+            provSelect.on("change", function() {
+                let prov = $(this).val();
+                if (prov === "Huế") prov = "Thừa Thiên Huế";
+                if (prov) {
+                    populateDistricts(prov);
+                    $("#posBranchSelect").empty().append('<option value="">-- Chi nhánh --</option>').prop("disabled", true);
+                    activePosBranchId = '';
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                } else {
+                    $("#posDistrictSelect").empty().append('<option value="">-- Phường/Xã --</option>').prop("disabled", true);
+                    $("#posBranchSelect").empty().append('<option value="">-- Chi nhánh --</option>').prop("disabled", true);
+                    activePosBranchId = '';
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                }
+                resetPos();
+            });
+            
+            $("#posDistrictSelect").on("change", function() {
+                let prov = provSelect.val();
+                let dist = $(this).val();
+                if (prov && dist) {
+                    populateBranches(prov, dist);
+                    activePosBranchId = '';
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                } else {
+                    $("#posBranchSelect").empty().append('<option value="">-- Chi nhánh --</option>').prop("disabled", true);
+                    activePosBranchId = '';
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                }
+                resetPos();
+            });
+            
+            $("#posBranchSelect").on("change", function() {
+                let val = $(this).val();
+                if (val) {
+                    activePosBranchId = val;
+                    localStorage.setItem("posActiveBranchId", activePosBranchId);
+                    localStorage.setItem("posBranchSelectedTime", Date.now().toString());
+                    showToast("Đã chuyển sang chi nhánh: " + $("#posBranchSelect option:selected").text());
+                } else {
+                    activePosBranchId = '';
+                    localStorage.removeItem('posActiveBranchId');
+                    localStorage.removeItem('posBranchSelectedTime');
+                }
+                resetPos();
+            });
+        }
+        
+        function populateDistricts(province, selectedDistrictValue = "", selectedBranchValue = "") {
+            let normProv = province;
+            if (normProv === "Huế") normProv = "Thừa Thiên Huế";
+            const distSelect = $("#posDistrictSelect");
+            distSelect.empty().append('<option value="">-- Phường/Xã --</option>').prop("disabled", false);
+            
+            $.ajax({
+                url: `/Home/GetWards?province=${encodeURIComponent(normProv)}`,
+                type: 'GET',
+                success: function(districts) {
+                    districts.forEach(d => {
+                        if (d && d !== "Khác") {
+                            distSelect.append(`<option value="${d}">${d}</option>`);
+                        }
+                    });
+                    if (selectedDistrictValue) {
+                        distSelect.val(selectedDistrictValue);
+                    }
+                    if (selectedDistrictValue && selectedBranchValue) {
+                        populateBranches(normProv, selectedDistrictValue);
+                        $("#posBranchSelect").val(selectedBranchValue);
+                    }
+                },
+                error: function() {
+                    let districts = [...new Set(posBranchesData.filter(b => {
+                        let p = b.province;
+                        if (p === "Huế") p = "Thừa Thiên Huế";
+                        return p === normProv;
+                    }).map(b => b.district))].sort();
+                    districts.forEach(d => {
+                        if (d && d !== "Khác") {
+                            distSelect.append(`<option value="${d}">${d}</option>`);
+                        }
+                    });
+                    if (selectedDistrictValue) {
+                        distSelect.val(selectedDistrictValue);
+                    }
+                    if (selectedDistrictValue && selectedBranchValue) {
+                        populateBranches(normProv, selectedDistrictValue);
+                        $("#posBranchSelect").val(selectedBranchValue);
+                    }
+                }
+            });
+        }
+        
+        function populateBranches(province, district) {
+            let normProv = province;
+            if (normProv === "Huế") normProv = "Thừa Thiên Huế";
+            const brSelect = $("#posBranchSelect");
+            if (!district) {
+                brSelect.empty().append('<option value="">-- Chi nhánh --</option>').prop("disabled", true);
+                return;
+            }
+            let branches = posBranchesData.filter(b => {
+                let p = b.province;
+                if (p === "Huế") p = "Thừa Thiên Huế";
+                return p === normProv && b.district === district;
+            }).sort((a,b) => a.name.localeCompare(b.name));
+            if (branches.length === 0) {
+                brSelect.empty().append('<option value="" style="white-space: nowrap;">Không có chi nhánh tại đây!</option>').prop("disabled", true);
+            } else {
+                brSelect.empty().append('<option value="">-- Chi nhánh --</option>').prop("disabled", false);
+                branches.forEach(b => {
+                    brSelect.append(`<option value="${b.id}">${b.name}</option>`);
+                });
+            }
+        }
+
+        function showBranchRequiredModal() {
+            const modalEl = document.getElementById('posBranchRequiredModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            }
+        }
+
+        // 1. QUÉT BẰNG CAMERA VỚI CHỌN THIẾT BỊ (INLINE VÀ QUÉT LIÊN TỤC)
+        let html5QrcodeScanner = null;
+        let currentCameraId = null;
+        let isCameraActive = false;
+        
+        let lastScannedBarcode = "";
+        let lastScanTime = 0;
+        const DUPLICATE_COOLDOWN_MS = 2000; // Cooldown 2 giây đối với cùng 1 mã vạch
+
+        // Hàm phát tiếng "bíp" thanh toán siêu thị (sử dụng Web Audio API)
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.type = "sine";
+                oscillator.frequency.value = 1000; // Tần số 1000Hz phù hợp tiếng bíp siêu thị
+                gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime); // Âm lượng 80% (tăng để nghe rõ hơn)
+                
+                oscillator.start();
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                oscillator.stop(audioCtx.currentTime + 0.12);
+            } catch (e) {
+                console.warn("Web Audio API không được hỗ trợ hoặc bị chặn bởi trình duyệt: ", e);
+            }
+        }
+
+        // Hiệu ứng nháy sáng viền máy quét khi quét thành công
+        function flashScannerUI() {
+            const container = $("#cameraScannerContainer");
+            container.addClass("scanner-flash");
+            setTimeout(() => {
+                container.removeClass("scanner-flash");
+            }, 150);
+        }
+
+        function toggleCameraScan(show) {
+            if (show === undefined) {
+                show = !isCameraActive;
+            }
+            
+            if (show) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showToast("Thiết bị hoặc giao thức kết nối (HTTP) không hỗ trợ mở Camera. Vui lòng chuyển sang dùng HTTPS!", "error");
+                    return;
+                }
+                
+                isCameraActive = true;
+                $("#btnToggleCamera").html('<i class="bi bi-camera-video-off-fill me-2"></i>Tắt Camera').removeClass("btn-success").addClass("btn-danger");
+                $("#cameraScannerContainer").slideDown(300, function() {
+                    // Dò tìm danh sách camera kết nối
+                    Html5Qrcode.getCameras().then(cameras => {
+                        const select = $("#cameraSourceSelect");
+                        select.empty();
+                        
+                        if (cameras && cameras.length > 0) {
+                            cameras.forEach((camera, index) => {
+                                const label = camera.label.toLowerCase();
+                                // Ưu tiên các thiết bị camera mô phỏng từ điện thoại hoặc camera sau
+                                const isPreferred = label.includes("iriun") || label.includes("droidcam") || label.includes("back") || label.includes("rear");
+                                select.append(`<option value="${camera.id}" ${isPreferred ? "selected" : ""}>${camera.label || 'Camera ' + (index + 1)}</option>`);
+                            });
+                            
+                            currentCameraId = select.val() || cameras[0].id;
+                            initCameraScanner(currentCameraId);
+                        } else {
+                            select.append('<option value="">Không tìm thấy camera nào</option>');
+                            showToast("Không phát hiện camera nào được kết nối!", "error");
+                        }
+                    }).catch(err => {
+                        showToast("Không thể nạp danh sách camera: " + err, "error");
+                    });
+                });
+            } else {
+                isCameraActive = false;
+                $("#btnToggleCamera").html('<i class="bi bi-camera-fill me-2"></i>Quét Camera').removeClass("btn-danger").addClass("btn-success");
+                $("#cameraScannerContainer").slideUp(300);
+                if (html5QrcodeScanner) {
+                    html5QrcodeScanner.stop().then(() => {
+                        html5QrcodeScanner = null;
+                    }).catch(err => console.error(err));
+                }
+                $("#barcodeInput").focus();
+            }
+        }
+
+        function initCameraScanner(cameraId) {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    html5QrcodeScanner = null;
+                    startScannerOnDevice(cameraId);
+                }).catch(err => {
+                    console.error(err);
+                    startScannerOnDevice(cameraId);
+                });
+            } else {
+                startScannerOnDevice(cameraId);
+            }
+        }
+
+        function startScannerOnDevice(cameraId) {
+            // Reset phần tử DOM #reader để giải phóng camera cũ triệt để
+            $("#reader").remove();
+            $("#cameraScannerContainer .card-body").prepend('<div id="reader" style="width: 100%; max-width: 320px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #000; border: 2px solid #ccc; transition: all 0.15s ease;"></div>');
+
+            setTimeout(() => {
+                try {
+                    html5QrcodeScanner = new Html5Qrcode("reader");
+                    html5QrcodeScanner.start(
+                        cameraId,
+                        {
+                            fps: 20, // Tăng fps để phản hồi quét nhạy hơn
+                            qrbox: function(width, height) {
+                                return { width: Math.min(width * 0.8, 280), height: 160 };
+                            }
+                        },
+                        function(decodedText) { // Thành công
+                            handleBarcodeScanned(decodedText);
+                        },
+                        function(error) { // Lỗi quét liên tục (bỏ qua)
+                        }
+                    ).catch(err => {
+                        showToast("Không thể khởi động camera được chọn: " + err, "error");
+                    });
+                } catch (e) {
+                    showToast("Lỗi khởi tạo máy quét: " + e.message, "error");
+                }
+            }, 300);
+        }
+
+        function handleBarcodeScanned(decodedText) {
+            const currentTime = Date.now();
+            
+            // Cơ chế cooldown: Chặn quét trùng mã vạch trong thời gian quy định
+            if (decodedText === lastScannedBarcode && (currentTime - lastScanTime) < DUPLICATE_COOLDOWN_MS) {
+                return;
+            }
+            
+            lastScannedBarcode = decodedText;
+            lastScanTime = currentTime;
+            
+            playBeep();
+            flashScannerUI();
+            
+            // Gọi hàm thêm sản phẩm
+            addProductByBarcode(decodedText);
+        }
+
+        function switchCamera(cameraId) {
+            if (cameraId) {
+                currentCameraId = cameraId;
+                initCameraScanner(cameraId);
+            }
+        }
+
+        function refreshCurrentCamera() {
+            if (currentCameraId) {
+                showToast("Đang tải lại luồng camera...");
+                initCameraScanner(currentCameraId);
+            } else {
+                toggleCameraScan(true);
+            }
+        }
+
+        // BIỂU DIỄN VÀ QUÉT THỬ MÃ VẠCH (TEST SCANNING)
+        function showTestBarcode(barcode, name, event) {
+            if (event) event.stopPropagation(); // Ngăn chặn kích hoạt click dòng sản phẩm
+            
+            $("#barcodePreviewTitle").text("Quét Thử: " + name);
+            $("#previewBarcodeName").text(name + " (" + formatBarcodeText(barcode) + ")");
+            
+            const modalEl = document.getElementById('barcodePreviewModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+            
+            setTimeout(() => {
+                try {
+                    JsBarcode("#previewBarcodeSvg", barcode, {
+                        format: "EAN13",
+                        width: 2.3,
+                        height: 100,
+                        fontSize: 16,
+                        displayValue: true
+                    });
+                } catch (e) {
+                    console.warn("EAN-13 check digit calculation failed. Falling back to CODE128 formatting: ", e);
+                    try {
+                        JsBarcode("#previewBarcodeSvg", barcode, {
+                            format: "CODE128",
+                            width: 2.3,
+                            height: 100,
+                            fontSize: 16,
+                            displayValue: true
+                        });
+                    } catch (err) {
+                        console.error("Failed to render barcode in fallback format: ", err);
+                    }
+                }
+            }, 300);
+        }
+
+        // 2. NGHIỆP VỤ GIỎ HÀNG
+        function addProductByInput() {
+            const val = $("#barcodeInput").val().trim();
+            if (val) {
+                addProductByBarcode(val);
+            }
+        }
+
+        function addProductFromSearch(product) {
+            if (!activePosBranchId) {
+                showBranchRequiredModal();
+                $("#searchResults").hide();
+                $("#barcodeInput").val("");
+                return;
+            }
+            $("#searchResults").hide();
+            $("#barcodeInput").val("").focus();
+            addProductToCart(product);
+        }
+
+        function addProductByBarcode(barcode) {
+            if (!barcode) return;
+            if (!activePosBranchId) {
+                showBranchRequiredModal();
+                $("#barcodeInput").val("");
+                return;
+            }
+            $("#barcodeInput").val("").focus();
+
+            $.ajax({
+                url: '/Pos/GetProductByBarcode',
+                type: 'GET',
+                data: { barcode: barcode.trim(), branchId: activePosBranchId },
+                success: function (data) {
+                    if (data.success) {
+                        addProductToCart(data);
+                    } else {
+                        showToast(data.message, "error");
+                    }
+                },
+                error: function () {
+                    showToast("Lỗi kết nối máy chủ!", "error");
+                }
+            });
+        }
+
+        function addProductToCart(product) {
+            const existing = cartItems.find(item => item.id === product.id);
+            const defaultQty = product.isSoldByWeight ? 0.5 : 1;
+            
+            if (existing) {
+                const addQty = existing.isSoldByWeight ? 0.1 : 1;
+                const newQty = parseFloat((existing.quantity + addQty).toFixed(3));
+                if (newQty > product.amount) {
+                    showToast(`Sản phẩm ${product.name} chỉ còn ${product.amount} trong kho!`, "error");
+                    return;
+                }
+                existing.quantity = newQty;
+            } else {
+                if (product.amount <= 0) {
+                    showToast(`Sản phẩm ${product.name} đã hết hàng!`, "error");
+                    return;
+                }
+                cartItems.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    discountedPrice: product.discountedPrice,
+                    quantity: defaultQty,
+                    image: product.image,
+                    amount: product.amount, // Tồn kho thực tế
+                    barcode: product.barcode,
+                    unit: product.unit || 'cái',
+                    isSoldByWeight: product.isSoldByWeight
+                });
+            }
+            renderCart();
+            showToast(`Đã thêm ${product.name}`);
+        }
+
+        function changeQuantity(productId, delta) {
+            const item = cartItems.find(item => item.id === productId);
+            if (item) {
+                const deltaVal = item.isSoldByWeight ? (delta > 0 ? 0.1 : -0.1) : delta;
+                const newQty = parseFloat((item.quantity + deltaVal).toFixed(3));
+                if (newQty <= 0) {
+                    removeItem(productId);
+                    return;
+                }
+                if (newQty > item.amount) {
+                    showToast(`Chỉ còn tồn ${item.amount} ${item.unit} sản phẩm này!`, "error");
+                    return;
+                }
+                item.quantity = newQty;
+                renderCart();
+            }
+        }
+
+        function updateQuantityInput(productId, val) {
+            const item = cartItems.find(item => item.id === productId);
+            if (item) {
+                let newQty = parseFloat(val) || 1.0;
+                if (newQty <= 0) newQty = item.isSoldByWeight ? 0.1 : 1.0;
+                if (newQty > item.amount) {
+                    showToast(`Chỉ còn tồn ${item.amount} ${item.unit} sản phẩm này!`, "error");
+                    newQty = item.amount;
+                }
+                item.quantity = parseFloat(newQty.toFixed(3));
+                renderCart();
+            }
+        }
+
+        function removeItem(productId) {
+            cartItems = cartItems.filter(item => item.id !== productId);
+            renderCart();
+        }
+
+        function renderCart() {
+            const body = $("#cartTableBody");
+            body.empty();
+
+            if (cartItems.length === 0) {
+                body.html(`
+                    <tr id="emptyCartRow">
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-upc-scan d-block fs-1 mb-2"></i>
+                            Chưa có sản phẩm nào được quét.
+                        </td>
+                    </tr>
+                `);
+                calculateTotals();
+                return;
+            }
+
+            cartItems.forEach(item => {
+                const totalVal = item.quantity * item.discountedPrice;
+                body.append(`
+                    <tr>
+                        <td class="py-3 text-center">
+                            <img src="${item.image || 'https://placehold.co/50x50'}" class="rounded" style="width: 40px; height: 40px; object-fit: cover;" onerror="this.src='https://placehold.co/50x50'" />
+                        </td>
+                        <td class="py-3">
+                            <div class="fw-bold" style="font-size: 13.5px; line-height: 1.3;">${item.name}</div>
+                            <small class="text-muted" style="font-size: 11px;">Mã vạch: ${formatBarcodeText(item.barcode)}</small>
+                        </td>
+                        <td class="text-end fw-bold text-secondary py-3">${formatMoney(item.discountedPrice)}</td>
+                        <td class="text-center py-3">
+                            <div class="d-flex justify-content-center">
+                                <div class="quantity-control d-flex align-items-center">
+                                    <button type="button" onclick="changeQuantity(${item.id}, -1)">-</button>
+                                    <input type="text" value="${item.quantity}" onchange="updateQuantityInput(${item.id}, this.value)" style="width: ${item.isSoldByWeight ? '65px' : '40px'}; text-align: center;" />
+                                    <button type="button" onclick="changeQuantity(${item.id}, 1)">+</button>
+                                    ${item.isSoldByWeight ? `<span class="small text-secondary ms-1 fw-bold">${item.unit}</span>` : ''}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-end fw-black text-danger py-3" style="font-size: 14px;">${formatMoney(totalVal)}</td>
+                        <td class="text-center py-3">
+                            <button type="button" class="btn btn-outline-danger btn-sm border-0 rounded-circle" onclick="removeItem(${item.id})">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+
+            calculateTotals();
+        }
+
+        // 3. TÍNH TOÁN TIỀN HÓA ĐƠN
+        let subtotal = 0;
+        let memberDiscount = 0;
+        let voucherDiscount = 0;
+        let finalTotal = 0;
+
+        function calculateTotals() {
+            subtotal = cartItems.reduce((acc, item) => acc + (item.quantity * item.discountedPrice), 0);
+            
+            // Chiết khấu Rank thành viên
+            if (identifiedCustomer) {
+                const memberPct = parseFloat(identifiedCustomer.discountPercent) || 0;
+                memberDiscount = Math.round(subtotal * memberPct);
+                $("#lblMemberPct").text((memberPct * 100).toFixed(0) + "%");
+                $("#lblMemberDiscount").text("-" + formatMoney(memberDiscount));
+                $("#rowMemberDiscount").attr("style", "display: flex !important;");
+            } else {
+                memberDiscount = 0;
+                $("#rowMemberDiscount").attr("style", "display: none !important;");
+            }
+
+            // Chiết khấu Voucher
+            if (selectedVoucher) {
+                if (subtotal >= selectedVoucher.minOrderValue) {
+                    const voucherPct = parseFloat(selectedVoucher.normalizedPercent) || 0;
+                    voucherDiscount = subtotal * voucherPct / 100;
+                    if (selectedVoucher.maxDiscount > 0 && voucherDiscount > selectedVoucher.maxDiscount) {
+                        voucherDiscount = selectedVoucher.maxDiscount;
+                    }
+                    voucherDiscount = Math.round(voucherDiscount);
+                    $("#lblVoucherCode").text(selectedVoucher.code);
+                    $("#lblVoucherDiscount").text("-" + formatMoney(voucherDiscount));
+                    $("#rowVoucherDiscount").attr("style", "display: flex !important;");
+                } else {
+                    voucherDiscount = 0;
+                    $("#rowVoucherDiscount").attr("style", "display: none !important;");
+                    showToast(`Đơn hàng chưa đạt giá trị tối thiểu ${formatMoney(selectedVoucher.minOrderValue)} để dùng voucher này!`, "error");
+                    $("#voucherSelect").val("");
+                    selectedVoucher = null;
+                }
+            } else {
+                voucherDiscount = 0;
+                $("#rowVoucherDiscount").attr("style", "display: none !important;");
+            }
+
+            finalTotal = Math.max(0, subtotal - (memberDiscount + voucherDiscount));
+
+            $("#lblSubtotal").text(formatMoney(subtotal));
+            $("#lblTotal").text(formatMoney(finalTotal));
+
+            calculateCashChange();
+            updateVietQrCode();
+        }
+
+        // 4. TRA CỨU HỘI VIÊN & VOUCHER
+        function searchCustomer() {
+            const phone = $("#customerPhoneInput").val().trim();
+            if (!phone) {
+                showToast("Vui lòng nhập SĐT hoặc Email khách hàng!", "error");
+                return;
+            }
+
+            $.ajax({
+                url: '/Pos/GetCustomerByPhone',
+                type: 'GET',
+                data: { phone: phone },
+                success: function (data) {
+                    if (data.success) {
+                        identifiedCustomer = data;
+                        $("#custName").text(data.fullName);
+                        $("#custTier").text(data.tierName);
+                        $("#custPhone").text(data.phone);
+                        $("#custPoints").text(data.loyaltyPoints);
+                        $("#customerInfoCard").slideDown();
+
+                        // Nạp Vouchers
+                        const select = $("#voucherSelect");
+                        select.empty();
+                        select.append('<option value="">-- Không sử dụng voucher --</option>');
+                        if (data.vouchers && data.vouchers.length > 0) {
+                            data.vouchers.forEach(v => {
+                                select.append(`<option value="${v.code}">${v.code} (${v.description})</option>`);
+                            });
+                        }
+                        showToast(`Đã tìm thấy khách hàng: ${data.fullName}`);
+                        calculateTotals();
+                    } else {
+                        showToast(data.message, "error");
+                        clearCustomer();
+                    }
+                },
+                error: function () {
+                    showToast("Lỗi hệ thống khi tìm khách hàng!", "error");
+                    clearCustomer();
+                }
+            });
+        }
+
+        function clearCustomer() {
+            identifiedCustomer = null;
+            selectedVoucher = null;
+            $("#customerPhoneInput").val("");
+            $("#customerInfoCard").slideUp();
+            calculateTotals();
+        }
+
+        function applyVoucher() {
+            const code = $("#voucherSelect").val();
+            if (code && identifiedCustomer) {
+                selectedVoucher = identifiedCustomer.vouchers.find(v => v.code === code);
+            } else {
+                selectedVoucher = null;
+            }
+            calculateTotals();
+        }
+
+        // 5. CẤU HÌNH PHƯƠNG THỨC THANH TOÁN
+        function setPaymentMethod(method) {
+            paymentMethod = method;
+            $(".payment-method-btn").removeClass("active");
+            $(`.payment-method-btn[data-method="${method}"]`).addClass("active");
+
+            if (method === "Tiền mặt") {
+                $("#cashPaymentArea").slideDown();
+                $("#qrPaymentArea").slideUp();
+                $("#cashReceivedInput").focus();
+            } else if (method === "Chuyển khoản") {
+                $("#cashPaymentArea").slideUp();
+                $("#qrPaymentArea").slideDown();
+                updateVietQrCode();
+            }
+        }
+
+        function calculateCashChange() {
+            if (paymentMethod !== "Tiền mặt") return;
+            const inputVal = $("#cashReceivedInput").val().replace(/\D/g, "");
+            const received = parseInt(inputVal) || 0;
+            
+            const change = Math.max(0, received - finalTotal);
+            $("#lblCashChange").text(formatMoney(change));
+        }
+
+        function updateVietQrCode() {
+            if (paymentMethod !== "Chuyển khoản") return;
+            resetVietQrPreview();
+        }
+
+        function resetVietQrPreview() {
+            $("#lblQrMessage").text("Chờ tạo đơn");
+            $("#vietQrImg").removeAttr("src").hide();
+            $("#vietQrPlaceholder").show();
+        }
+
+        function showOfficialVietQrCode(transferCode, qrUrl) {
+            $("#lblQrMessage").text(transferCode || "Chờ tạo đơn");
+
+            if (qrUrl) {
+                $("#vietQrPlaceholder").hide();
+                $("#vietQrImg").attr("src", qrUrl).show();
+            } else {
+                resetVietQrPreview();
+            }
+        }
+
+        // 6. HOÀN TẤT THANH TOÁN & GỬI EMAIL & IN HÓA ĐƠN
+        function processCheckout() {
+            if (!activePosBranchId) {
+                showBranchRequiredModal();
+                return;
+            }
+            if (cartItems.length === 0) {
+                showToast("Giỏ hàng POS trống, hãy quét sản phẩm!", "error");
+                return;
+            }
+
+            if (paymentMethod === "Tiền mặt") {
+                const received = parseInt($("#cashReceivedInput").val().replace(/\D/g, "")) || 0;
+                if (received < finalTotal) {
+                    showToast("Tiền khách đưa nhỏ hơn tổng số tiền cần thanh toán!", "error");
+                    return;
+                }
+            }
+
+            submitOrderPayload();
+        }
+
+        function submitOrderPayload() {
+            // Gửi yêu cầu lưu đơn lên Server
+            const requestData = {
+                customerUserId: identifiedCustomer ? identifiedCustomer.userId : null,
+                customerPhone: identifiedCustomer ? (identifiedCustomer.phone || identifiedCustomer.email || $("#customerPhoneInput").val().trim()) : null,
+                paymentMethod: paymentMethod,
+                discountCode: selectedVoucher ? selectedVoucher.code : null,
+                branchId: parseInt(activePosBranchId),
+                items: cartItems.map(item => ({
+                    productId: item.id,
+                    quantity: item.quantity
+                }))
+            };
+
+            const antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
+
+            // Disable button để tránh nhấn nhiều lần
+            $("#btnCheckout").prop("disabled", true).html('<span class="spinner-border spinner-border-sm me-2"></span>Đang tạo đơn...');
+
+            $.ajax({
+                url: '/Pos/CreateInStoreOrder',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(requestData),
+                headers: {
+                    "RequestVerificationToken": antiForgeryToken
+                },
+                success: function (res) {
+                    $("#btnCheckout").prop("disabled", false).html('<i class="bi bi-printer-fill me-2"></i>THANH TOÁN & IN HÓA ĐƠN');
+
+                    if (res.success) {
+                        if (res.requiresVerification) {
+                            startPosBankTransferTimer(res.orderId, res.finalTotal, res.transferCode, res.qrUrl);
+                            return;
+                        }
+
+                        showToast("Thanh toán thành công! Chuẩn bị in hóa đơn...");
+                        
+                        // Cập nhật hóa đơn in
+                        $("#recId").text("#" + res.orderId);
+                        $("#recDate").text(res.orderDate);
+                        $("#recCustomer").text(res.customerName || (identifiedCustomer ? identifiedCustomer.fullName : "Khách mua trực tiếp"));
+                        $("#recMethod").text(res.paymentMethod);
+                        
+                        const receiptBody = $("#receiptTableBody");
+                        receiptBody.empty();
+                        cartItems.forEach(item => {
+                            const formattedQty = item.isSoldByWeight ? item.quantity : Math.round(item.quantity);
+                            receiptBody.append(`
+                                <tr>
+                                    <td><strong>${item.name}</strong></td>
+                                    <td style="text-align: center;">${formattedQty} ${item.unit}</td>
+                                    <td style="text-align: right;">${item.discountedPrice.toLocaleString('vi-VN')}</td>
+                                    <td style="text-align: right; font-weight: bold;">${(item.quantity * item.discountedPrice).toLocaleString('vi-VN')}</td>
+                                </tr>
+                            `);
+                        });
+
+                        $("#recSubtotal").text(formatMoney(res.subtotal));
+                        
+                        if (res.memberDiscount > 0) {
+                            $("#recMemberPct").text($("#lblMemberPct").text());
+                            $("#recMemberDiscount").text("-" + formatMoney(res.memberDiscount));
+                            $("#recRowMemberDiscount").show();
+                        } else {
+                            $("#recRowMemberDiscount").hide();
+                        }
+
+                        if (res.voucherDiscount > 0) {
+                            $("#recVoucherCode").text(res.discountCode || (selectedVoucher ? selectedVoucher.code : ""));
+                            $("#recVoucherDiscount").text("-" + formatMoney(res.voucherDiscount));
+                            $("#recRowVoucherDiscount").show();
+                        } else {
+                            $("#recRowVoucherDiscount").hide();
+                        }
+
+                        $("#recTotal").text(formatMoney(res.finalTotal));
+
+                        if (paymentMethod === "Tiền mặt") {
+                            const received = parseInt($("#cashReceivedInput").val().replace(/\D/g, "")) || 0;
+                            const change = Math.max(0, received - res.finalTotal);
+                            $("#recCashReceived").text(received.toLocaleString('vi-VN'));
+                            $("#recCashChange").text(change.toLocaleString('vi-VN'));
+                            $("#recRowCashDetails").show();
+                        } else {
+                            $("#recRowCashDetails").hide();
+                        }
+
+                        // Gọi hộp thoại in nhiệt của trình duyệt
+                        setTimeout(() => {
+                            window.print();
+                            // Reset giỏ hàng sau khi in xong
+                            resetPos();
+                        }, 500);
+
+                    } else {
+                        showToast(res.message, "error");
+                    }
+                },
+                error: function () {
+                    $("#btnCheckout").prop("disabled", false).html('<i class="bi bi-printer-fill me-2"></i>THANH TOÁN & IN HÓA ĐƠN');
+                    showToast("Lỗi kết nối khi gửi thanh toán đơn hàng!", "error");
+                }
+            });
+        }
+
+        let posTransferCountdownInterval = null;
+        let posAutoCheckInterval = null;
+        let posPendingOrderId = null;
+        let posSecondsRemaining = 600;
+
+        function startPosBankTransferTimer(orderId, amount, transferCode, qrUrl) {
+            posPendingOrderId = orderId;
+            posSecondsRemaining = 600;
+
+            // Cập nhật thông tin trên modal
+            showOfficialVietQrCode(transferCode, qrUrl);
+            $("#posModalAmount").text(formatMoney(amount));
+            $("#posModalTransferCode").text(transferCode);
+            $("#posModalQrImg").attr("src", qrUrl);
+            $("#posModalStatusBox").html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Đang tự động kiểm tra giao dịch...');
+
+            // Cập nhật đồng hồ đếm ngược lập tức
+            updateCountdownUI();
+
+            // Hiển thị modal
+            const transferModal = new bootstrap.Modal(document.getElementById('posBankTransferModal'));
+            transferModal.show();
+
+            // Xóa các interval cũ nếu có
+            clearInterval(posTransferCountdownInterval);
+            clearInterval(posAutoCheckInterval);
+
+            // Bắt đầu đếm ngược
+            posTransferCountdownInterval = setInterval(() => {
+                posSecondsRemaining--;
+                updateCountdownUI();
+                if (posSecondsRemaining <= 0) {
+                    cancelPosPayment(true); // Tự động hủy khi hết hạn
+                }
+            }, 1000);
+
+            // Bắt đầu kiểm tra tự động mỗi 5 giây
+            posAutoCheckInterval = setInterval(checkPosPaymentStatus, 5000);
+        }
+
+        function updateCountdownUI() {
+            const minutes = Math.floor(posSecondsRemaining / 60);
+            const seconds = posSecondsRemaining % 60;
+            const displayStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            $("#posCountdownTimer").html(`<i class="bi bi-clock-history me-1"></i>${displayStr}`);
+        }
+
+        function checkPosPaymentStatus() {
+            if (!posPendingOrderId) return;
+
+            $.ajax({
+                url: '/Pos/CheckPosBankTransfer',
+                type: 'GET',
+                data: { orderId: posPendingOrderId },
+                success: function (res) {
+                    if (res.success) {
+                        // Thành công: Xóa các timer và đóng modal
+                        clearInterval(posTransferCountdownInterval);
+                        clearInterval(posAutoCheckInterval);
+
+                        const modalEl = document.getElementById('posBankTransferModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+
+                        showToast("Xác nhận chuyển khoản thành công! Chuẩn bị in hóa đơn...");
+
+                        // Cập nhật hóa đơn in
+                        $("#recId").text("#" + res.orderId);
+                        $("#recDate").text(res.orderDate);
+                        $("#recCustomer").text(res.customerName || (identifiedCustomer ? identifiedCustomer.fullName : "Khách mua trực tiếp"));
+                        $("#recMethod").text(res.paymentMethod);
+                        
+                        const receiptBody = $("#receiptTableBody");
+                        receiptBody.empty();
+                        cartItems.forEach(item => {
+                            const formattedQty = item.isSoldByWeight ? item.quantity : Math.round(item.quantity);
+                            receiptBody.append(`
+                                <tr>
+                                    <td><strong>${item.name}</strong></td>
+                                    <td style="text-align: center;">${formattedQty} ${item.unit}</td>
+                                    <td style="text-align: right;">${item.discountedPrice.toLocaleString('vi-VN')}</td>
+                                    <td style="text-align: right; font-weight: bold;">${(item.quantity * item.discountedPrice).toLocaleString('vi-VN')}</td>
+                                </tr>
+                            `);
+                        });
+
+                        $("#recSubtotal").text(formatMoney(res.subtotal));
+                        
+                        if (res.memberDiscount > 0) {
+                            $("#recMemberPct").text($("#lblMemberPct").text());
+                            $("#recMemberDiscount").text("-" + formatMoney(res.memberDiscount));
+                            $("#recRowMemberDiscount").show();
+                        } else {
+                            $("#recRowMemberDiscount").hide();
+                        }
+
+                        if (res.voucherDiscount > 0) {
+                            $("#recVoucherCode").text(res.discountCode || (selectedVoucher ? selectedVoucher.code : ""));
+                            $("#recVoucherDiscount").text("-" + formatMoney(res.voucherDiscount));
+                            $("#recRowVoucherDiscount").show();
+                        } else {
+                            $("#recRowVoucherDiscount").hide();
+                        }
+
+                        $("#recTotal").text(formatMoney(res.finalTotal));
+                        $("#recRowCashDetails").hide();
+
+                        // Gọi in hóa đơn
+                        setTimeout(() => {
+                            window.print();
+                            resetPos();
+                        }, 500);
+                    } else {
+                        $("#posModalStatusBox").html(`<i class="bi bi-info-circle me-1"></i>${res.message || 'Chưa tìm thấy giao dịch.'}`);
+                    }
+                },
+                error: function () {
+                    $("#posModalStatusBox").html('<i class="bi bi-exclamation-triangle me-1"></i>Lỗi kết nối kiểm tra thanh toán.');
+                }
+            });
+        }
+
+        function checkPosPaymentNow() {
+            $("#btnPosModalCheckNow").prop("disabled", true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang kiểm tra...');
+            checkPosPaymentStatus();
+            setTimeout(() => {
+                $("#btnPosModalCheckNow").prop("disabled", false).html('<i class="bi bi-arrow-repeat me-1"></i>Kiểm tra ngay');
+            }, 1000);
+        }
+
+        function cancelPosPayment(isAutoTimeout = false) {
+            if (!posPendingOrderId) return;
+
+            clearInterval(posTransferCountdownInterval);
+            clearInterval(posAutoCheckInterval);
+
+            $("#btnPosModalCancel").prop("disabled", true).html('<span class="spinner-border spinner-border-sm me-1"></span>Đang hủy...');
+
+            $.ajax({
+                url: '/Pos/CancelPosOrder',
+                type: 'POST',
+                data: { orderId: posPendingOrderId },
+                success: function (res) {
+                    const modalEl = document.getElementById('posBankTransferModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+
+                    $("#btnPosModalCancel").prop("disabled", false).html('<i class="bi bi-x-circle me-1"></i>Hủy giao dịch');
+
+                    if (isAutoTimeout) {
+                        showToast("Đã hết thời gian 10 phút. Đơn hàng chuyển khoản tự động hủy!", "warning");
+                    } else {
+                        showToast("Đã hủy giao dịch chuyển khoản POS thành công!", "warning");
+                    }
+
+                    posPendingOrderId = null;
+                    resetVietQrPreview();
+                },
+                error: function () {
+                    $("#btnPosModalCancel").prop("disabled", false).html('<i class="bi bi-x-circle me-1"></i>Hủy giao dịch');
+                    showToast("Có lỗi xảy ra khi hủy đơn hàng chuyển khoản!", "error");
+                }
+            });
+        }
+
+        function resetPos() {
+            cartItems = [];
+            selectedVoucher = null;
+            identifiedCustomer = null;
+            renderCart();
+            clearCustomer();
+            $("#cashReceivedInput").val("");
+            $("#lblCashChange").text("0đ");
+
+            setPaymentMethod("Tiền mặt");
+            $("#barcodeInput").focus();
+        }
+
+        // 7. UTILITIES
+        function formatBarcodeText(barcode) {
+            if (!barcode) return 'N/A';
+            const cleaned = barcode.trim();
+            if (cleaned.length === 13) {
+                return cleaned.charAt(0) + ' ' + cleaned.substring(1, 7) + ' ' + cleaned.substring(7);
+            }
+            return cleaned;
+        }
+
+        function formatMoney(amount) {
+            return Math.round(amount).toLocaleString('vi-VN') + "đ";
+        }
+    </script>
+}

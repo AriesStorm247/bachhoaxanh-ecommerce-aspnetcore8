@@ -1,0 +1,700 @@
+@model IEnumerable<WebBanHang.Models.InventoryBatch>
+@using WebBanHang.Models
+@{
+    ViewData["Title"] = "Quản lý lô hàng";
+    Layout = "_Layout_Admin";
+
+    var products = ViewBag.Products as List<Product> ?? new List<Product>();
+    var branches = ViewBag.Branches as List<Branch> ?? new List<Branch>();
+    int? selectedProductId = ViewBag.SelectedProductId as int?;
+    int? selectedBranchId = ViewBag.SelectedBranchId as int?;
+    string selectedStatus = ViewBag.SelectedStatus as string ?? "";
+    int warningDays = ViewBag.WarningDays ?? 7;
+    DateTime today = ViewBag.Today ?? DateTime.Today;
+    DateTime warningLimit = today.AddDays(warningDays);
+
+    string FormatQty(decimal quantity, string? unit)
+    {
+        return string.Equals(unit, "kg", StringComparison.OrdinalIgnoreCase)
+            ? quantity.ToString("N2")
+            : quantity.ToString("N0");
+    }
+
+    string StatusText(InventoryBatch batch)
+    {
+        if (batch.Quantity <= 0) return "Đã dùng hết";
+        if (batch.ExpiryDate.Date < today) return "Đã hết hạn";
+        if (batch.ExpiryDate.Date <= warningLimit) return "Sắp hết hạn";
+        return "Còn hạn";
+    }
+
+    string StatusClass(InventoryBatch batch)
+    {
+        if (batch.Quantity <= 0) return "batch-empty";
+        if (batch.ExpiryDate.Date < today) return "batch-expired";
+        if (batch.ExpiryDate.Date <= warningLimit) return "batch-expiring";
+        return "batch-active";
+    }
+}
+
+@section Styles {
+    <style>
+        .batch-shell { display: grid; gap: 18px; }
+        .batch-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+        .batch-stat {
+            background: #fff;
+            border: 1px solid rgba(0,0,0,.05);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 14px rgba(0,0,0,.05);
+        }
+        .batch-stat i {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex: 0 0 auto;
+        }
+        .batch-stat .value { font-size: 24px; line-height: 1; font-weight: 900; color: #151515; }
+        .batch-stat .label { margin-top: 4px; font-size: 12px; font-weight: 700; color: #888; }
+        .icon-green { background: #e8f7ec; color: #1a7a2e; }
+        .icon-blue { background: #e7f3ff; color: #0d6efd; }
+        .icon-yellow { background: #fff8e1; color: #b45309; }
+        .icon-red { background: #fff0f0; color: #dc3545; }
+
+        .batch-panel {
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid rgba(0,0,0,.05);
+            box-shadow: 0 2px 16px rgba(0,0,0,.06);
+            overflow: hidden;
+        }
+        .batch-panel-head {
+            padding: 16px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .batch-panel-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--green-dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .batch-panel-body { padding: 18px 20px; }
+        .form-label { font-size: 12px; font-weight: 800; color: #666; }
+        .form-control, .form-select { border-radius: 10px; border-color: #e4e4e4; font-size: 13px; }
+        .form-control:focus, .form-select:focus { border-color: var(--green-main); box-shadow: 0 0 0 3px rgba(44,158,71,.12); }
+
+        .batch-table { width: 100%; border-collapse: collapse; }
+        .batch-table th {
+            background: #fafafa;
+            color: #888;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            white-space: nowrap;
+        }
+        .batch-table td {
+            padding: 13px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid #f5f5f5;
+            vertical-align: middle;
+        }
+        .batch-table tbody tr:hover { background: #fbfffc; }
+        .batch-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 800; color: #444; }
+        .product-name { font-weight: 800; color: #1f1f1f; }
+        .subtext { font-size: 11px; color: #8a8a8a; margin-top: 2px; }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        .batch-active { background: #e8f7ec; color: #1a7a2e; }
+        .batch-expiring { background: #fff8e1; color: #a15c00; }
+        .batch-expired { background: #fff0f0; color: #c62828; }
+        .batch-empty { background: #f0f0f0; color: #666; }
+        .qty-form { display: inline-flex; align-items: center; gap: 6px; min-width: 150px; }
+        .qty-form input { width: 92px; }
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .icon-btn-save { background: #e8f7ec; color: #1a7a2e; }
+        .icon-btn-delete { background: #fff0f0; color: #dc3545; }
+        html.dark-theme .batch-stat,
+        html.dark-theme .batch-panel { background: #1e1e1e !important; border-color: #333 !important; }
+        html.dark-theme .batch-stat .value,
+        html.dark-theme .product-name { color: #f5f5f5 !important; }
+        html.dark-theme .batch-table th { background: #242424 !important; color: #aaa !important; border-color: #333 !important; }
+        html.dark-theme .batch-table td { border-color: #333 !important; }
+        html.dark-theme .batch-table tbody tr:hover { background: #232923 !important; }
+
+        @@media (max-width: 992px) {
+            .batch-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @@media (max-width: 576px) {
+            .batch-stats { grid-template-columns: 1fr; }
+            .batch-panel-head, .batch-panel-body { padding: 14px; }
+        }
+        
+        .input-group-text {
+            border-color: #e4e4e4;
+        }
+        html.dark-theme .input-group-text {
+            background-color: #242424 !important;
+            border-color: #444 !important;
+            color: #aaa !important;
+        }
+        #productIdSelect.expanded {
+            position: absolute;
+            z-index: 1000;
+            width: 100%;
+            height: auto !important;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.15);
+            background-color: #fff;
+        }
+        html.dark-theme #productIdSelect.expanded {
+            background-color: #242424 !important;
+            color: #fff !important;
+        }
+    </style>
+}
+
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-success" href="/">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại Trang chủ
+    </a>
+    <a class="btn btn-outline-success" asp-controller="Reports" asp-action="Inventory">
+        <i class="bi bi-clipboard-data"></i> Báo cáo hàng tồn
+    </a>
+</div>
+
+<div class="batch-shell">
+    <div class="batch-stats">
+        <div class="batch-stat">
+            <i class="bi bi-boxes icon-green"></i>
+            <div>
+                <div class="value">@ViewBag.TotalBatchCount</div>
+                <div class="label">Tổng số lô</div>
+            </div>
+        </div>
+        <div class="batch-stat">
+            <i class="bi bi-check2-circle icon-blue"></i>
+            <div>
+                <div class="value">@ViewBag.ActiveBatchCount</div>
+                <div class="label">Lô còn hạn ổn định</div>
+            </div>
+        </div>
+        <div class="batch-stat">
+            <i class="bi bi-hourglass-split icon-yellow"></i>
+            <div>
+                <div class="value">@ViewBag.ExpiringBatchCount</div>
+                <div class="label">Sắp hết hạn @warningDays ngày</div>
+            </div>
+        </div>
+        <div class="batch-stat">
+            <i class="bi bi-exclamation-octagon icon-red"></i>
+            <div>
+                <div class="value">@ViewBag.ExpiredBatchCount</div>
+                <div class="label">Đã hết hạn</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="batch-panel">
+        <div class="batch-panel-head">
+            <div class="batch-panel-title">
+                <i class="bi bi-plus-circle-fill"></i> Nhập lô hàng mới
+            </div>
+        </div>
+        <div class="batch-panel-body">
+            <form asp-action="Create" method="post" class="row g-3 align-items-end">
+                @Html.AntiForgeryToken()
+                <div class="col-12 col-lg-3">
+                    <label class="form-label">Sản phẩm</label>
+                    <div class="input-group mb-1">
+                        <input type="text" id="productSearchInput" class="form-control" 
+                               placeholder="Nhập từ khóa tìm sản phẩm..." autocomplete="off"
+                               value="@(selectedProductId.HasValue ? products.FirstOrDefault(p => p.Id == selectedProductId.Value)?.Name : "")" />
+                        <button class="btn btn-outline-success" type="button" id="btnSearchProduct">
+                            <i class="bi bi-search"></i> Tìm
+                        </button>
+                    </div>
+                    <div class="position-relative">
+                        <select name="productId" id="productIdSelect" class="form-select" required>
+                            <option value="">Chọn sản phẩm</option>
+                            @if (selectedProductId.HasValue)
+                            {
+                                var selectedProd = products.FirstOrDefault(p => p.Id == selectedProductId.Value);
+                                if (selectedProd != null)
+                                {
+                                    <option value="@selectedProd.Id" selected>@selectedProd.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-12 col-sm-4 col-lg-3">
+                    <label class="form-label">Tỉnh / Thành phố</label>
+                    <select id="branchProvince" class="form-select" required>
+                        <option value="">Chọn Tỉnh/Thành phố</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-4 col-lg-3">
+                    <label class="form-label">Phường / Xã</label>
+                    <select id="branchDistrict" class="form-select" required disabled>
+                        <option value="">Chọn Phường/Xã</option>
+                    </select>
+                </div>
+                <div class="col-12 col-sm-4 col-lg-3">
+                    <label class="form-label">Chi nhánh</label>
+                    <select name="branchId" id="branchSelect" class="form-select" required disabled>
+                        <option value="">Chọn chi nhánh</option>
+                    </select>
+                </div>
+                <div class="col-6 col-sm-4 col-lg-2">
+                    <label class="form-label">Mã lô</label>
+                    <input name="batchCode" class="form-control" maxlength="60" placeholder="Tự tạo nếu trống" />
+                </div>
+                <div class="col-6 col-sm-4 col-lg-2">
+                    <label class="form-label">Số lượng</label>
+                    <input name="quantity" class="form-control" type="number" min="0.001" step="0.001" required />
+                </div>
+                <div class="col-6 col-sm-4 col-lg-2">
+                    <label class="form-label">Ngày nhập</label>
+                    <input name="importDate" class="form-control" type="date" value="@today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="form-label">Hạn sử dụng</label>
+                    <input name="expiryDate" class="form-control" type="date" required />
+                </div>
+                <div class="col-12 col-md-4 col-lg-4">
+                    <label class="form-label">Nhà cung cấp</label>
+                    <input name="supplierName" class="form-control" maxlength="200" />
+                </div>
+                <div class="col-12 col-md-8 col-lg-9">
+                    <label class="form-label">Ghi chú</label>
+                    <input name="note" class="form-control" maxlength="500" />
+                </div>
+                <div class="col-12 col-md-4 col-lg-3">
+                    <button class="btn btn-success w-100 fw-bold" type="submit">
+                        <i class="bi bi-box-arrow-in-down"></i> Nhập lô
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="batch-panel">
+        <div class="batch-panel-head">
+            <div class="batch-panel-title">
+                <i class="bi bi-funnel-fill"></i> Bộ lọc lô hàng
+            </div>
+        </div>
+        <div class="batch-panel-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Sản phẩm</label>
+                    <select name="productId" class="form-select">
+                        <option value="">Tất cả sản phẩm</option>
+                        @foreach (var product in products)
+                        {
+                            if (selectedProductId == product.Id)
+                            {
+                                <option value="@product.Id" selected>@product.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@product.Id">@product.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Chi nhánh</label>
+                    <select name="branchId" class="form-select">
+                        <option value="">Tất cả chi nhánh</option>
+                        @foreach (var branch in branches)
+                        {
+                            if (selectedBranchId == branch.Id)
+                            {
+                                <option value="@branch.Id" selected>@branch.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@branch.Id">@branch.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Trạng thái</label>
+                    <select name="status" class="form-select">
+                        <option value="">Tất cả</option>
+                        <option value="active" selected="@(selectedStatus == "active")">Còn hạn</option>
+                        <option value="expiring" selected="@(selectedStatus == "expiring")">Sắp hết hạn</option>
+                        <option value="expired" selected="@(selectedStatus == "expired")">Đã hết hạn</option>
+                        <option value="empty" selected="@(selectedStatus == "empty")">Đã dùng hết</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Ngưỡng cảnh báo</label>
+                    <input name="warningDays" class="form-control" type="number" min="1" max="90" value="@warningDays" />
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button class="btn btn-success flex-fill fw-bold" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <a class="btn btn-outline-secondary flex-fill fw-bold" asp-action="Index">
+                        <i class="bi bi-x-circle"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="batch-panel">
+        <div class="batch-panel-head">
+            <div class="batch-panel-title">
+                <i class="bi bi-list-check"></i> Danh sách lô hàng
+            </div>
+            <div class="text-muted fw-bold small">@Model.Count() lô đang hiển thị</div>
+        </div>
+        <div style="overflow-x:auto;">
+            <table class="batch-table">
+                <thead>
+                    <tr>
+                        <th>Mã lô</th>
+                        <th>Sản phẩm</th>
+                        <th>Chi nhánh</th>
+                        <th>Số lượng</th>
+                        <th>Ngày nhập</th>
+                        <th>Hạn sử dụng</th>
+                        <th>Trạng thái</th>
+                        <th>Nhà cung cấp</th>
+                        <th style="text-align:center;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var batch in Model)
+                    {
+                        <tr>
+                            <td><span class="batch-code">@batch.BatchCode</span></td>
+                            <td>
+                                <div class="product-name">@batch.Product?.Name</div>
+                                <div class="subtext">@(batch.Product?.Category?.Name ?? "Chưa phân loại")</div>
+                            </td>
+                            <td>
+                                <div class="product-name">@batch.Branch?.Name</div>
+                                <div class="subtext">@batch.Branch?.District, @batch.Branch?.Province</div>
+                            </td>
+                            <td>
+                                <form asp-action="UpdateQuantity" method="post" class="qty-form">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@batch.Id" />
+                                    <input name="quantity" class="form-control form-control-sm" type="number" min="0" step="0.001" value="@batch.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                                    <button class="icon-btn icon-btn-save" type="submit" title="Lưu số lượng">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </form>
+                                <div class="subtext">Đã nhập: @FormatQty(batch.OriginalQuantity, batch.Product?.Unit) @batch.Product?.Unit</div>
+                            </td>
+                            <td>@batch.ImportDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <strong>@batch.ExpiryDate.ToString("dd/MM/yyyy")</strong>
+                                <div class="subtext">
+                                    @{
+                                        var daysLeft = (batch.ExpiryDate.Date - today).Days;
+                                    }
+                                    @(daysLeft >= 0 ? $"Còn {daysLeft} ngày" : $"Quá hạn {Math.Abs(daysLeft)} ngày")
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-pill @StatusClass(batch)">
+                                    <i class="bi @(StatusClass(batch) == "batch-active" ? "bi-check-circle-fill" : StatusClass(batch) == "batch-expiring" ? "bi-hourglass-split" : StatusClass(batch) == "batch-empty" ? "bi-dash-circle-fill" : "bi-exclamation-octagon-fill")"></i>
+                                    @StatusText(batch)
+                                </span>
+                            </td>
+                            <td>
+                                <div>@(string.IsNullOrWhiteSpace(batch.SupplierName) ? "Chưa ghi nhận" : batch.SupplierName)</div>
+                                @if (!string.IsNullOrWhiteSpace(batch.Note))
+                                {
+                                    <div class="subtext">@batch.Note</div>
+                                }
+                            </td>
+                            <td style="text-align:center;">
+                                <form asp-action="Delete" method="post" onsubmit="return confirm('Xóa lô hàng này?')" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@batch.Id" />
+                                    <button class="icon-btn icon-btn-delete" type="submit" title="Xóa lô">
+                                        <i class="bi bi-trash3-fill"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                Chưa có lô hàng phù hợp với bộ lọc.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between align-items-center p-3 border-top bg-white rounded-bottom-4">
+            <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                <span>Trang</span>
+                <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                       style="width: 48px; height: 28px; font-size: 13px;"
+                       value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                       onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                <span>/ @ViewBag.TotalPages</span>
+                <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                        style="height: 28px; font-size: 12px; border-radius: 6px;"
+                        onclick="window.goToPage(this);">
+                    OK
+                </button>
+            </div>
+            <div class="d-flex gap-2">
+                @if (ViewBag.Page > 1)
+                {
+                    <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                       asp-action="Index"
+                       asp-route-productId="@ViewBag.SelectedProductId"
+                       asp-route-branchId="@ViewBag.SelectedBranchId"
+                       asp-route-status="@ViewBag.SelectedStatus"
+                       asp-route-warningDays="@ViewBag.WarningDays"
+                       asp-route-page="@(ViewBag.Page - 1)">
+                        <i class="bi bi-chevron-left"></i> Trước
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                }
+
+                @if (ViewBag.Page < ViewBag.TotalPages)
+                {
+                    <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                       asp-action="Index"
+                       asp-route-productId="@ViewBag.SelectedProductId"
+                       asp-route-branchId="@ViewBag.SelectedBranchId"
+                       asp-route-status="@ViewBag.SelectedStatus"
+                       asp-route-warningDays="@ViewBag.WarningDays"
+                       asp-route-page="@(ViewBag.Page + 1)">
+                        Sau <i class="bi bi-chevron-right"></i>
+                    </a>
+                }
+                else
+                {
+                    <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // ----------------------------------------------------
+            // 1. PRODUCT SEARCH FILTER LOGIC (SEARCH & POPULATE)
+            // ----------------------------------------------------
+            const productsList = @Html.Raw(Json.Serialize(products.Select(p => new { p.Id, p.Name })));
+            const selectedProductId = @(selectedProductId.HasValue ? selectedProductId.Value.ToString() : "null");
+
+            const productSearchInput = document.getElementById('productSearchInput');
+            const btnSearchProduct = document.getElementById('btnSearchProduct');
+            const productIdSelect = document.getElementById('productIdSelect');
+
+            if (productSearchInput && btnSearchProduct && productIdSelect) {
+                function performSearch() {
+                    const query = productSearchInput.value.trim().toLowerCase();
+                    const currentValue = productIdSelect.value;
+
+                    // Clear options
+                    productIdSelect.innerHTML = '';
+
+                    // Filter products
+                    const filtered = productsList.filter(p => p.name.toLowerCase().includes(query));
+
+                    // Add placeholder option
+                    const placeholderOpt = document.createElement('option');
+                    placeholderOpt.value = "";
+                    placeholderOpt.textContent = filtered.length > 0 ? "Chọn sản phẩm" : "Không tìm thấy sản phẩm";
+                    productIdSelect.appendChild(placeholderOpt);
+
+                    // Populate matching products
+                    filtered.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.id;
+                        opt.textContent = p.name;
+                        if (p.id.toString() === currentValue) {
+                            opt.selected = true;
+                        }
+                        productIdSelect.appendChild(opt);
+                    });
+
+                    // Auto expand the select dropdown
+                    if (filtered.length > 0) {
+                        productIdSelect.size = Math.min(8, filtered.length + 1);
+                        productIdSelect.classList.add('expanded');
+                    } else {
+                        productIdSelect.size = 1;
+                        productIdSelect.classList.remove('expanded');
+                    }
+
+                    // Focus the select dropdown so user can choose
+                    productIdSelect.focus();
+                }
+
+                // Search when clicking the button
+                btnSearchProduct.addEventListener('click', performSearch);
+
+                // Search when pressing Enter in input box
+                productSearchInput.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        performSearch();
+                    }
+                });
+
+                // Collapse select on change
+                productIdSelect.addEventListener('change', function () {
+                    productIdSelect.size = 1;
+                    productIdSelect.classList.remove('expanded');
+                });
+
+                // Collapse select on blur (delay to allow click selection to complete)
+                productIdSelect.addEventListener('blur', function () {
+                    setTimeout(() => {
+                        productIdSelect.size = 1;
+                        productIdSelect.classList.remove('expanded');
+                    }, 250);
+                });
+
+                // If a product was pre-selected, populate the matching list on load
+                if (selectedProductId) {
+                    performSearch();
+                    productIdSelect.value = selectedProductId;
+                    productIdSelect.size = 1;
+                    productIdSelect.classList.remove('expanded');
+                }
+            }
+
+            // ----------------------------------------------------
+            // 2. 3-STEP BRANCH SELECTION FILTER LOGIC
+            // ----------------------------------------------------
+            const branches = @Html.Raw(Json.Serialize(branches.Select(b => new { b.Id, b.Name, b.Province, b.District })));
+            const selectedBranchId = @(selectedBranchId.HasValue ? selectedBranchId.Value.ToString() : "null");
+
+            const provinceSelect = document.getElementById('branchProvince');
+            const districtSelect = document.getElementById('branchDistrict');
+            const branchSelect = document.getElementById('branchSelect');
+
+            if (provinceSelect && districtSelect && branchSelect) {
+                // Get sorted unique provinces
+                const provinces = [...new Set(branches.map(b => b.province))].sort();
+
+                // Populate province dropdown
+                provinces.forEach(prov => {
+                    const opt = document.createElement('option');
+                    opt.value = prov;
+                    opt.textContent = prov;
+                    provinceSelect.appendChild(opt);
+                });
+
+                // Province selection change
+                provinceSelect.addEventListener('change', function () {
+                    const selectedProv = this.value;
+
+                    // Reset sub-dropdowns
+                    districtSelect.innerHTML = '<option value="">Chọn Phường/Xã</option>';
+                    branchSelect.innerHTML = '<option value="">Chọn chi nhánh</option>';
+                    
+                    districtSelect.disabled = !selectedProv;
+                    branchSelect.disabled = true;
+
+                    if (selectedProv) {
+                        // Get sorted unique districts for the selected province
+                        const districts = [...new Set(branches
+                            .filter(b => b.province === selectedProv)
+                            .map(b => b.district))].sort();
+
+                        districts.forEach(dist => {
+                            const opt = document.createElement('option');
+                            opt.value = dist;
+                            opt.textContent = dist;
+                            districtSelect.appendChild(opt);
+                        });
+                    }
+                });
+
+                // District selection change
+                districtSelect.addEventListener('change', function () {
+                    const selectedProv = provinceSelect.value;
+                    const selectedDist = this.value;
+
+                    branchSelect.innerHTML = '<option value="">Chọn chi nhánh</option>';
+                    branchSelect.disabled = !selectedDist;
+
+                    if (selectedProv && selectedDist) {
+                        // Get branches for the selected province and district
+                        const filteredBranches = branches.filter(b => 
+                            b.province === selectedProv && b.district === selectedDist
+                        );
+
+                        filteredBranches.forEach(b => {
+                            const opt = document.createElement('option');
+                            opt.value = b.id;
+                            opt.textContent = b.name;
+                            branchSelect.appendChild(opt);
+                        });
+                    }
+                });
+
+                // Retain state / pre-selection logic
+                if (selectedBranchId) {
+                    const preSelected = branches.find(b => b.id === selectedBranchId);
+                    if (preSelected) {
+                        provinceSelect.value = preSelected.province;
+                        provinceSelect.dispatchEvent(new Event('change'));
+
+                        districtSelect.value = preSelected.district;
+                        districtSelect.dispatchEvent(new Event('change'));
+
+                        branchSelect.value = selectedBranchId;
+                    }
+                }
+            }
+        });
+    </script>
+}

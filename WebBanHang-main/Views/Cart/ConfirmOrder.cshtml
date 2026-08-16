@@ -1,0 +1,733 @@
+@model WebBanHang.Models.Cart
+@inject WebBanHang.Data.ApplicationDbContext Db
+@{
+    Layout = null;
+    int activeBranchId = Context.Session.GetInt32("ActiveBranchId") ?? 1;
+    if (activeBranchId <= 0)
+    {
+        activeBranchId = 1; // Mặc định dùng chi nhánh 1 để kiểm tra tồn kho nếu đang ở chế độ xem Tổng thể
+    }
+    var branchInventories = Db.ProductInventories
+        .Where(pi => pi.BranchId == activeBranchId)
+        .ToDictionary(pi => pi.ProductId, pi => pi.Quantity);
+
+    bool isBranchExplicitlyChosen = Context.Session.GetString("IsBranchExplicitlyChosen") == "true";
+    bool hasInvalidStock = false;
+    if (isBranchExplicitlyChosen && Model?.CartItems != null)
+    {
+        foreach (var item in Model.CartItems)
+        {
+            var stock = branchInventories.TryGetValue(item.ProductId, out var qty) ? qty : 0m;
+            if (stock <= 0 || item.Quantity > stock)
+            {
+                hasInvalidStock = true;
+                break;
+            }
+        }
+    }
+
+    var subtotalAmount = ViewBag.SubtotalAmount is decimal subtotal
+        ? subtotal
+        : (Model?.CartItems?.Sum(x => x.Product.DiscountedPrice * x.Quantity) ?? 0m);
+    var memberDiscountPct = ViewBag.MembershipDiscountPercent is decimal mdp ? mdp : 0m;
+    var memberDiscountAmount = ViewBag.MembershipDiscountAmount is decimal mda ? mda : 0m;
+    var voucherDiscountAmount = ViewBag.VoucherDiscountAmount is decimal vda ? vda : 0m;
+    var discountAmount = ViewBag.DiscountAmount is decimal discount ? discount : 0m;
+    var finalTotal = ViewBag.FinalTotal is decimal final ? final : subtotalAmount;
+    var appliedDiscountCode = ViewBag.AppliedDiscountCode as string ?? "";
+    var hasFreshFood = Model?.CartItems?.Any(item => item.Product.Category != null && 
+                       (item.Product.Category.Name.Contains("Thịt") || 
+                        item.Product.Category.Name.Contains("cá") || 
+                        item.Product.Category.Name.Contains("trứng"))) ?? false;
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            if (theme === 'dark') {
+                document.documentElement.classList.add('dark-theme');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận đơn hàng - Bách Hóa Xanh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/lib/leaflet/leaflet.css" asp-append-version="true" />
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Be Vietnam Pro', sans-serif;
+            color: #333;
+        }
+
+        .checkout-container {
+            max-width: 1100px;
+            margin-top: 50px;
+        }
+
+        .card-custom {
+            background: #fff;
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            padding: 30px;
+            height: 100%;
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 24px;
+            margin-bottom: 25px;
+        }
+
+        .table thead th {
+            border: none;
+            color: #6c757d;
+            font-size: 14px;
+            padding-bottom: 15px;
+        }
+
+        .table tbody td {
+            padding: 15px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .product-name {
+            font-weight: 500;
+        }
+
+        .form-label {
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            border: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            font-size: 14px;
+        }
+
+            .form-control:focus {
+                box-shadow: none;
+                border-color: #1a7a2e;
+            }
+
+        .rounded-pill {
+            border-radius: 50px !important;
+        }
+
+        .alert-custom {
+            background-color: #d1f3ff;
+            border: none;
+            color: #055160;
+            font-size: 13px;
+            border-radius: 10px;
+            padding: 12px 15px;
+        }
+
+        .btn-confirm {
+            background-color: #1a7a2e;
+            color: #fff;
+            border: none;
+            padding: 15px;
+            font-weight: 700;
+            font-size: 16px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(26, 122, 46, 0.2);
+            width: 100%;
+            border-radius: 50px;
+        }
+
+            .btn-confirm:hover {
+                background-color: #145c23;
+                transform: translateY(-2px);
+                color: #fff;
+            }
+
+        .btn-back {
+            color: #666;
+            text-decoration: none;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 20px;
+            transition: color 0.2s;
+        }
+
+            .btn-back:hover {
+                color: #1a7a2e;
+            }
+
+        .price-red {
+            color: #e82828;
+            font-weight: 700;
+        }
+
+        .btn-select-map {
+            background-color: #1a7a2e;
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 6px 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-select-map:hover {
+            background-color: #145c23;
+            transform: scale(1.02);
+            color: #fff;
+        }
+
+        .shipping-option-card {
+            transition: all 0.2s ease-in-out;
+            border: 2px solid #e0e0e0 !important;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .shipping-option-card:hover {
+            border-color: #1a7a2e !important;
+            background-color: #f1f9f2;
+            transform: translateY(-1px);
+        }
+
+        .shipping-option-card.active {
+            border-color: #1a7a2e !important;
+            background-color: #f1f9f2;
+            box-shadow: 0 4px 15px rgba(26, 122, 46, 0.1);
+        }
+
+        .shipping-option-card.active::after {
+            content: "\F272";
+            font-family: "bootstrap-icons";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #1a7a2e;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        /* DARK THEME SUPPORT */
+        html.dark-theme body {
+            background-color: #121212 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .card-custom {
+            background: #1e1e1e !important;
+            border-color: #333 !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .card-title,
+        html.dark-theme h4,
+        html.dark-theme h5,
+        html.dark-theme label,
+        html.dark-theme .form-label,
+        html.dark-theme th,
+        html.dark-theme td {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme span:not(#map-layers-control span):not(#map-layers-toggle-btn span) {
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .btn-back {
+            color: #aaa !important;
+        }
+        html.dark-theme .btn-back:hover {
+            color: #2c9e47 !important;
+        }
+        html.dark-theme .form-control {
+            background-color: #242424 !important;
+            color: #f5f5f5 !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .form-control:focus {
+            background-color: #2b2b2b !important;
+            color: #fff !important;
+            border-color: #2c9e47 !important;
+        }
+        html.dark-theme .text-muted {
+            color: #aaa !important;
+        }
+        html.dark-theme .table,
+        html.dark-theme .table tr,
+        html.dark-theme .table td,
+        html.dark-theme .table th {
+            background-color: transparent !important;
+            background: transparent !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme .table tbody td {
+            border-bottom: 1px solid #333 !important;
+        }
+        html.dark-theme .shipping-option-card {
+            background-color: #1e1e1e !important;
+            border-color: #444 !important;
+        }
+        html.dark-theme .shipping-option-card:hover {
+            background-color: #203a27 !important;
+            border-color: #2c9e47 !important;
+        }
+        html.dark-theme .shipping-option-card.active {
+            background-color: #203a27 !important;
+            border-color: #2c9e47 !important;
+            box-shadow: 0 4px 15px rgba(44, 158, 71, 0.2) !important;
+        }
+        html.dark-theme .shipping-option-card.active::after {
+            color: #8ae49f !important;
+        }
+        html.dark-theme #map {
+            border-color: #444 !important;
+        }
+        html.dark-theme .text-success {
+            color: #8ae49f !important;
+        }
+        html.dark-theme .price-red {
+            color: #ff6b6b !important;
+        }
+        html.dark-theme #deliveryDistanceCard {
+            background-color: #1e1e1e !important;
+            border-color: #333 !important;
+        }
+        html.dark-theme .bg-success-subtle {
+            background-color: #203a27 !important;
+            color: #8ae49f !important;
+            border: 1px solid #2c9e47 !important;
+        }
+        html.dark-theme #storeBranchDisplay {
+            color: #8ae49f !important;
+        }
+        html.dark-theme #distanceDisplay {
+            color: #ffb84d !important;
+        }
+        html.dark-theme .alert-custom {
+            background-color: #1a3038 !important;
+            color: #72dbec !important;
+        }
+        html.dark-theme .bg-light {
+            background-color: #242424 !important;
+            color: #e0e0e0 !important;
+        }
+        html.dark-theme #mapSearchInput {
+            color: #000000 !important;
+            background-color: #ffffff !important;
+        }
+        html.dark-theme #mapSearchInput::placeholder {
+            color: #777 !important;
+        }
+
+        /* Giao diện danh sách chi nhánh hiển thị trong modal tìm kiếm */
+        #branchSearchResults {
+            background: #ffffff;
+            color: #333333;
+        }
+
+        html.dark-theme #branchSearchResults {
+            background: #1e1e1e !important;
+            border-color: #333 !important;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
+            color: #e0e0e0 !important;
+        }
+
+        .branch-search-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .branch-search-item:last-child {
+            border-bottom: none;
+        }
+
+        .branch-search-item:hover {
+            background-color: #f1f9f2;
+        }
+
+        html.dark-theme .branch-search-item {
+            border-bottom-color: #2b2b2b !important;
+        }
+
+        html.dark-theme .branch-search-item:hover {
+            background-color: #203a27 !important;
+        }
+
+        .branch-search-item .bi-geo-alt-fill {
+            font-size: 18px;
+            color: #1a7a2e;
+        }
+
+        html.dark-theme .branch-search-item .bi-geo-alt-fill {
+            color: #2c9e47 !important;
+        }
+
+        .branch-name-display {
+            font-weight: 600;
+            color: #212529;
+        }
+
+        html.dark-theme .branch-name-display {
+            color: #f5f5f5 !important;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.css" />
+</head>
+<body>
+
+    <div class="container checkout-container mb-5">
+        <a asp-controller="Cart" asp-action="Index" class="btn-back">
+            <i class="bi bi-chevron-left me-1"></i> Quay lại giỏ hàng
+        </a>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card-custom">
+                    <h4 class="card-title">Kiểm tra lại đơn hàng</h4>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th width="50%">Sản phẩm</th>
+                                    <th class="text-center">Số lượng</th>
+                                    <th class="text-end">Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model?.CartItems != null)
+                                {
+                                    @foreach (var item in Model.CartItems)
+                                    {
+                                        var stock = branchInventories.TryGetValue(item.ProductId, out var qty) ? qty : 0m;
+                                        var isOutOfStock = stock <= 0;
+                                        var isInsufficient = item.Quantity > stock;
+                                        <tr>
+                                            <td class="product-name">
+                                                <span class="fw-bold">@item.Product.Name</span>
+                                                @if (isBranchExplicitlyChosen && isOutOfStock)
+                                                {
+                                                    <div class="text-danger small fw-bold mt-1"><i class="bi bi-x-circle-fill me-1"></i>Hết hàng tại chi nhánh chọn</div>
+                                                }
+                                                else if (isBranchExplicitlyChosen && isInsufficient)
+                                                {
+                                                    <div class="text-warning small fw-bold mt-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Chỉ còn @stock.ToString("0.###").TrimEnd('0').TrimEnd('.') @item.Product.Unit</div>
+                                                }
+                                            </td>
+                                            <td class="text-center text-muted">
+                                                x @(item.Product.IsSoldByWeight ? item.Quantity.ToString("0.###").TrimEnd('0').TrimEnd('.') : item.Quantity.ToString("0")) @item.Product.Unit
+                                            </td>
+                                            <td class="text-end fw-bold">
+                                                @if (item.Product.DiscountedPrice < item.Product.Price)
+                                                {
+                                                    <div class="text-decoration-line-through text-muted small">@((item.Product.Price * item.Quantity).ToString("N0")) đ</div>
+                                                    <div class="text-danger">@((item.Product.DiscountedPrice * item.Quantity).ToString("N0")) đ</div>
+                                                }
+                                                else
+                                                {
+                                                    <span>@((item.Product.Price * item.Quantity).ToString("N0")) đ</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between">
+                            <span class="fw-bold">Tạm tính:</span>
+                            <span>@subtotalAmount.ToString("N0") đ</span>
+                        </div>
+                        @if (memberDiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mt-2 text-success">
+                                <span>Ưu đãi thành viên (@((memberDiscountPct * 100).ToString("0"))%):</span>
+                                <span class="fw-bold">-@memberDiscountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+                        @if (voucherDiscountAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between mt-2 text-success">
+                                <span>Giảm giá (@appliedDiscountCode):</span>
+                                <span class="fw-bold">-@voucherDiscountAmount.ToString("N0") đ</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between mt-2 text-muted" id="shippingFeeSummaryRow" style="display: none !important;">
+                            <span>Phí vận chuyển:</span>
+                            <span class="fw-bold" id="shippingFeeSummaryDisplay">0 đ</span>
+                        </div>
+                        <div class="text-end mt-3">
+                            <h5 class="fw-bold">
+                                Tổng cộng: <span class="price-red fs-4 ms-2" id="finalTotalDisplay">@finalTotal.ToString("N0") đ</span>
+                            </h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card-custom">
+                    <h4 class="card-title">Thông tin giao hàng</h4>
+
+                    <form asp-action="ChoosePaymentMethod" asp-controller="Cart" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Họ và tên</label>
+                            <input type="text" name="fullName" class="form-control rounded-pill" placeholder="Nhập tên vào..." value="@(ViewBag.PrefilledFullName ?? "")" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Số điện thoại</label>
+                            <input type="text" name="phone" class="form-control rounded-pill" placeholder="Nhập SĐT" value="@(ViewBag.ProfilePhone ?? "")" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label mb-0">Địa chỉ nhận hàng</label>
+                                <button type="button" class="btn-select-map" data-bs-toggle="modal" data-bs-target="#mapModal">
+                                    <i class="bi bi-geo-alt-fill"></i> Chọn vị trí giao gần bạn <i class="bi bi-chevron-down ms-1"></i>
+                                </button>
+                            </div>
+                            <textarea name="address" class="form-control" style="border-radius: 15px;" rows="4" placeholder="Nhập địa chỉ..." required>@(ViewBag.ProfileAddress ?? "")</textarea>
+                        </div>
+
+                        <!-- Shipping Method Selection -->
+                        <div class="mb-4" id="shippingSection" style="display: none;">
+                            <label class="form-label mb-2"><i class="bi bi-truck me-1"></i> Phương thức vận chuyển</label>
+                            
+                            <!-- Distance display -->
+                            <div class="mb-3 p-3 bg-light rounded-4 border border-dashed border-success">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <span class="fw-bold text-success d-block"><i class="bi bi-geo-fill me-1"></i>Khoảng cách giao hàng</span>
+                                        <span id="shippingDistanceText" class="small text-muted">Chưa xác định</span>
+                                    </div>
+                                    <div class="text-end">
+                                        <span id="shippingFreeshipBadge" class="badge bg-success rounded-pill px-2 py-1 fs-7" style="display: none;">Freeship 3km</span>
+                                    </div>
+                                </div>
+                                <div id="nearestBranchInfo" class="mt-2 pt-2 border-top border-light-subtle" style="display: none;">
+                                    <span class="fw-bold text-success d-block mb-1" style="font-size: 13px;"><i class="bi bi-shop me-1"></i>Cơ sở giao hàng gần nhất</span>
+                                    <span id="nearestBranchName" class="small fw-bold text-dark d-block">Đang xác định...</span>
+                                    <span id="nearestBranchAddress" class="small text-muted d-block mt-1" style="display:none;"><i class="bi bi-geo-alt me-1"></i><span id="nearestBranchAddressText"></span></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Hidden Fields to submit -->
+                            <input type="hidden" name="shippingMethod" id="shippingMethodInput" value="" />
+                            <input type="hidden" name="shippingFee" id="shippingFeeInput" value="0" />
+                            <input type="hidden" name="shippingDistance" id="shippingDistanceInput" value="0" />
+                            <input type="hidden" name="latitude" id="latitudeInput" value="" />
+                            <input type="hidden" name="longitude" id="longitudeInput" value="" />
+
+                            <!-- List of methods -->
+                            <div class="d-flex flex-column gap-2" id="shippingMethodsList">
+                                <!-- Option 1: Instant -->
+                                <div class="shipping-option-card p-3 border rounded-4 cursor-pointer position-relative d-flex justify-content-between align-items-center" data-method="Instant">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-success">Giao ngay</h6>
+                                        <small class="text-muted">Nhận hàng lập tức, tối ưu thời gian</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-danger fs-5" id="fee-Instant">15.000 đ</span>
+                                    </div>
+                                </div>
+
+                                <!-- Option 2: Hourly (60 min) -->
+                                <div class="shipping-option-card p-3 border rounded-4 cursor-pointer position-relative d-flex justify-content-between align-items-center" data-method="Hourly">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-success">Hẹn giờ (Trong vòng 60 phút)</h6>
+                                        <small class="text-muted">Giao hàng chính xác theo lịch hẹn</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-danger fs-5" id="fee-Hourly">12.000 đ</span>
+                                    </div>
+                                </div>
+
+                                <!-- Option 3: 4 Hours -->
+                                <div class="shipping-option-card p-3 border rounded-4 cursor-pointer position-relative d-flex justify-content-between align-items-center" data-method="4Hours">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-success">Hẹn giờ (Trong vòng 4h)</h6>
+                                        <small class="text-muted">Giao hàng linh hoạt trong nửa ngày</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-danger fs-5" id="fee-4Hours">9.000 đ</span>
+                                    </div>
+                                </div>
+
+                                <!-- Option 4: Economy (24 Hours) -->
+                                <div class="shipping-option-card p-3 border rounded-4 cursor-pointer position-relative d-flex justify-content-between align-items-center" data-method="Economy">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold text-success">Tiết kiệm (Trong vòng 24h)</h6>
+                                        <small class="text-muted">Giao hàng tiết kiệm trong ngày mai</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold text-danger fs-5" id="fee-Economy">5.000 đ</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fallback visual cue for map coordinates -->
+                        <div class="mb-4" id="shippingAlert">
+                            <div class="alert alert-warning border-0 rounded-4 d-flex align-items-center small m-0">
+                                <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                                <span>Vui lòng chọn vị trí trên bản đồ hoặc nhập địa chỉ để tính khoảng cách và phí giao hàng.</span>
+                            </div>
+                        </div>
+
+                        @if (hasInvalidStock)
+                        {
+                            <div class="alert alert-danger d-flex align-items-center mb-4">
+                                <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                                <div>Giỏ hàng chứa sản phẩm hết hàng hoặc không đủ tồn kho tại chi nhánh hiện tại. Vui lòng quay lại giỏ hàng để kiểm tra.</div>
+                            </div>
+
+                            <button type="button" class="btn btn-confirm bg-secondary" style="cursor:not-allowed;" disabled>
+                                VUI LÒNG ĐIỀU CHỈNH GIỎ HÀNG
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="alert alert-custom d-flex align-items-center mb-4">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <div>Bấm xác nhận để chọn phương thức thanh toán ♥</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-confirm">
+                                TIẾP TỤC CHỌN THANH TOÁN
+                            </button>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <partial name="_AiChatWidget" />
+    
+    <!-- Map Selection Modal -->
+    <div class="modal fade" id="mapModal" tabindex="-1" aria-labelledby="mapModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                <div class="modal-header text-white" style="background-color: #1a7a2e; border: none; padding: 15px 25px;">
+                    <h5 class="modal-title fw-bold" id="mapModalLabel"><i class="bi bi-geo-alt-fill me-2"></i>Chọn vị trí giao hàng</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0 position-relative">
+                    <!-- Search bar overlay -->
+                    <div class="position-absolute top-0 start-0 end-0 p-3" style="z-index: 1000; background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0));">
+                        <div class="input-group shadow-sm" style="border-radius: 30px; overflow: hidden;">
+                            <input type="text" id="mapSearchInput" class="form-control border-0 px-4" placeholder="Nhập địa chỉ cần tìm..." style="height: 46px;">
+                            <button class="btn btn-success px-4" type="button" id="mapSearchBtn" style="background-color: #1a7a2e; border: none;">
+                                <i class="bi bi-search"></i> Tìm kiếm
+                            </button>
+                        </div>
+                        <!-- Dropdown hiển thị danh sách các chi nhánh của địa danh/địa điểm tìm kiếm -->
+                        <div id="branchSearchResults" class="shadow-lg" style="position: absolute; top: 100%; left: 16px; right: 16px; z-index: 1100; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 16px; max-height: 280px; overflow-y: auto; display: none; margin-top: 8px;">
+                            <!-- Danh sách chi nhánh sẽ được tạo động ở đây -->
+                        </div>
+                    </div>
+                    
+                    <!-- Map Container -->
+                    <div id="map" style="height: 450px; width: 100%;"></div>
+                    
+                    <!-- Info Footer -->
+                    <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center">
+                        <div class="text-truncate me-3" style="max-width: 70%;">
+                            <i class="bi bi-pin-map-fill text-danger me-1"></i>
+                            <span id="selectedAddressText" class="text-muted small">Nhấp chọn một vị trí trên bản đồ để xác định địa chỉ...</span>
+                        </div>
+                        <button type="button" class="btn btn-success rounded-pill px-4 fw-bold" id="confirmAddressBtn" disabled style="background-color: #1a7a2e; border: none;">
+                            Xác nhận địa chỉ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/lib/leaflet/leaflet.js" asp-append-version="true"></script>
+    <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
+    @{
+        var activeBranch = Db.Branches.Find(activeBranchId);
+        string activeBranchAddress = activeBranch?.Address ?? "";
+        string activeBranchName = activeBranch?.Name ?? "";
+        isBranchExplicitlyChosen = Context.Session.GetString("IsBranchExplicitlyChosen") == "true";
+    }
+    <script>
+        window.shippingConfig = {
+            hasFreshFood: @Html.Raw(Json.Serialize(hasFreshFood)),
+            subtotalAmount: @Html.Raw(Json.Serialize(subtotalAmount)),
+            discountAmount: @Html.Raw(Json.Serialize(discountAmount)),
+            baseFinalTotal: @Html.Raw(Json.Serialize(finalTotal)),
+            prefilledShippingMethod: @Html.Raw(Json.Serialize(ViewBag.PrefilledShippingMethod)),
+            appliedDiscountCode: @Html.Raw(Json.Serialize(ViewBag.AppliedDiscountCode)),
+            savedProfileAddress: @Html.Raw(Json.Serialize(ViewBag.SavedProfileAddress)),
+            isBranchExplicitlyChosen: @Html.Raw(Json.Serialize(isBranchExplicitlyChosen)),
+            activeBranchId: @Html.Raw(Json.Serialize(activeBranchId)),
+            activeBranchName: @Html.Raw(Json.Serialize(activeBranchName)),
+            activeBranchAddress: @Html.Raw(Json.Serialize(activeBranchAddress))
+        };
+        window._resolvedBranch = window.shippingConfig.activeBranchName ? {
+            name: window.shippingConfig.activeBranchName,
+            address: window.shippingConfig.activeBranchAddress
+        } : null;
+    </script>
+    <script src="/js/confirm-order.js" asp-append-version="true"></script>
+
+    <!-- Modal warning out of stock at nearest branch -->
+    <div class="modal fade" id="stockWarningModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="stockWarningModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 rounded-4" style="overflow: hidden;">
+                <div class="modal-body p-4 text-center">
+                    <!-- Icon badge -->
+                    <div class="mb-3 bg-danger-subtle text-danger mx-auto rounded-circle d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; font-size: 34px;">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                    </div>
+                    
+                    <h4 class="fw-bold mb-2 text-danger">THÔNG BÁO!</h4>
+                    
+                    <div class="mb-4">
+                        <p class="mb-2 fw-bold fs-5 text-dark dark-text-light" id="stockWarningBranchName">"Tên chi nhánh"</p>
+                        <p class="text-secondary small dark-text-muted mb-3">Hiện tại không đủ hàng cho các sản phẩm sau:</p>
+                        
+                        <div class="bg-light p-3 rounded-3 text-start" id="stockWarningProductsList" style="max-height: 180px; overflow-y: auto;">
+                            <!-- List of out of stock products -->
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="/Cart" class="btn btn-outline-danger w-100 rounded-pill py-2 fw-bold" style="font-size: 14px;">
+                                Quay lại Giỏ hàng
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-danger w-100 rounded-pill py-2 fw-bold" data-bs-dismiss="modal" style="font-size: 14px;">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

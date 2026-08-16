@@ -1,0 +1,236 @@
+@model List<WebBanHang.Services.LeaderboardRowViewModel>
+@{
+    ViewData["Title"] = "Quản Lý Bảng Xếp Hạng";
+    Layout = "_Layout";
+    var period = ViewBag.Period as string ?? "month";
+}
+
+@functions {
+    public string GetFrameUrl(string? frameKey, out string filterStyle)
+    {
+        filterStyle = "";
+        if (string.IsNullOrEmpty(frameKey) || frameKey == "none") return "";
+
+        if (frameKey.StartsWith("khung-top-"))
+        {
+            return $"/image/khung-top/{frameKey}";
+        }
+        
+        if (frameKey.StartsWith("daily-normal-"))
+        {
+            return $"/image/khung-theo-ngay/khung-thuong/{frameKey.Substring("daily-normal-".Length)}";
+        }
+        
+        if (frameKey.StartsWith("daily-limited-"))
+        {
+            filterStyle = "filter: drop-shadow(0 0 3px #ff5722);";
+            return $"/image/khung-theo-ngay/khung-gioi-han/{frameKey.Substring("daily-limited-".Length)}";
+        }
+
+        if (frameKey.StartsWith("vip-moc-"))
+        {
+            filterStyle = "filter: drop-shadow(0 0 3px #ffc107);";
+            var file = frameKey switch
+            {
+                "vip-moc-1" => "khung-vip-moc-1.png",
+                "vip-moc-2" => "khung-vip-moc-2.webp",
+                "vip-moc-3" => "khung-vip-moc-3.webp",
+                "vip-moc-4" => "khung-vip-moc-4.webp",
+                _ => "khung-vip-moc-1.png"
+            };
+            return $"/image/khung-vip/{file}";
+        }
+
+        var tierFile = frameKey switch
+        {
+            "tier-0" => "khung-sat.webp",
+            "tier-1" => "khung-dong.webp",
+            "tier-2" => "khung-sat.webp",
+            "tier-3" => "khung-vang.webp",
+            "tier-4" => "khung-bach-kim.webp",
+            "tier-5" => "khung-luc-bao.png",
+            "tier-6" => "khung-kim-cuong.webp",
+            "tier-7" => "khung-ruby.png",
+            "tier-8" => "khung-niken.png",
+            "tier-9" => "khung-titan.png",
+            "tier-10" => "khung-uranium.png",
+            "tier-11" => "khung-iridium.png",
+            _ => null
+        };
+
+        if (tierFile == null) return "";
+
+        filterStyle = frameKey switch
+        {
+            "tier-2" => "filter: brightness(1.2) contrast(1.4) saturate(0) drop-shadow(0 0 2px rgba(255,255,255,0.7));",
+            "tier-5" => "filter: drop-shadow(0 0 2px #00ffd0);",
+            "tier-6" => "filter: drop-shadow(0 0 2px #a1c4fd);",
+            "tier-7" => "filter: drop-shadow(0 0 2px #ff0844);",
+            "tier-10" => "filter: drop-shadow(0 0 3px #39FF14);",
+            "tier-11" => "filter: drop-shadow(0 0 4px #C77DFF) drop-shadow(0 0 6px #E040FB);",
+            _ => ""
+        };
+
+        return $"/image/khung-avatar/{tierFile}";
+    }
+}
+
+
+<div class="container py-4">
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show rounded-3 border-0 shadow-none mb-4" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>@TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show rounded-3 border-0 shadow-none mb-4" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>@TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                <div>
+                    <h2 class="fw-bold text-success m-0"><i class="bi bi-shield-lock-fill me-2"></i>QUẢN TRỊ BẢNG XẾP HẠNG</h2>
+                    <p class="text-secondary m-0">Xem và đối soát doanh số tích lũy của khách hàng</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <form asp-action="SendChaseNotifications" method="post" class="m-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="period" value="@period" />
+                        <button type="submit" class="btn btn-warning text-white rounded-pill px-3 fw-bold" style="background-color: #d35400; border-color: #b9770e;">
+                            <i class="bi bi-fire me-1"></i>Kích cầu bám đuổi (Top 11-20)
+                        </button>
+                    </form>
+                    <a href="@Url.Action("Index", "Leaderboard")" class="btn btn-outline-success rounded-pill px-3">
+                        <i class="bi bi-eye-fill me-2"></i>Xem giao diện khách hàng
+                    </a>
+                </div>
+            </div>
+
+            <!-- Bộ lọc chu kỳ cho Admin -->
+            <div class="bg-light p-3 rounded-3 mb-4 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold text-dark">Lọc theo chu kỳ:</span>
+                <div class="btn-group" role="group">
+                    <a href="@Url.Action("AdminIndex", "Leaderboard", new { period = "month" })" 
+                       class="btn btn-sm @(period == "month" ? "btn-success" : "btn-outline-secondary")">Tháng này</a>
+                    <a href="@Url.Action("AdminIndex", "Leaderboard", new { period = "year" })" 
+                       class="btn btn-sm @(period == "year" ? "btn-success" : "btn-outline-secondary")">Năm này</a>
+                    <a href="@Url.Action("AdminIndex", "Leaderboard", new { period = "alltime" })" 
+                       class="btn btn-sm @(period == "alltime" ? "btn-success" : "btn-outline-secondary")">Tất cả thời gian</a>
+                </div>
+            </div>
+
+            <!-- Bảng danh sách chi tiết -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle border">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3" style="width: 80px;">Hạng</th>
+                            <th>Mã khách hàng</th>
+                            <th>Tên khách hàng</th>
+                            <th>Thẻ thành viên</th>
+                            <th>Khung hoạt ảnh</th>
+                            <th>Huy hiệu</th>
+                            <th class="text-end pe-3">Doanh thu chi tiêu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Any())
+                        {
+                            foreach (var row in Model)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="badge @(row.Rank <= 3 ? "bg-warning text-dark" : "bg-secondary") rounded-circle p-2" style="width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center;">@row.Rank</span>
+                                    </td>
+                                    <td><code class="text-dark">@row.UserId</code></td>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="avatar-wrapper position-relative d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; flex-shrink: 0;">
+                                                <img src="@(string.IsNullOrEmpty(row.AvatarUrl) ? "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='32' fill='%23edf2f7'/><path d='M32 36c-8.84 0-16 7.16-16 16h32c0-8.84-7.16-16-16-16zm0-24a9 9 0 1 0 0 18 9 9 0 0 0 0-18z' fill='%23a0aec0'/></svg>" : row.AvatarUrl)" 
+                                                     class="avatar-img rounded-circle" style="width: 38px; height: 38px; object-fit: cover; margin: 0 !important; border: none;" />
+                                                @{
+                                                    string filterRow = "";
+                                                    string frameUrlRow = GetFrameUrl(row.EquippedAvatarFrame, out filterRow);
+                                                }
+                                                @if (!string.IsNullOrEmpty(frameUrlRow))
+                                                {
+                                                    <img src="@frameUrlRow" class="frame-overlay" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; @filterRow" />
+                                                }
+                                            </div>
+                                            <span class="fw-bold">@row.FullName</span>
+                                        </div>
+                                    </td>
+                                    <td>@row.MembershipTierName</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(row.EquippedAvatarFrame) && row.EquippedAvatarFrame != "none")
+                                        {
+                                            <span class="badge bg-info">@row.EquippedAvatarFrame</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Mặc định</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(row.EquippedBadge) && row.EquippedBadge != "none")
+                                        {
+                                            <span class="badge bg-primary">@row.EquippedBadge</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Không</span>
+                                        }
+                                    </td>
+                                    <td class="text-end pe-3 fw-bold text-success">@row.TotalSpent.ToString("N0") đ</td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">Không tìm thấy dữ liệu xếp hạng trong kỳ</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Hướng dẫn vận hành -->
+            <div class="alert alert-warning mt-4 rounded-3 border-0 shadow-none">
+                <h6 class="fw-bold"><i class="bi bi-info-circle-fill me-2"></i>Quy trình trao thưởng tự động:</h6>
+                <p class="small m-0 text-secondary">
+                    Hệ thống sẽ tự động chốt kết toán và gửi thông báo, quà tặng (Loyalty Points, Voucher số, mở khóa Khung/Huy hiệu) vào lúc <strong>04:00 ngày đầu tiên của mỗi tháng</strong> đối với bảng xếp hạng Tháng trước. Quản trị viên chỉ cần theo dõi và hỗ trợ trao các quà tặng hiện vật cho khách hàng đến quầy chi nhánh.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-wrapper {
+        width: 48px;
+        height: 48px;
+        position: relative;
+    }
+    .avatar-img {
+        width: 38px;
+        height: 38px;
+        object-fit: cover;
+        margin: 0 !important;
+    }
+    .frame-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+    }
+</style>

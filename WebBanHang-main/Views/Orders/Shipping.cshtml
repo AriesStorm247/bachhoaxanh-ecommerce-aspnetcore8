@@ -1,0 +1,255 @@
+@model IEnumerable<WebBanHang.Models.Order>
+@{
+    ViewData["Title"] = "Đang giao hàng";
+    Layout = "_Layout_Admin";
+}
+<div class="mb-3">
+    <button class="btn btn-outline-success"
+            onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i>
+        Quay lại Trang chủ
+    </button>
+</div>
+@if (TempData["CompletedOrderId"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm d-flex align-items-center justify-content-between mb-4 p-3" role="alert" style="border-radius: 12px; background-color: #e8f5e9; border-left: 5px solid #2e7d32 !important;">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill text-success fs-4 me-3"></i>
+            <div>
+                <strong class="text-success d-block">Hoàn tất giao hàng thành công!</strong>
+                <span class="text-muted small">@TempData["SuccessMessage"]</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center">
+            <a href="@Url.Action("PrintInvoice", "Orders", new { id = TempData["CompletedOrderId"] })" target="_blank" class="btn btn-success fw-bold px-3 py-2 me-4" style="border-radius: 8px; font-size: 13px;">
+                <i class="bi bi-printer-fill me-1"></i> In hóa đơn
+            </a>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="top: 50%; transform: translateY(-50%);"></button>
+        </div>
+    </div>
+}
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 style="font-weight: 900; color: var(--green-dark);">
+            <i class="bi bi-truck me-2"></i> ĐƠN ĐANG ĐI GIAO
+        </h2>
+        <p class="text-muted">Theo dõi các đơn hàng đang trên đường đến tay khách.</p>
+    </div>
+    <span class="badge bg-primary fs-6">@Model.Count() đơn đang đi</span>
+</div>
+
+<div class="fcard mb-4" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); padding: 20px;">
+    <form method="get" asp-action="Shipping" class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="startDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Từ ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="startDate" name="startDate" class="form-control bg-light border-start-0" value="@ViewBag.StartDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-4">
+            <label for="endDate" class="form-label fw-bold text-muted" style="font-size: 13px;">Đến ngày</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-calendar-date"></i></span>
+                <input type="date" id="endDate" name="endDate" class="form-control bg-light border-start-0" value="@ViewBag.EndDate" style="border-radius: 0 8px 8px 0;" />
+            </div>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1 fw-bold" style="border-radius: 8px; background-color: var(--green-dark); border-color: var(--green-dark); height: 38px;">
+                <i class="bi bi-funnel-fill"></i> Lọc
+            </button>
+            <a asp-action="Shipping" class="btn btn-outline-secondary fw-bold" style="border-radius: 8px; height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+                <i class="bi bi-x-circle me-1"></i> Xóa bộ lọc
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="fcard" style="background:#fff; border-radius:14px; box-shadow:0 4px 15px rgba(0,0,0,0.05); overflow:hidden;">
+    <table class="table align-middle m-0">
+        <thead style="background:#f0f7ff;">
+            <tr>
+                <th style="padding:15px;">Đơn hàng</th>
+                <th>Khách hàng & Địa chỉ</th>
+                <th>Thời gian</th>
+                <th style="text-align:right; padding:15px;">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td style="padding:15px;">
+                        <span class="fw-bold">#@item.Id</span>
+                    </td>
+                    <td>
+                        <div style="font-weight:700;">@item.FullName</div>
+                        
+                        <div class="text-danger fw-bold">
+                            @item.TotalAmount.ToString("N0") ₫
+                        </div>
+                        
+                        <div style="font-size:12px; color:#666;"><i class="bi bi-geo-alt"></i> @item.Address</div>
+                    </td>
+                    <td>
+                        @if (item.Status == 2)
+                        {
+                            <span class="text-muted" style="font-size:13px;">Đang vận chuyển...</span>
+                        }
+                        else if (item.Status == 3)
+                        {
+                            <span class="badge bg-success text-white" style="border-radius:10px;">Giao thành công</span>
+                        }
+                        else if (item.Status == 5)
+                        {
+                            <span class="badge bg-danger text-white" style="border-radius:10px;">Đã hủy</span>
+                        }
+                    </td>
+                    <td style="text-align:right; padding:15px;">
+                        @if (item.Status == 2)
+                        {
+                            <button type="button" class="btn btn-success fw-bold"
+                                    style="border-radius: 20px; padding: 8px 20px; font-size: 13px; background-color: var(--green-dark); border-color: var(--green-dark);"
+                                    onclick="checkOrderStatus(@item.Id, @item.Status)">
+                                <i class="bi bi-info-circle"></i> Kiểm tra trạng thái
+                            </button>
+                        }
+                        else
+                        {
+                            <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary fw-bold"
+                               style="border-radius: 20px; padding: 8px 20px; font-size: 13px;">
+                                <i class="bi bi-eye"></i> Xem chi tiết
+                            </a>
+                        }
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="4" class="text-center p-5 text-muted">
+                        <i class="bi bi-inbox" style="font-size:40px;"></i>
+                        <p class="mt-2">Không tìm thấy đơn hàng nào.</p>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-white">
+        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+            <span>Trang</span>
+            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                   style="width: 48px; height: 28px; font-size: 13px;"
+                   value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+            <span>/ @ViewBag.TotalPages</span>
+            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                    onclick="window.goToPage(this);">
+                OK
+            </button>
+        </div>
+        <div class="d-flex gap-2">
+            @if (ViewBag.Page > 1)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="Shipping"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-page="@(ViewBag.Page - 1)">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+            }
+
+            @if (ViewBag.Page < ViewBag.TotalPages)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="Shipping"
+                   asp-route-startDate="@ViewBag.StartDate"
+                   asp-route-endDate="@ViewBag.EndDate"
+                   asp-route-page="@(ViewBag.Page + 1)">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Kiểm tra trạng thái -->
+<div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+            <div class="modal-header bg-success text-white py-3 border-0" style="background-color: var(--green-dark) !important;">
+                <h5 class="modal-title fw-bold" id="statusModalLabel">
+                    <i class="bi bi-info-circle-fill me-2"></i>Trạng thái giao hàng
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <p class="fs-5 mb-0" id="statusModalMessage" style="font-weight: 600; color: #2d3748;"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pb-4">
+                <button type="button" class="btn btn-success fw-bold px-4 py-2" id="statusModalOkBtn" style="border-radius: 8px; background-color: var(--green-dark); border-color: var(--green-dark);">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let lastCheckedStatus = null;
+
+        function checkOrderStatus(orderId, oldStatus) {
+            const messageEl = document.getElementById("statusModalMessage");
+            messageEl.innerText = "Đang kiểm tra...";
+            lastCheckedStatus = null;
+            
+            var myModalEl = document.getElementById('statusModal');
+            var bootstrapModal = bootstrap.Modal.getInstance(myModalEl) || new bootstrap.Modal(myModalEl);
+            bootstrapModal.show();
+
+            fetch(`/Orders/GetOrderStatus/${orderId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.success) {
+                        lastCheckedStatus = data.status;
+                        let message = "";
+                        if (data.status === 3) {
+                            message = "thành công";
+                        } else {
+                            message = "Chưa giao hàng";
+                        }
+                        messageEl.innerText = message;
+                    } else {
+                        messageEl.innerText = data.message || "Lỗi khi kiểm tra trạng thái.";
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching order status:", error);
+                    messageEl.innerText = "Lỗi kết nối máy chủ.";
+                });
+        }
+
+        document.getElementById("statusModalOkBtn").addEventListener("click", function() {
+            var myModalEl = document.getElementById('statusModal');
+            var bootstrapModal = bootstrap.Modal.getInstance(myModalEl);
+            if (bootstrapModal) {
+                bootstrapModal.hide();
+            }
+            
+            if (lastCheckedStatus === 3) {
+                window.location.reload();
+            }
+        });
+    </script>
+}

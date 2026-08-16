@@ -1,0 +1,713 @@
+@model IEnumerable<WebBanHang.Models.Product>
+@{
+    ViewData["Title"] = "Quản lý sản phẩm";
+    Layout = "_Layout_Admin"; // Đảm bảo tên này khớp với file trong Views/Shared
+}
+
+@section Styles {
+    <style>
+        /* ── BRANCH SELECTOR PANEL ── */
+        .branch-selector-panel {
+            background: #fff;
+            border-radius: 14px;
+            padding: 16px 20px; /* Reset về padding bình thường */
+            box-shadow: 0 2px 16px rgba(0,0,0,.07);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+        /* Custom scrollbar thanh lịch - Chỉ xuất hiện khi tràn và hover */
+        .branch-selector-panel::-webkit-scrollbar {
+            height: 5px;
+        }
+        .branch-selector-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .branch-selector-panel::-webkit-scrollbar-thumb {
+            background: transparent;
+            border-radius: 10px;
+        }
+        .branch-selector-panel:hover::-webkit-scrollbar-thumb {
+            background: #d4d4d4;
+        }
+        .branch-selector-panel::-webkit-scrollbar-thumb:hover {
+            background: var(--green-main) !important;
+        }
+        .branch-selector-panel select,
+        .branch-selector-panel .bsp-label,
+        .branch-selector-panel .bsp-arrow,
+        .btn-clear-branch {
+            flex-shrink: 0;
+        }
+        .branch-selector-panel select {
+            border: 1.5px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 7px 12px;
+            font-size: 13px;
+            outline: none;
+            background: #fafafa;
+            min-width: 160px;
+            transition: border-color .2s;
+            cursor: pointer;
+        }
+        .branch-selector-panel select:focus { border-color: var(--green-main); background: #fff; }
+        .branch-selector-panel select:disabled { opacity: .45; cursor: default; }
+        .bsp-arrow { color: #bbb; font-size: 16px; flex-shrink: 0; }
+        .mode-badge {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .mode-badge.global { background: #eff6ff; color: #3b82f6; }
+        .mode-badge.branch { background: var(--green-light); color: var(--green-dark); }
+        .btn-clear-branch {
+            background: #fff0f0;
+            color: var(--red);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            display: none;
+        }
+        /* ── INLINE INVENTORY EDIT ── */
+        .inv-cell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .inv-edit-input {
+            width: 80px;
+            border: 1.5px solid var(--green-main);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 13px;
+            font-weight: 700;
+            outline: none;
+            display: none;
+        }
+        .btn-inv-edit {
+            background: none;
+            border: none;
+            color: #bbb;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 2px 4px;
+            display: inline-flex;
+        }
+        .inv-saving { color: #999; font-size: 11px; }
+        /* 1. STAT CARDS */
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+        .stat-card { background: #fff; border-radius: 13px; padding: 16px 18px; box-shadow: 0 1px 10px rgba(0,0,0,.06); display: flex; align-items: center; gap: 13px; }
+        .stat-icon { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+        .si-green { background: var(--green-light); color: var(--green-main); }
+        .si-yellow { background: #fff8e1; color: #d97706; }
+        .si-red { background: #fff0f0; color: var(--red); }
+        .si-blue { background: #eff6ff; color: #3b82f6; }
+        .stat-num { font-size: 24px; font-weight: 900; color: #111; line-height: 1; }
+        .stat-lbl { font-size: 12px; color: #999; font-weight: 500; margin-top: 3px; }
+
+        /* 2. TABLE CARD */
+        .tcard { background: #fff; border-radius: 14px; box-shadow: 0 2px 16px rgba(0,0,0,.07); overflow: hidden; }
+        .tcard-head { padding: 16px 22px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f0f0f0; flex-wrap: wrap; gap: 12px; }
+        .tcard-title { font-size: 15px; font-weight: 800; color: #1a1a1a; display: flex; align-items: center; gap: 7px; }
+        .tcard-title i { color: var(--green-main); }
+
+        /* Search & Add Button */
+        .search-box { position: relative; }
+        .search-box input { padding: 8px 14px 8px 36px; border: 1.5px solid #e8e8e8; border-radius: 20px; font-size: 13px; outline: none; width: 220px; transition: all .2s; }
+        .search-box input:focus { border-color: var(--green-main); box-shadow: 0 0 0 3px rgba(44,158,71,.1); }
+        .search-box i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #bbb; font-size: 13px; }
+        .btn-add { background: linear-gradient(135deg, var(--green-main), var(--green-accent)); color: #fff; border: none; border-radius: 20px; padding: 8px 18px; font-size: 13px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(44,158,71,.28); }
+
+        /* Table Styles */
+        .ptable { width: 100%; border-collapse: collapse; }
+        .ptable thead tr { background: #fafafa; border-bottom: 2px solid #f0f0f0; }
+        .ptable thead th { padding: 11px 16px; font-size: 11px; font-weight: 800; color: #aaa; text-transform: uppercase; letter-spacing: .8px; }
+        .ptable tbody tr { border-bottom: 1px solid #f7f7f7; transition: background .12s; }
+        .ptable tbody tr:hover { background: #fafffe; }
+        .ptable tbody td { padding: 12px 16px; font-size: 13px; vertical-align: middle; }
+
+        .prod-img { width: 54px; height: 54px; border-radius: 10px; object-fit: cover; border: 1.5px solid #eee; }
+        .prod-img-placeholder { width: 54px; height: 54px; border-radius: 10px; background: var(--green-light); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .id-chip { background: #f2f2f2; color: #999; border-radius: 6px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; }
+        .price { font-size: 14px; font-weight: 900; color: var(--red); }
+        .amt { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+        .amt-ok { background: var(--green-light); color: var(--green-dark); }
+        .amt-low { background: #fff8e1; color: #b45309; }
+        .amt-out { background: #fff0f0; color: var(--red); }
+        .visibility-pill { border: 0; border-radius: 20px; padding: 5px 10px; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; transition: transform .15s; white-space: nowrap; }
+        .visibility-pill:hover { transform: translateY(-1px); }
+        .visibility-on { background: var(--green-light); color: var(--green-dark); }
+        .visibility-off { background: #f2f2f2; color: #666; }
+
+        /* Actions */
+        .actions { display: flex; gap: 5px; }
+        .btn-act { width: 32px; height: 32px; border-radius: 8px; border: none; display: flex; align-items: center; justify-content: center; transition: all .15s; text-decoration: none; }
+        .btn-act:hover { transform: scale(1.1); }
+        .btn-edit { background: #eff6ff; color: #3b82f6; }
+        .btn-detail { background: #fefce8; color: #b45309; }
+        .btn-del { background: #fff0f0; color: var(--red); }
+
+        /* Pagination */
+        .pagination-bar { padding: 13px 22px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #f0f0f0; color: #aaa; font-size: 13px; }
+        .page-btns { display: flex; gap: 4px; }
+        .pbtn { width: 32px; height: 32px; border-radius: 8px; border: 1.5px solid #eee; background: #fff; color: #666; display: flex; align-items: center; justify-content: center; text-decoration: none; }
+        .pbtn.active { background: var(--green-main); color: #fff; border-color: var(--green-main); }
+
+        /* Modal Delete */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 300; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal-box { background: #fff; border-radius: 18px; padding: 30px; max-width: 370px; width: 90%; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.2); }
+        .mbtn-cancel { padding: 10px 20px; border-radius: 20px; border: 1px solid #ddd; background: #fff; cursor: pointer; }
+        .mbtn-del { padding: 10px 20px; border-radius: 20px; border: none; background: var(--red); color: #fff; cursor: pointer; }
+
+        /* 3. RESPONSIVE DESIGN FOR MOBILE */
+        @@media (max-width: 768px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+        @@media (max-width: 480px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+        }
+        @@media (max-width: 576px) {
+            .tcard-head {
+                flex-direction: column !important;
+                align-items: stretch !important;
+                padding: 12px 16px !important;
+                gap: 10px !important;
+            }
+            .search-add-wrap {
+                width: 100% !important;
+                gap: 8px !important;
+            }
+            .search-box {
+                flex-grow: 1 !important;
+            }
+            .search-box input {
+                width: 100% !important;
+            }
+            .btn-add {
+                flex-shrink: 0 !important;
+                justify-content: center;
+            }
+        }
+    </style>
+}
+
+@{
+    int total = ViewBag.TotalProducts ?? Model.Count();
+    int outOf = ViewBag.OutOfStock ?? Model.Count(p => p.Amount == 0);
+    int lowOf = ViewBag.LowStock ?? Model.Count(p => p.Amount > 0 && p.Amount <= 10);
+    decimal max = ViewBag.MaxPrice ?? (Model.Any() ? Model.Max(p => p.Price) : 0);
+    int selBranchId = ViewBag.SelectedBranchId ?? 0;
+    string selProvince = ViewBag.SelectedBranchProvince ?? "";
+    string selDistrict = ViewBag.SelectedBranchDistrict ?? "";
+    bool isBranchMode = selBranchId > 0 || !string.IsNullOrEmpty(selProvince);
+    string branchName = ViewBag.SelectedBranchName ?? "Tất cả chi nhánh";
+    var provinces = ViewBag.Provinces as List<string> ?? new List<string>();
+}
+
+<div class="mb-3">
+    <button class="btn btn-outline-success" onclick="window.location.href='/'">
+        <i class="bi bi-arrow-left-circle"></i> Quay lại Trang chủ
+    </button>
+</div>
+
+<!-- ── BRANCH SELECTOR 3 BƯỚC ─────────────────────────────────── -->
+<div class="branch-selector-panel" id="branchSelectorPanel">
+    <span class="bsp-label">📍 Chi nhánh:</span>
+
+    <!-- Bước 1: Tỉnh/Thành phố -->
+    <select id="selProvince" onchange="onProvinceChange()">
+        <option value="">-- Chọn Tỉnh/Thành phố --</option>
+        @foreach (var prov in provinces)
+        {
+            var displayName = prov == "Thừa Thiên Huế" ? "Huế" : prov;
+            if (prov == selProvince)
+            {
+                <option value="@prov" selected>@displayName</option>
+            }
+            else
+            {
+                <option value="@prov">@displayName</option>
+            }
+        }
+    </select>
+
+    <span class="bsp-arrow"><i class="bi bi-chevron-right"></i></span>
+
+    <!-- Bước 2: Phường/Xã -->
+    <select id="selWard" onchange="onWardChange()" disabled>
+        <option value="">-- Chọn Phường/Xã --</option>
+    </select>
+
+    <span class="bsp-arrow"><i class="bi bi-chevron-right"></i></span>
+
+    <!-- Bước 3: Chi nhánh -->
+    <select id="selBranch" onchange="onBranchChange()" disabled>
+        <option value="0">-- Chọn Chi nhánh --</option>
+    </select>
+
+    <button class="btn-clear-branch" id="btnClearBranch" onclick="clearBranch()" title="Xem tổng thể">
+        <i class="bi bi-x-lg"></i> Xóa bộ lọc
+    </button>
+
+    <!-- Badge mode -->
+    @if (isBranchMode)
+    {
+        <span class="mode-badge branch"><i class="bi bi-shop"></i> @branchName</span>
+    }
+    else
+    {
+        <span class="mode-badge global"><i class="bi bi-globe"></i> Tổng thể — tất cả chi nhánh</span>
+    }
+</div>
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon si-green"><i class="bi bi-box-seam-fill"></i></div>
+        <div>
+            <div class="stat-num">@total</div>
+            <div class="stat-lbl">Tổng sản phẩm</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon si-yellow"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div>
+            <div class="stat-num">@lowOf</div>
+            <div class="stat-lbl">Sắp hết hàng</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon si-red"><i class="bi bi-x-circle-fill"></i></div>
+        <div>
+            <div class="stat-num">@outOf</div>
+            <div class="stat-lbl">Hết hàng</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon si-blue"><i class="bi bi-currency-exchange"></i></div>
+        <div>
+            <div class="stat-num" style="font-size:17px;">@max.ToString("N0")₫</div>
+            <div class="stat-lbl">Giá cao nhất</div>
+        </div>
+    </div>
+</div>
+
+<div class="tcard">
+    <div class="tcard-head">
+        <div class="tcard-title">
+            <i class="bi bi-list-ul"></i> Danh sách sản phẩm
+        </div>
+        <div class="search-add-wrap" style="display:flex;align-items:center;gap:10px;">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Tìm sản phẩm..." oninput="filterRows()" />
+            </div>
+            @if (!isBranchMode)
+            {
+                <a asp-action="Create" class="btn-add"><i class="bi bi-plus-lg"></i> Thêm mới</a>
+            }
+        </div>
+    </div>
+
+    <div style="overflow-x:auto;">
+        <table class="ptable" id="prodTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Ảnh</th>
+                    <th>Mã vạch</th>
+                    <th>Tên sản phẩm</th>
+                    <th>Danh mục</th>
+                    <th>Giá bán</th>
+                    <th style="white-space: nowrap;">Tồn kho</th>
+                    <th style="white-space: nowrap;">Đơn vị</th>
+                    <th>Hiển thị</th>
+                    <th style="text-align:center;">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td><span class="id-chip">#@item.Id</span></td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(item.Image))
+                            {
+                                <img src="@item.Image" class="prod-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                                <div class="prod-img-placeholder" style="display:none;">🛒</div>
+                            }
+                            else
+                            {
+                                <div class="prod-img-placeholder">🛒</div>
+                            }
+                        </td>
+                        <td><code class="text-secondary font-monospace fw-bold" style="font-size: 12px; letter-spacing: 1px;">@(item.Barcode != null && item.Barcode.Length == 13 ? $"{item.Barcode[0]} {item.Barcode.Substring(1, 6)} {item.Barcode.Substring(7)}" : item.Barcode)</code></td>
+                        <td><div class="prod-name">@item.Name</div></td>
+                        <td>
+                            <span class="badge bg-success-subtle text-success">
+                                @(item.Category?.Name ?? "Chưa phân loại")
+                            </span>
+                        </td>
+                        <td><span class="price">@item.Price.ToString("N0")₫</span></td>
+                        @{
+                            bool isKg = string.Equals(item.Unit, "kg", StringComparison.OrdinalIgnoreCase);
+                        }
+                        <td>
+                            <div class="inv-cell" id="inv-cell-@item.Id">
+                                @if (item.Amount == 0)
+                                {
+                                    <span class="amt amt-out" id="inv-display-@item.Id" data-qty="0" data-unit="@item.Unit">Hết hàng</span>
+                                }
+                                else if (item.Amount <= 10)
+                                {
+                                    <span class="amt amt-low" id="inv-display-@item.Id" data-qty="@item.Amount" data-unit="@item.Unit">Còn @(isKg ? item.Amount.ToString("N2") : ((int)item.Amount).ToString())</span>
+                                }
+                                else
+                                {
+                                    <span class="amt amt-ok" id="inv-display-@item.Id" data-qty="@item.Amount" data-unit="@item.Unit">@(isKg ? item.Amount.ToString("N2") : ((int)item.Amount).ToString())</span>
+                                }
+                                @if (selBranchId > 0)
+                                {
+                                    <button class="btn-inv-edit" title="Sửa số lượng" onclick="startEditInv(@item.Id, @item.Amount, @selBranchId, '@item.Unit')">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    <input type="number" class="inv-edit-input" id="inv-input-@item.Id"
+                                           min="0" step="0.001"
+                                           onblur="saveInv(@item.Id, @selBranchId)"
+                                           onkeydown="if(event.key==='Enter')saveInv(@item.Id,@selBranchId);if(event.key==='Escape')cancelEditInv(@item.Id)" />
+                                    <span class="inv-saving" id="inv-saving-@item.Id" style="display:none;"><i class="bi bi-arrow-repeat spin"></i></span>
+                                }
+                                else
+                                {
+                                    <span style="font-size:10px;color:#bbb;margin-left:2px;">tổng</span>
+                                }
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-secondary" style="font-weight: 600; text-transform: capitalize;">@item.Unit</span>
+                        </td>
+                        <td>
+                            @if (!isBranchMode)
+                            {
+                                <form asp-action="ToggleVisibility" asp-route-id="@item.Id" asp-route-branchId="@selBranchId" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="visibility-pill @(item.IsVisible ? "visibility-on" : "visibility-off")"
+                                            title="Ẩn khỏi trang chủ / Cho hiển thị">
+                                        <i class="bi @(item.IsVisible ? "bi-eye-fill" : "bi-eye-slash-fill")"></i>
+                                        @(item.IsVisible ? "Đang hiện" : "Tạm ẩn")
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="visibility-pill @(item.IsVisible ? "visibility-on" : "visibility-off")" style="cursor: default; opacity: 0.85;">
+                                    <i class="bi @(item.IsVisible ? "bi-eye-fill" : "bi-eye-slash-fill")"></i>
+                                    @(item.IsVisible ? "Đang hiện" : "Tạm ẩn")
+                                </span>
+                            }
+                        </td>
+                        <td>
+                            <div class="actions">
+                                @if (!isBranchMode)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@item.Id" class="btn-act btn-edit" title="Sửa thông tin chung"><i class="bi bi-pencil-fill"></i></a>
+                                }
+                                <a asp-action="Details" asp-route-id="@item.Id" asp-route-branchId="@selBranchId" asp-route-province="@selProvince" asp-route-ward="@selDistrict" class="btn-act btn-detail" title="Xem chi tiết"><i class="bi bi-eye-fill"></i></a>
+                                @if (!isBranchMode)
+                                {
+                                    <button class="btn-act btn-del" onclick="openDelete(@item.Id, '@item.Name')" title="Xóa sản phẩm"><i class="bi bi-trash3-fill"></i></button>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center p-3 border-top bg-white rounded-bottom-4">
+        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+            <span>Trang</span>
+            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                   style="width: 48px; height: 28px; font-size: 13px;"
+                   value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+            <span>/ @ViewBag.TotalPages</span>
+            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                    onclick="window.goToPage(this);">
+                OK
+            </button>
+        </div>
+        <div class="d-flex gap-2">
+            @if (ViewBag.Page > 1)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="Index"
+                   asp-route-branchId="@selBranchId"
+                   asp-route-province="@selProvince"
+                   asp-route-ward="@selDistrict"
+                   asp-route-page="@(ViewBag.Page - 1)">
+                    <i class="bi bi-chevron-left"></i> Trước
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+            }
+
+            @if (ViewBag.Page < ViewBag.TotalPages)
+            {
+                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                   asp-action="Index"
+                   asp-route-branchId="@selBranchId"
+                   asp-route-province="@selProvince"
+                   asp-route-ward="@selDistrict"
+                   asp-route-page="@(ViewBag.Page + 1)">
+                    Sau <i class="bi bi-chevron-right"></i>
+                </a>
+            }
+            else
+            {
+                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal-bg" id="delModal">
+    <div class="modal-box">
+        <div class="modal-emoji">🗑️</div>
+        <div class="modal-title">Xác nhận xoá</div>
+        <p class="modal-desc">Bạn có chắc muốn xoá <strong id="delName"></strong>?</p>
+        <div class="modal-btns">
+            <button class="mbtn-cancel" onclick="closeDelete()">Huỷ</button>
+            <form asp-action="Delete" method="post" style="display:inline;">
+                <input type="hidden" name="id" id="delId" />
+                <button type="submit" class="mbtn-del">Xoá ngay</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ── Antiforgery token for AJAX POST ─────────────────────────────────
+        const antiForgeryToken = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        // ── Filter rows ──────────────────────────────────────────────────────
+        function filterRows() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            document.querySelectorAll('#prodTable tbody tr').forEach(r => {
+                r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+
+        // ── Delete modal ─────────────────────────────────────────────────────
+        function openDelete(id, name) {
+            document.getElementById('delId').value = id;
+            document.getElementById('delName').textContent = name;
+            document.getElementById('delModal').classList.add('open');
+        }
+        function closeDelete() { document.getElementById('delModal').classList.remove('open'); }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // BRANCH SELECTOR — 3-step cascading dropdown
+        // ══════════════════════════════════════════════════════════════════════
+        const selProvince = document.getElementById('selProvince');
+        const selWard     = document.getElementById('selWard');
+        const selBranch   = document.getElementById('selBranch');
+        const btnClear    = document.getElementById('btnClearBranch');
+
+        // Khôi phục trạng thái khi đang ở branch mode
+        const currentBranchId = @selBranchId;
+        const currentProvince = @Html.Raw(Json.Serialize(selProvince));
+        const currentDistrict = @Html.Raw(Json.Serialize(selDistrict));
+
+        function onProvinceChange() {
+            let prov = selProvince.value;
+            if (prov === "Huế") prov = "Thừa Thiên Huế";
+            if (prov) {
+                window.location.href = `/Products?province=${encodeURIComponent(prov)}`;
+            } else {
+                window.location.href = '/Products';
+            }
+        }
+
+        function onWardChange() {
+            let prov = selProvince.value;
+            if (prov === "Huế") prov = "Thừa Thiên Huế";
+            const ward = selWard.value;
+            if (ward) {
+                window.location.href = `/Products?province=${encodeURIComponent(prov)}&ward=${encodeURIComponent(ward)}`;
+            } else {
+                window.location.href = `/Products?province=${encodeURIComponent(prov)}`;
+            }
+        }
+
+        function onBranchChange() {
+            const bid = selBranch.value;
+            let prov = selProvince.value;
+            if (prov === "Huế") prov = "Thừa Thiên Huế";
+            const ward = selWard.value;
+            if (bid && parseInt(bid) > 0) {
+                window.location.href = `/Products?branchId=${bid}`;
+            } else if (ward) {
+                window.location.href = `/Products?province=${encodeURIComponent(prov)}&ward=${encodeURIComponent(ward)}`;
+            } else {
+                window.location.href = `/Products?province=${encodeURIComponent(prov)}`;
+            }
+        }
+
+        function clearBranch() {
+            window.location.href = '/Products';
+        }
+
+        // Khôi phục dropdown khi trang reload giữ state
+        async function restoreBranchState() {
+            if (!currentProvince) return;
+            let normProvince = currentProvince;
+            if (normProvince === "Huế") normProvince = "Thừa Thiên Huế";
+            // Chọn tỉnh
+            selProvince.value = normProvince;
+            
+            // Load phường
+            selWard.disabled = false;
+            const r1 = await fetch(`/Products/GetWards?province=${encodeURIComponent(normProvince)}`);
+            const wards = await r1.json();
+            wards.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w; opt.textContent = w;
+                if (w === currentDistrict) opt.selected = true;
+                selWard.appendChild(opt);
+            });
+            
+            // Load chi nhánh
+            if (currentDistrict) {
+                const r2 = await fetch(`/Products/GetBranches?province=${encodeURIComponent(currentProvince)}&ward=${encodeURIComponent(currentDistrict)}`);
+                const brs = await r2.json();
+                if (brs.length === 0) {
+                    selBranch.innerHTML = '<option value="0" style="white-space: nowrap;">Không có chi nhánh tại đây!</option>';
+                    selBranch.disabled = true;
+                } else {
+                    selBranch.innerHTML = '<option value="0">-- Chọn Chi nhánh --</option>';
+                    brs.forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b.id; opt.textContent = b.name;
+                        if (b.id === currentBranchId) opt.selected = true;
+                        selBranch.appendChild(opt);
+                    });
+                    selBranch.disabled = false;
+                }
+            }
+        }
+
+        if (currentProvince !== "") {
+            restoreBranchState();
+            btnClear.style.display = 'inline-flex';
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // INLINE INVENTORY EDITING
+        // ══════════════════════════════════════════════════════════════════════
+        let _editingProductId = null;
+
+        function startEditInv(productId, currentQty, branchId, unit) {
+            // Ẩn display, hiện input
+            const display = document.getElementById(`inv-display-${productId}`);
+            const input   = document.getElementById(`inv-input-${productId}`);
+            if (!input || !display) return;
+
+            if (_editingProductId && _editingProductId !== productId) {
+                cancelEditInv(_editingProductId);
+            }
+            _editingProductId = productId;
+            display.style.display = 'none';
+            
+            // Lấy giá trị động từ data-qty nếu có, ngược lại dùng currentQty mặc định
+            const savedQty = display.getAttribute('data-qty') !== null ? parseFloat(display.getAttribute('data-qty')) : currentQty;
+            input.value = savedQty;
+            input.style.display = 'inline-block';
+            input.focus();
+            input.select();
+        }
+
+        function cancelEditInv(productId) {
+            const display = document.getElementById(`inv-display-${productId}`);
+            const input   = document.getElementById(`inv-input-${productId}`);
+            if (!input) return;
+            display.style.display = '';
+            input.style.display = 'none';
+            _editingProductId = null;
+        }
+
+        async function saveInv(productId, branchId) {
+            const input  = document.getElementById(`inv-input-${productId}`);
+            const saving = document.getElementById(`inv-saving-${productId}`);
+            const display = document.getElementById(`inv-display-${productId}`);
+            if (!input || input.style.display === 'none') return;
+
+            const qty = parseFloat(input.value);
+            if (isNaN(qty) || qty < 0) { cancelEditInv(productId); return; }
+
+            // Ẩn input, hiện spinner
+            input.style.display = 'none';
+            if (saving) saving.style.display = 'inline';
+
+            try {
+                const fd = new FormData();
+                fd.append('productId', productId);
+                fd.append('branchId', branchId);
+                fd.append('quantity', qty);
+                fd.append('__RequestVerificationToken', antiForgeryToken);
+
+                const res = await fetch('/Products/UpdateInventory', { method: 'POST', body: fd });
+                const json = await res.json();
+
+                if (json.success) {
+                    // Cập nhật hiển thị không cần reload
+                    const newQty = json.newQuantity;
+                    display.setAttribute('data-qty', newQty);
+                    
+                    const unit = display.getAttribute('data-unit') || '';
+                    const isKg = unit.toLowerCase() === 'kg';
+                    const displayQty = isKg ? newQty.toFixed(2) : Math.round(newQty).toString();
+                    
+                    if (newQty === 0) {
+                        display.className = 'amt amt-out';
+                        display.textContent = 'Hết hàng';
+                    } else if (newQty <= 10) {
+                        display.className = 'amt amt-low';
+                        display.textContent = `Còn ${displayQty}`;
+                    } else {
+                        display.className = 'amt amt-ok';
+                        display.textContent = displayQty;
+                    }
+                    if (typeof showToast === 'function') showToast('Đã cập nhật tồn kho!');
+                } else {
+                    if (typeof showToast === 'function') showToast(json.message || 'Lỗi cập nhật');
+                }
+            } catch(e) {
+                console.error('UpdateInventory error:', e);
+            } finally {
+                if (saving) saving.style.display = 'none';
+                display.style.display = '';
+                _editingProductId = null;
+            }
+        }
+
+    </script>
+}

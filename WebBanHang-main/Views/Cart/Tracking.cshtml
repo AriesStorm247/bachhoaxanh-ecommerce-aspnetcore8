@@ -1,0 +1,619 @@
+@model IEnumerable<WebBanHang.Models.Order>
+@inject WebBanHang.Services.RoleService RoleService
+@{
+    ViewData["Title"] = "Theo dõi đơn hàng";
+    var roleIndex = RoleService.GetRole(User);
+}
+
+<div class="container mt-5" style="max-width: 900px;">
+    <h2 class="text-center fw-bold mb-4 text-success"><i class="bi bi-search"></i> KIỂM TRA ĐƠN HÀNG</h2>
+
+    @if (roleIndex > 0)
+    {
+        <!-- Tab selector for staff -->
+        <ul class="nav nav-pills nav-justified mb-4 p-1 bg-light rounded-pill" id="trackingTabs" role="tablist" style="border: 1px solid rgba(0,0,0,0.05);">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active rounded-pill py-2.5 fw-bold" id="order-tab" data-bs-toggle="tab" data-bs-target="#order-panel" type="button" role="tab" aria-controls="order-panel" aria-selected="true" style="font-size: 13.5px;">
+                    <i class="bi bi-box-seam me-1"></i> TRA CỨU ĐƠN HÀNG
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill py-2.5 fw-bold" id="product-tab" data-bs-toggle="tab" data-bs-target="#product-panel" type="button" role="tab" aria-controls="product-panel" aria-selected="false" style="font-size: 13.5px;">
+                    <i class="bi bi-upc-scan me-1"></i> TRA CỨU SẢN PHẨM
+                </button>
+            </li>
+        </ul>
+    }
+
+    <div class="tab-content" id="trackingTabContent">
+        <!-- Panel 1: Tra cứu đơn hàng -->
+        <div class="tab-pane fade show active" id="order-panel" role="tabpanel" aria-labelledby="order-tab">
+            <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                <div class="card-body p-4">
+                    <form method="get" asp-action="Tracking" class="row g-2">
+                        <div class="col-md-10">
+                            <input type="text" name="query" class="form-control form-control-lg rounded-pill px-4"
+                                   placeholder="Nhập số điện thoại hoặc mã đơn hàng..." value="@ViewBag.Query" />
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success btn-lg w-100 rounded-pill fw-bold">TRA CỨU</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            @{
+                var singleOrder = ViewBag.SingleOrder as WebBanHang.Models.Order;
+            }
+
+            @if (singleOrder != null)
+            {
+                var statusText = singleOrder.Status switch
+                {
+                    0 => "Chờ duyệt",
+                    1 => "Đang soạn đơn",
+                    2 => "Đang giao hàng",
+                    3 => "Giao thành công",
+                    4 => "Chờ thanh toán",
+                    5 => "Đã hủy",
+                    _ => "Không xác định"
+                };
+
+                var statusBadgeClass = singleOrder.Status switch
+                {
+                    2 => "bg-warning text-dark",
+                    3 => "bg-success text-white",
+                    5 => "bg-danger text-white",
+                    _ => "bg-info text-dark"
+                };
+
+                <div class="card border-0 shadow-lg mb-5" style="border-radius: 16px; overflow: hidden;">
+                    <!-- Header Image 2 Style -->
+                    <div class="p-3 text-white d-flex justify-content-between align-items-center" style="background-color: #1a7a2e;">
+                        <h4 class="mb-0 fw-bold d-flex align-items-center gap-2">
+                            <i class="bi bi-receipt"></i> Đơn hàng #@singleOrder.Id
+                        </h4>
+                        <span class="badge @statusBadgeClass fs-6 rounded-pill px-3 py-2 fw-bold">
+                            <i class="bi bi-clock me-1"></i> @statusText
+                        </span>
+                    </div>
+                    <div class="card-body p-4 bg-white">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6 border-end">
+                                <h5 class="fw-bold text-success mb-3" style="font-size: 16px;">
+                                    <i class="bi bi-person-fill me-1"></i> Thông tin khách hàng
+                                </h5>
+                                <div class="mb-2"><strong>Họ tên:</strong> @singleOrder.FullName</div>
+                                <div class="mb-2"><strong>Điện thoại:</strong> <span class="text-primary fw-bold">@singleOrder.Phone</span></div>
+                                <div class="mb-2"><strong>Địa chỉ:</strong> @singleOrder.Address</div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="fw-bold text-success mb-3" style="font-size: 16px;">
+                                    <i class="bi bi-info-circle-fill me-1"></i> Thông tin vận chuyển
+                                </h5>
+                                <div class="mb-2"><strong>Hình thức:</strong> @(singleOrder.ShippingMethod ?? "Economy")</div>
+                                <div class="mb-2"><strong>Phí giao hàng:</strong> @(singleOrder.ShippingFee > 0 ? singleOrder.ShippingFee.ToString("N0") + "đ" : "0đ")</div>
+                                <div class="mb-2"><strong>Khoảng cách:</strong> @(singleOrder.ShippingDistance > 0 ? singleOrder.ShippingDistance.ToString("0.0#") + " km" : "Chưa xác định")</div>
+                            </div>
+                        </div>
+
+                        <h5 class="fw-bold text-success mb-3" style="font-size: 16px;">
+                            <i class="bi bi-box-seam me-1"></i> Chi tiết sản phẩm
+                        </h5>
+                        <div class="table-responsive mb-4">
+                            <table class="table align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Sản phẩm</th>
+                                        <th class="text-center">Số lượng</th>
+                                        <th class="text-end">Đơn giá</th>
+                                        <th class="text-end">Thành tiền</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (singleOrder.OrderDetails != null)
+                                    {
+                                        foreach (var d in singleOrder.OrderDetails)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        @if (!string.IsNullOrEmpty(d.Product?.Image))
+                                                        {
+                                                            <img src="@d.Product.Image" style="width: 42px; height: 42px; object-fit: cover; border-radius: 8px;" />
+                                                        }
+                                                        <span class="fw-bold">@(d.Product?.Name ?? "Sản phẩm")</span>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center fw-bold">@d.Quantity.ToString("0.##")</td>
+                                                <td class="text-end">@d.Price.ToString("N0")đ</td>
+                                                <td class="text-end fw-bold text-success">@((d.Quantity * d.Price).ToString("N0"))đ</td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <span class="fs-5 text-muted fw-bold">Tổng cộng thanh toán:</span>
+                            <span class="fs-3 fw-bold text-danger">@singleOrder.TotalAmount.ToString("N0")đ</span>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (Model != null && Model.Any())
+            {
+                @foreach (var item in Model)
+                {
+                    <div class="card mb-4 border-0 shadow-sm" style="border-radius: 15px; overflow: hidden;">
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <span class="text-muted small">Mã đơn hàng:</span>
+                                    <span class="fw-bold text-primary fs-5">#@item.Id</span>
+                                </div>
+                                <div class="text-end">
+                                    <span class="text-muted small">Ngày đặt:</span><br />
+                                    <span class="small fw-bold">@item.OrderDate.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 bg-light rounded-3 mb-3 d-flex align-items-center justify-content-between">
+                                <span class="fw-bold">Trạng thái:</span>
+                                @switch (item.Status)
+                                {
+                                    case 0:
+                                        <span class="badge bg-secondary p-2 px-3 rounded-pill"><i class="bi bi-box"></i> Vừa đặt (Chờ duyệt)</span>
+                                        break;
+                                    case 1:
+                                        <span class="badge bg-info p-2 px-3 rounded-pill text-dark"><i class="bi bi-box-seam"></i> Đang soạn đơn</span>
+                                        break;
+                                    case 2:
+                                        <span class="badge bg-warning p-2 px-3 rounded-pill text-dark"><i class="bi bi-truck"></i> Đang giao hàng</span>
+                                        break;
+                                    case 3:
+                                        <span class="badge bg-success p-2 px-3 rounded-pill"><i class="bi bi-check-all"></i> Giao thành công</span>
+                                        break;
+                                    case 4:
+                                        <span class="badge bg-primary p-2 px-3 rounded-pill"><i class="bi bi-qr-code"></i> Chờ thanh toán QR</span>
+                                        break;
+                                    case 5:
+                                        <span class="badge bg-danger p-2 px-3 rounded-pill"><i class="bi bi-x-circle"></i> Đã hủy / Thất bại</span>
+                                        break;
+                                }
+                            </div>
+
+                            <div class="row small text-muted mb-3">
+                                <div class="col-6">Họ tên: <strong>@item.FullName</strong></div>
+                                <div class="col-6 text-end">Tổng tiền: <strong class="text-danger fs-5">@item.TotalAmount.ToString("N0")₫</strong></div>
+                                <div class="col-12 mt-1">Địa chỉ: @item.Address</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                <button type="button" class="btn btn-outline-success btn-sm rounded-pill fw-bold" onclick="toggleTrackingDetail(@item.Id)">
+                                    <i class="bi bi-eye-fill me-1"></i> Xem chi tiết
+                                </button>
+                                @if (item.Status == 2 && ViewBag.CanCancel == true)
+                                {
+                                    int maxLimit = ViewBag.MaxCancelLimit ?? 2;
+                                    if (ViewBag.CancelledCount < maxLimit)
+                                    {
+                                        <button class="btn btn-outline-danger btn-sm rounded-pill fw-bold btn-cancel-order" data-order-id="@item.Id">Hủy đơn hàng</button>
+                                    }
+                                }
+                            </div>
+
+                            <!-- Full Order Detail Expandable Block (Image 2 style) -->
+                            <div id="tracking-detail-block-@item.Id" class="d-none mt-3 pt-3 border-top bg-light p-3 rounded-3">
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6 border-end">
+                                        <h6 class="fw-bold text-success"><i class="bi bi-person-fill me-1"></i> Khách hàng</h6>
+                                        <div class="small"><strong>Họ tên:</strong> @item.FullName</div>
+                                        <div class="small"><strong>Điện thoại:</strong> <span class="text-primary fw-bold">@item.Phone</span></div>
+                                        <div class="small"><strong>Địa chỉ:</strong> @item.Address</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="fw-bold text-success"><i class="bi bi-info-circle-fill me-1"></i> Vận chuyển</h6>
+                                        <div class="small"><strong>Hình thức:</strong> @(item.ShippingMethod ?? "Economy")</div>
+                                        <div class="small"><strong>Phí giao hàng:</strong> @(item.ShippingFee > 0 ? item.ShippingFee.ToString("N0") + "đ" : "0đ")</div>
+                                        <div class="small"><strong>Khoảng cách:</strong> @(item.ShippingDistance > 0 ? item.ShippingDistance.ToString("0.0#") + " km" : "Chưa xác định")</div>
+                                    </div>
+                                </div>
+                                <h6 class="fw-bold text-success mb-2"><i class="bi bi-box-seam me-1"></i> Danh sách sản phẩm</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle bg-white rounded-2">
+                                        <thead>
+                                            <tr>
+                                                <th>Sản phẩm</th>
+                                                <th class="text-center">Số lượng</th>
+                                                <th class="text-end">Đơn giá</th>
+                                                <th class="text-end">Thành tiền</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (item.OrderDetails != null)
+                                            {
+                                                foreach (var d in item.OrderDetails)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                                @if (!string.IsNullOrEmpty(d.Product?.Image))
+                                                                {
+                                                                    <img src="@d.Product.Image" style="width: 32px; height: 32px; object-fit: cover; border-radius: 6px;" />
+                                                                }
+                                                                <span class="fw-bold small">@(d.Product?.Name ?? "Sản phẩm")</span>
+                                                            </div>
+                                                        </td>
+                                                        <td class="text-center fw-bold small">@d.Quantity.ToString("0.##")</td>
+                                                        <td class="text-end small">@d.Price.ToString("N0")đ</td>
+                                                        <td class="text-end fw-bold text-success small">@((d.Quantity * d.Price).ToString("N0"))đ</td>
+                                                    </tr>
+                                                }
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @if (ViewBag.TotalPages > 1)
+                {
+                    <div class="d-flex justify-content-between align-items-center p-3 mt-3 bg-white border rounded-4 shadow-sm">
+                        <div class="d-flex align-items-center gap-1 text-muted fw-bold small">
+                            <span>Trang</span>
+                            <input type="number" class="form-control form-control-sm text-center p-0 fw-bold border-success"
+                                   style="width: 48px; height: 28px; font-size: 13px;"
+                                   value="@ViewBag.Page" min="1" max="@ViewBag.TotalPages"
+                                   onkeydown="if(event.key==='Enter'){ event.preventDefault(); window.goToPage(this); }" />
+                            <span>/ @ViewBag.TotalPages</span>
+                            <button type="button" class="btn btn-sm btn-success py-0 px-2 fw-bold ms-1"
+                                    style="height: 28px; font-size: 12px; border-radius: 6px;"
+                                    onclick="window.goToPage(this);">
+                                OK
+                            </button>
+                        </div>
+                        <div class="d-flex gap-2">
+                            @if (ViewBag.Page > 1)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   asp-action="Tracking"
+                                   asp-route-query="@ViewBag.Query"
+                                   asp-route-page="@(ViewBag.Page - 1)">
+                                    <i class="bi bi-chevron-left"></i> Trước
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled"><i class="bi bi-chevron-left"></i> Trước</span>
+                            }
+
+                            @if (ViewBag.Page < ViewBag.TotalPages)
+                            {
+                                <a class="btn btn-outline-success btn-sm rounded-3 fw-bold"
+                                   asp-action="Tracking"
+                                   asp-route-query="@ViewBag.Query"
+                                   asp-route-page="@(ViewBag.Page + 1)">
+                                    Sau <i class="bi bi-chevron-right"></i>
+                                </a>
+                            }
+                            else
+                            {
+                                <span class="btn btn-outline-secondary btn-sm rounded-3 disabled">Sau <i class="bi bi-chevron-right"></i></span>
+                            }
+                        </div>
+                    </div>
+                }
+            }
+            else if (!string.IsNullOrEmpty(ViewBag.Query))
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-emoji-frown fs-1 text-muted"></i>
+                    <p class="mt-3 text-muted">Không tìm thấy đơn hàng nào phù hợp với từ khóa "@ViewBag.Query" !</p>
+                </div>
+            }
+        </div>
+
+        @if (roleIndex > 0)
+        {
+            <!-- Panel 2: Tra cứu sản phẩm -->
+            <div class="tab-pane fade" id="product-panel" role="tabpanel" aria-labelledby="product-tab">
+                <div class="card border-0 shadow-sm mb-4" style="border-radius: 15px;">
+                    <div class="card-body p-4">
+                        <form id="productSearchForm" class="row g-2" onsubmit="searchProductsForTracking(event)">
+                            <div class="col-md-9">
+                                <input type="text" id="productSearchQuery" class="form-control form-control-lg rounded-pill px-4"
+                                       placeholder="Nhập tên sản phẩm hoặc mã sản phẩm..." required />
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-success btn-lg w-100 rounded-pill fw-bold">TRA CỨU</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Product Results container -->
+                <div id="productResults" class="row g-3">
+                    <div class="text-center py-5 text-muted col-12">
+                        <i class="bi bi-search fs-1 mb-2 d-block text-success"></i>
+                        Nhập từ khóa và bấm tra cứu để xem thông tin sản phẩm.
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<div class="container text-center mt-3">
+    <a asp-controller="Home" asp-action="Index" class="btn btn-outline-success rounded-pill px-4 fw-bold">Về Trang Chủ</a>
+</div>
+
+<!-- Custom Success Banner Overlay -->
+<div id="cancelSuccessBanner" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-5 text-center shadow-lg rounded-4" style="max-width: 450px; width: 95%;">
+        <div class="mb-4">
+            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded-circle" style="width: 80px; height: 80px; font-size: 40px; box-shadow: 0 0 15px rgba(220, 53, 69, 0.4);">
+                <i class="bi bi-trash-fill"></i>
+            </span>
+        </div>
+        <h3 class="fw-bold text-danger mb-2">Đã hủy đơn hàng!</h3>
+        <p class="text-muted fs-6 mb-4">Hủy đơn hàng thành công. Các sản phẩm đã được hoàn lại kho.</p>
+        <button type="button" id="btnCancelBannerOk" class="btn btn-danger btn-lg w-100 rounded-pill fw-bold py-2 shadow-sm">OK</button>
+    </div>
+</div>
+
+<!-- Custom Cancel Confirm Modal -->
+<div id="cancelConfirmModal" class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center d-none" style="z-index: 1060; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); transition: all 0.3s ease;">
+    <div class="bg-white p-4 text-center shadow-lg rounded-4" style="max-width: 400px; width: 90%;">
+        <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded-circle" style="width: 60px; height: 60px; font-size: 30px; box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+            </span>
+        </div>
+        <h5 class="fw-bold mb-2 text-danger">Xác nhận hủy đơn</h5>
+        <p id="cancelConfirmMessage" class="text-muted small mb-4">Bạn có chắc chắn muốn hủy đơn hàng này?</p>
+        <div class="d-flex gap-2 justify-content-center">
+            <button type="button" id="btnCancelConfirmCancel" class="btn btn-light rounded-pill fw-bold px-4 py-2 flex-grow-1">Bỏ qua</button>
+            <button type="button" id="btnCancelConfirmOk" class="btn btn-danger rounded-pill fw-bold px-4 py-2 flex-grow-1">Hủy đơn</button>
+        </div>
+    </div>
+</div>
+
+@if (roleIndex > 0)
+{
+    <!-- MODAL: BARCODE PREVIEW FOR TEST SCANNING -->
+    <div class="modal fade" id="barcodePreviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content" style="border-radius: 16px; border: none; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15);">
+                <div class="modal-header bg-success text-white py-2 border-0">
+                    <h6 class="modal-title fw-bold" id="barcodePreviewTitle">Mã Vạch Sản Phẩm</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center p-4">
+                    <svg id="previewBarcodeSvg" style="max-width: 100%;"></svg>
+                    <p class="small text-muted mt-2 mb-0" id="previewBarcodeName"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <!-- Thư viện JsBarcode để vẽ mã vạch trong popup -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Logic hủy đơn hàng
+            const successBanner = document.getElementById('cancelSuccessBanner');
+            const btnBannerOk = document.getElementById('btnCancelBannerOk');
+            const confirmModal = document.getElementById('cancelConfirmModal');
+            const confirmMessage = document.getElementById('cancelConfirmMessage');
+            const btnConfirmCancel = document.getElementById('btnCancelConfirmCancel');
+            const btnConfirmOk = document.getElementById('btnCancelConfirmOk');
+
+            let pendingOrderId = null;
+
+            document.querySelectorAll('.btn-cancel-order').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const orderId = this.getAttribute('data-order-id');
+                    if (!orderId) return;
+
+                    pendingOrderId = orderId;
+                    confirmMessage.innerHTML = `Bạn có chắc chắn muốn hủy đơn hàng <strong>#${orderId}</strong> đang đi giao không?`;
+                    confirmModal.classList.remove('d-none');
+                });
+            });
+
+            if (btnConfirmCancel) {
+                btnConfirmCancel.addEventListener('click', function () {
+                    confirmModal.classList.add('d-none');
+                    pendingOrderId = null;
+                });
+            }
+
+            if (btnConfirmOk) {
+                btnConfirmOk.addEventListener('click', function () {
+                    confirmModal.classList.add('d-none');
+                    if (!pendingOrderId) return;
+
+                    fetch('/Cart/CancelOrderFromDelivery', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `id=${pendingOrderId}`
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            successBanner.classList.remove('d-none');
+                        } else {
+                            alert(data.message || 'Có lỗi xảy ra khi hủy đơn.');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        alert('Lỗi kết nối hệ thống.');
+                    });
+                });
+            }
+
+            if (btnBannerOk) {
+                btnBannerOk.addEventListener('click', function () {
+                    location.reload();
+                });
+            }
+        });
+
+        // Hàm tiện ích định dạng tiền tệ
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount).replace('₫', 'đ');
+        }
+
+        // Định dạng mã vạch EAN-13 dạng cách nhóm
+        function formatBarcodeText(barcode) {
+            if (barcode && barcode.length === 13) {
+                return `${barcode.substring(0, 1)} ${barcode.substring(1, 7)} ${barcode.substring(7)}`;
+            }
+            return barcode || 'Không có';
+        }
+
+        // JS logic tìm kiếm sản phẩm cho nhân viên
+        function searchProductsForTracking(event) {
+            event.preventDefault();
+            const query = document.getElementById('productSearchQuery').value;
+            const container = document.getElementById('productResults');
+            
+            container.innerHTML = `
+                <div class="text-center py-5 col-12">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Đang tìm...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Đang tra cứu dữ liệu sản phẩm...</p>
+                </div>
+            `;
+
+            fetch(`/Cart/SearchProductForTracking?query=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.data.length === 0) {
+                            container.innerHTML = `
+                                <div class="text-center py-5 text-muted col-12">
+                                    <i class="bi bi-emoji-frown fs-1 mb-2 d-block"></i>
+                                    Không tìm thấy sản phẩm nào khớp với từ khóa của bạn!
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        let html = '';
+                        data.data.forEach(p => {
+                            html += `
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; overflow: hidden; border: 1px solid rgba(0,0,0,0.04);">
+                                        <div class="card-body p-4 d-flex gap-3">
+                                            <img src="${p.image || 'https://placehold.co/100x100'}" class="rounded border" style="width: 80px; height: 80px; object-fit: cover;" onerror="this.src='https://placehold.co/100x100'" />
+                                            <div class="flex-grow-1" style="min-width: 0;">
+                                                <h6 class="fw-bold text-dark text-truncate mb-1" style="font-size: 14.5px;">${p.name}</h6>
+                                                <div class="text-secondary small mb-2" style="font-size: 12px;">Danh mục: <strong>${p.categoryName}</strong></div>
+                                                
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <span class="small font-monospace text-muted" style="font-size: 11px;">Mã: ${formatBarcodeText(p.barcode)}</span>
+                                                    ${p.barcode ? `
+                                                    <button type="button" class="btn btn-success text-white fw-bold py-0.5 px-2 border-0" style="font-size: 9px; border-radius: 4px; line-height: 1.2;" onclick="showTestBarcode('${p.barcode}', \`${p.name.replace(/`/g, '\\`').replace(/'/g, '\\\'')}\`, event)">
+                                                        Hiện mã vạch
+                                                    </button>` : ''}
+                                                </div>
+
+                                                <div class="d-flex justify-content-between align-items-baseline mb-2">
+                                                    <div>
+                                                        <span class="text-danger fw-bold fs-5">${formatMoney(p.discountedPrice)}</span>
+                                                        ${p.price > p.discountedPrice ? `<span class="text-muted text-decoration-line-through small ms-1" style="font-size: 11px;">${formatMoney(p.price)}</span>` : ''}
+                                                    </div>
+                                                    <span class="badge ${p.amount > 0 ? 'bg-success' : 'bg-danger'} rounded-pill px-2.5" style="font-size: 11px;">
+                                                        Tồn: ${p.amount}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="d-flex gap-1 flex-wrap">
+                                                    <span class="badge ${p.isVisible ? 'bg-light text-success border border-success' : 'bg-light text-secondary border border-secondary'} rounded-pill" style="font-size: 9.5px; padding: 2px 6px;">
+                                                        ${p.isVisible ? 'Đang hiển thị' : 'Đang ẩn'}
+                                                    </span>
+                                                    ${p.isHot ? `<span class="badge bg-danger text-white rounded-pill" style="font-size: 9.5px; padding: 2px 6px;">Hot</span>` : ''}
+                                                    ${p.isBestSeller ? `<span class="badge bg-warning text-dark rounded-pill" style="font-size: 9.5px; padding: 2px 6px;">Bán chạy</span>` : ''}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        container.innerHTML = html;
+                    } else {
+                        container.innerHTML = `
+                            <div class="alert alert-danger col-12" role="alert">
+                                ${data.message}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    container.innerHTML = `
+                        <div class="alert alert-danger col-12" role="alert">
+                            Lỗi hệ thống khi tìm kiếm sản phẩm. Vui lòng thử lại.
+                        </div>
+                    `;
+                });
+        }
+
+        // Popup vẽ mã vạch để quét thử
+        function showTestBarcode(barcode, name, event) {
+            if (event) event.stopPropagation();
+            
+            document.getElementById("barcodePreviewTitle").innerText = "Quét Thử: " + name;
+            document.getElementById("previewBarcodeName").innerText = name + " (" + formatBarcodeText(barcode) + ")";
+            
+            const modalEl = document.getElementById('barcodePreviewModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+            
+            setTimeout(() => {
+                try {
+                    JsBarcode("#previewBarcodeSvg", barcode, {
+                        format: "EAN13",
+                        width: 2.3,
+                        height: 100,
+                        fontSize: 16,
+                        displayValue: true
+                    });
+                } catch (e) {
+                    console.warn("EAN-13 check digit failed, falling back to CODE128: ", e);
+                    try {
+                        JsBarcode("#previewBarcodeSvg", barcode, {
+                            format: "CODE128",
+                            width: 2.3,
+                            height: 100,
+                            fontSize: 16,
+                            displayValue: true
+                        });
+                    } catch (err) {
+                        console.error("Failed to render barcode in fallback format: ", err);
+                    }
+                }
+            }, 300);
+        }
+        window.toggleTrackingDetail = function(id) {
+            const el = document.getElementById('tracking-detail-block-' + id);
+            if (el) {
+                el.classList.toggle('d-none');
+            }
+        };
+    </script>
+}
