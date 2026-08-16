@@ -115,24 +115,58 @@ WebBanHang/
 ### 2. Các bước cài đặt
 1. **Clone repository về máy**:
    ```bash
-   git clone https://github.com/<your-username>/WebBanHang-ASPNetCore.git
-   cd WebBanHang-ASPNetCore/WebBanHang-main
+   git clone https://github.com/AriesStorm247/bachhoaxanh-ecommerce-aspnetcore8.git
+   cd bachhoaxanh-ecommerce-aspnetcore8/WebBanHang-main
    ```
 
 2. **Cấu hình chuỗi kết nối Database & API Keys**:
    - Sao chép file `appsettings.Example.json` thành `appsettings.Local.json` (hoặc sửa trực tiếp trong `appsettings.json`):
    ```json
    {
+     "EmailSettings": {
+       "SmtpHost": "smtp.gmail.com",
+       "SmtpPort": 587,
+       "EnableSsl": true,
+       "SenderEmail": "your-email@gmail.com",
+       "SenderName": "Bách Hóa XANH",
+       "AppPassword": "YOUR_GMAIL_APP_PASSWORD"
+     },
      "ConnectionStrings": {
        "DefaultConnection": "Server=localhost;Database=WebBanHangDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
      },
      "AI": {
+       "Endpoint": "https://generativelanguage.googleapis.com",
+       "Model": "gemini-2.5-flash",
        "ApiKey": "YOUR_GEMINI_API_KEY"
      },
      "Payment": {
+       "Gateway": "Demo",
        "VnPay": {
+         "BaseUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html",
          "TmnCode": "YOUR_VNPAY_TMN_CODE",
          "HashSecret": "YOUR_VNPAY_HASH_SECRET"
+       },
+       "BankTransfer": {
+         "BankCode": "ACB",
+         "AccountNumber": "YOUR_ACCOUNT_NUMBER",
+         "AccountName": "YOUR_ACCOUNT_NAME",
+         "QrTemplate": "compact2",
+         "OrderPrefix": "DH_",
+         "PosOrderPrefix": "BHX_",
+         "ApiUrl": "https://my.sepay.vn/userapi/transactions/list",
+         "ApiKey": "YOUR_SEPAY_API_KEY",
+         "ApiHeaderName": "Authorization",
+         "ApiAuthScheme": "Bearer"
+       }
+     },
+     "Authentication": {
+       "Google": {
+         "ClientId": "YOUR_GOOGLE_CLIENT_ID",
+         "ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET"
+       },
+       "Facebook": {
+         "AppId": "YOUR_FACEBOOK_APP_ID",
+         "AppSecret": "YOUR_FACEBOOK_APP_SECRET"
        }
      }
    }
