@@ -191,10 +191,10 @@ WebBanHang/
 ---
 
 ## 👨‍💻 Tác giả (Author)
-* **Họ và tên**: [Tên của bạn]
-* **Email**: [Email của bạn]
-* **LinkedIn**: [Link LinkedIn của bạn]
-* **Portfolio / GitHub**: [Link GitHub của bạn]
+* **Họ và tên**: Võ Văn Phú
+* **Email**: Anhmuoi270280@gmail.com
+* **LinkedIn**: [www.linkedin.com/in/phú-võ-văn-078441429](https://www.linkedin.com/in/ph%C3%BA-v%C3%B5-v%C4%83n-078441429/)
+* **Portfolio / GitHub**: https://github.com/AriesStorm247
 
 ---
 
