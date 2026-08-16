@@ -15,7 +15,7 @@
   Một giải pháp thương mại điện tử kết hợp bán lẻ tại quầy (O2O) toàn diện mô phỏng chuỗi siêu thị <b>Bách Hóa XANH</b>, được xây dựng trên nền tảng <b>ASP.NET Core 8 MVC</b>, tích hợp cổng thanh toán <b>VNPay / VietQR</b>, trợ lý ảo <b>Gemini AI</b>, phân hệ <b>POS tại quầy</b>, <b>quản lý kho theo lô hạn dùng</b> và <b>quản trị nhân sự (HRM)</b>.
 </p>
 
-[Tính năng nổi bật](#-tính-năng-nổi-bật) • [Công nghệ sử dụng](#-công-nghệ-sử-dụng) • [Kiến trúc hệ thống](#-cấu-trúc-thư-mục-dự-án) • [Hướng dẫn cài đặt](#-hướng-dẫn-cài-đặt--chạy-local) • [Hình ảnh demo](#-hình-ảnh-giao-diện-demo)
+[Tính năng nổi bật](#-tính-năng-nổi-bật) • [Công nghệ sử dụng](#-công-nghệ-sử-dụng) • [Kiến trúc hệ thống](#-cấu-trúc-thư-mục-dự-án) • [Hướng dẫn cài đặt](#-hướng-dẫn-cài-đặt--chạy-local)
 
 ---
 
@@ -100,26 +100,8 @@ WebBanHang/
 │   ├── appsettings.json              # Cấu hình hệ thống (Sanitized for Git)
 │   ├── appsettings.Example.json      # File mẫu hướng dẫn cấu hình
 │   └── Program.cs                    # Điểm khởi chạy & Dependency Injection
-├── Database_And_Docs/                # Tài liệu phân tích, đặc tả & dữ liệu mẫu
-├── docs/                             # Hình ảnh & tài liệu phục vụ README
 └── README.md
 ```
-
----
-
-## 📸 Hình ảnh giao diện Demo
-
-<div align="center">
-
-| Trang chủ & Danh mục sản phẩm | Báo cáo & Thống kê doanh thu |
-| :---: | :---: |
-| <img src="docs/images/media__1783751502498.png" width="400" alt="Home Page"/> | <img src="docs/images/media__1783753096281.png" width="400" alt="Admin Dashboard"/> |
-
-| Phân hệ POS Bán hàng tại quầy | Quản lý Lô hàng & Hạn sử dụng |
-| :---: | :---: |
-| <img src="docs/images/media__1783753756860.png" width="400" alt="POS System"/> | <img src="docs/images/media__1783754772256.png" width="400" alt="Inventory Batches"/> |
-
-</div>
 
 ---
 
