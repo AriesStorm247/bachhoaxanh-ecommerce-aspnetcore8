@@ -197,6 +197,12 @@ Hệ thống tự động nạp sẵn dữ liệu mẫu (Danh mục, Sản phẩ
 | **Nhân viên (Staff)** | `staff@bachhoaxanh.vn` | `Staff@123456` | Bán hàng POS tại quầy thu ngân, quản lý kho chi nhánh |
 | **Khách hàng (Customer)** | `customer@gmail.com` | `Customer@123456` | Mua sắm trực tuyến, thanh toán VNPay/VietQR, tích điểm thành viên, Gemini AI Chatbot |
 
+> 💡 **Hướng dẫn tùy chỉnh Email & Tài khoản theo thông tin cá nhân của bạn:**
+>
+> 1. **Thay đổi tài khoản mẫu mặc định**: Mở file `WebBanHang-main/Data/DbSeeder.cs` và chỉnh sửa các biến `adminEmail`, `staffEmail`, `customerEmail` cùng mật khẩu theo thông tin cá nhân của bạn trước khi chạy lần đầu.
+> 2. **Tạo tài khoản mới trực tiếp trên Web**: Bạn có thể bấm **Đăng ký** bằng email cá nhân trên giao diện website, sau đó dùng tài khoản `admin@bachhoaxanh.vn` để gán quyền (Role) cho tài khoản mới tại trang quản trị.
+> 3. **Nhận Email hóa đơn & xác thực về hộp thư thật**: Điền Email và [Mật khẩu ứng dụng Gmail (App Password)](https://myaccount.google.com/apppasswords) của bạn vào mục `EmailSettings` trong file `appsettings.Local.json`.
+
 ---
 
 ## 👨‍💻 Tác giả (Author)
