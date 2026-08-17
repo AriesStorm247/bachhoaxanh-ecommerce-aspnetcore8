@@ -439,8 +439,9 @@ using (var scope = app.Services.CreateScope())
             context.SaveChanges();
         }
 
-        // Seed default categories and products if empty
+        // Seed default categories, products, roles and test accounts if empty
         DbSeeder.Seed(context);
+        await DbSeeder.SeedIdentityAsync(scope.ServiceProvider);
     }
     catch { /* Table doesn't exist yet */ }
 }

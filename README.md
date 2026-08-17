@@ -188,6 +188,15 @@ WebBanHang/
 5. **Truy cập ứng dụng**:
    - Giao diện người dùng: `https://localhost:5001` (hoặc cổng HTTP do console hiển thị).
 
+### 3. Tài khoản mẫu để kiểm thử (Default Test Accounts)
+Hệ thống tự động nạp sẵn dữ liệu mẫu (Danh mục, Sản phẩm có ảnh, Chi nhánh, Tồn kho) và các tài khoản kiểm thử cho từng vai trò ngay lần chạy đầu tiên:
+
+| Vai trò (Role) | Email đăng nhập | Mật khẩu | Quyền hạn & Chức năng |
+| :--- | :--- | :--- | :--- |
+| **Quản trị viên (Admin)** | `admin@bachhoaxanh.vn` | `Admin@123456` | Toàn quyền Admin: Quản lý sản phẩm, đơn hàng, kho bãi, nhân sự (HRM), báo cáo doanh thu |
+| **Nhân viên (Staff)** | `staff@bachhoaxanh.vn` | `Staff@123456` | Bán hàng POS tại quầy thu ngân, quản lý kho chi nhánh |
+| **Khách hàng (Customer)** | `customer@gmail.com` | `Customer@123456` | Mua sắm trực tuyến, thanh toán VNPay/VietQR, tích điểm thành viên, Gemini AI Chatbot |
+
 ---
 
 ## 👨‍💻 Tác giả (Author)

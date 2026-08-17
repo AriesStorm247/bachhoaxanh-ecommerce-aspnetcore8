@@ -1,13 +1,135 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using WebBanHang.Models;
 
 namespace WebBanHang.Data
 {
     public static class DbSeeder
     {
+        public static async Task SeedIdentityAsync(IServiceProvider serviceProvider)
+        {
+            try
+            {
+                var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+                var userManager = serviceProvider.GetRequiredService<UserManager<IdentityUser>>();
+                var context = serviceProvider.GetRequiredService<ApplicationDbContext>();
+
+                // 1. Seed Roles
+                string[] roles = { "Admin", "Manager", "Staff", "Customer" };
+                foreach (var role in roles)
+                {
+                    if (!await roleManager.RoleExistsAsync(role))
+                    {
+                        await roleManager.CreateAsync(new IdentityRole(role));
+                    }
+                }
+
+                // 2. Seed Admin User
+                var adminEmail = "admin@bachhoaxanh.vn";
+                var adminUser = await userManager.FindByEmailAsync(adminEmail);
+                if (adminUser == null)
+                {
+                    adminUser = new IdentityUser
+                    {
+                        UserName = adminEmail,
+                        Email = adminEmail,
+                        EmailConfirmed = true
+                    };
+                    var createResult = await userManager.CreateAsync(adminUser, "Admin@123456");
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(adminUser, "Admin");
+                        if (!context.CustomerProfiles.Any(p => p.UserId == adminUser.Id))
+                        {
+                            context.CustomerProfiles.Add(new CustomerProfile
+                            {
+                                UserId = adminUser.Id,
+                                FullName = "Quản trị viên BHX",
+                                MembershipLevel = 3,
+                                LoyaltyPoints = 9999,
+                                CreatedAt = DateTime.Now,
+                                UpdatedAt = DateTime.Now
+                            });
+                            await context.SaveChangesAsync();
+                        }
+                    }
+                }
+
+                // 3. Seed Staff User
+                var staffEmail = "staff@bachhoaxanh.vn";
+                var staffUser = await userManager.FindByEmailAsync(staffEmail);
+                if (staffUser == null)
+                {
+                    staffUser = new IdentityUser
+                    {
+                        UserName = staffEmail,
+                        Email = staffEmail,
+                        EmailConfirmed = true
+                    };
+                    var createResult = await userManager.CreateAsync(staffUser, "Staff@123456");
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(staffUser, "Staff");
+                        var branch = await context.Branches.FirstOrDefaultAsync();
+                        if (!context.CustomerProfiles.Any(p => p.UserId == staffUser.Id))
+                        {
+                            context.CustomerProfiles.Add(new CustomerProfile
+                            {
+                                UserId = staffUser.Id,
+                                FullName = "Nhân viên Bách Hóa XANH",
+                                WorkingBranchId = branch?.Id,
+                                MembershipLevel = 1,
+                                LoyaltyPoints = 100,
+                                CreatedAt = DateTime.Now,
+                                UpdatedAt = DateTime.Now
+                            });
+                            await context.SaveChangesAsync();
+                        }
+                    }
+                }
+
+                // 4. Seed Customer User
+                var customerEmail = "customer@gmail.com";
+                var customerUser = await userManager.FindByEmailAsync(customerEmail);
+                if (customerUser == null)
+                {
+                    customerUser = new IdentityUser
+                    {
+                        UserName = customerEmail,
+                        Email = customerEmail,
+                        EmailConfirmed = true
+                    };
+                    var createResult = await userManager.CreateAsync(customerUser, "Customer@123456");
+                    if (createResult.Succeeded)
+                    {
+                        await userManager.AddToRoleAsync(customerUser, "Customer");
+                        if (!context.CustomerProfiles.Any(p => p.UserId == customerUser.Id))
+                        {
+                            context.CustomerProfiles.Add(new CustomerProfile
+                            {
+                                UserId = customerUser.Id,
+                                FullName = "Khách Hàng Mẫu",
+                                MembershipLevel = 2,
+                                LoyaltyPoints = 500,
+                                CreatedAt = DateTime.Now,
+                                UpdatedAt = DateTime.Now
+                            });
+                            await context.SaveChangesAsync();
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore errors during initial migrations
+            }
+        }
+
         public static void Seed(ApplicationDbContext context)
         {
             if (!context.Categories.Any())
